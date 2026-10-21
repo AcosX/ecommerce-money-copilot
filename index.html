@@ -178,6 +178,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
   .stat{font-size:11px;padding:3px 7px}
 }
 </style>
+<link rel="stylesheet" href="css/emc-login.css">
 </head>
 <body>
 <div class="app">
@@ -189,10 +190,11 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
       电商搞钱参谋
     </div>
     <div class="stats">
-      <span class="stat">游客 <b id="guestTag">可玩教学</b></span>
+      <span class="stat"><span id="modeLabel">游客</span> <b id="guestTag">可玩教学</b></span>
       <span class="stat"><span class="mood" id="moodDot"></span>亲密度 <b id="moodVal">0</b></span>
       <span class="stat">当前 <b id="curLv">L1</b></span>
     </div>
+    <div class="emc-acct" id="emcAcct"></div>
   </header>
 
   <!-- ===== 视图：小镇 ===== -->
@@ -204,11 +206,20 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
           <h1 class="title-px">电商搞钱参谋</h1>
           <p>游戏化带教 × 真实经营结果驱动。每一关都在真实电商平台拿到真实结果才解锁，最终通关 = 破零动销（真实第一单）。</p>
         </div>
-        <div class="guest-banner">
+        <div class="guest-banner" id="guestBanner">
           <svg width="18" height="18" viewBox="0 0 24 24" style="fill:var(--gold)"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7z"/></svg>
           <span>游客模式：可完整体验教学；进入真实实操（绑定平台、产出真实选品单）前 <b>引导注册</b></span>
         </div>
         <div class="quest-path" id="questPath"></div>
+        <section class="emc-real" aria-labelledby="emcRealTitle">
+          <h2 id="emcRealTitle">真实经营</h2>
+          <p>教学全程无需登录。进入真实经营、生成正式选品单、提交认证需要先登录，成果会保存在你的账号下。</p>
+          <div class="emc-real-actions">
+            <button type="button" class="px-btn" data-emc-gate="真实经营" data-emc-placeholder>真实经营</button>
+            <button type="button" class="px-btn" data-emc-gate="生成正式选品单" data-emc-placeholder>生成正式选品单</button>
+            <button type="button" class="px-btn" data-emc-gate="提交认证" data-emc-placeholder>提交认证</button>
+          </div>
+        </section>
       </div>
     </div>
   </section>
@@ -310,6 +321,10 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
 </div>
 
 <!-- ===== 脚本 ===== -->
+<script src="js/emc-route.js"></script>
+<script src="js/emc-api.js"></script>
+<script src="js/emc-session.js"></script>
+<script src="js/emc-account-ui.js"></script>
 <script>
 /* ===== 数据 ===== */
 const LEVELS=[
@@ -393,6 +408,7 @@ function go(v){
   if(v==='verify'){renderVerifyGrid();}
   if(v==='town'){renderQuest();}
   document.getElementById('view-'+v).scrollTop=0;
+  if(window.EmcRoute)EmcRoute.onView(v);
 }
 function toggleTask(i){
   if(state.verified)return;
@@ -505,6 +521,7 @@ function toast(t){
 /* ===== init ===== */
 renderQuest();renderTasks();renderVerifyStrip();setMood();
 go('town');
+if(window.EmcAccountUI)EmcAccountUI.start();
 </script>
 </body>
 </html>
