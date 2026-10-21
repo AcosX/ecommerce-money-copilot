@@ -114,14 +114,13 @@ aliases={'Body':'Hips','Hips':'Spine','Abdomen':'Spine1','Torso':'Spine2','Neck'
 order=sorted(mapping,key=lambda n:len(rig.data.bones[n].parent_recursive))
 scene=bpy.context.scene
 scene.render.fps=30
-library=[('idle','Idle',4.0,True),('walk','Walking',1.2,True),
+library=[('idle','Idle',4.0,True),('walk','Walking',1.5,True),
          ('wave','Wave',2.8,False),('talk','Idle',4.0,True),
          ('turn','Idle',3.2,False),('window','Idle',4.0,False),
          ('lookout','Idle',4.8,False),('inspect','Idle',4.0,False),
          ('nod','Yes',1.8,False)]
 made=[]
 probes={}
-sole_samples=[(o,[v.index for v in o.data.vertices if (o.matrix_world@v.co).z<.055]) for o in meshes]
 lower_names={'Body','UpperLeg.L','LowerLeg.L','Foot.L','UpperLeg.R','LowerLeg.R','Foot.R'}
 def axis_world(name,axis,angle):
     pb=rig.pose.bones[name]
@@ -162,11 +161,71 @@ def relax_hands(action,phase):
         prefix='tripo::0_Right_Limb_' if side==1 else 'tripo::1_Left_Limb_'
         for index in (3,4,5):axis_world(prefix+str(index),flex_axis,-side*(.16-.10*wave_weight))
 
+
+rest_positions={b.name:world@b.head_local for b in rig.data.bones}
+
+def pose_world(name, position, rotation):
+    rig.pose.bones[name].matrix=inverse@Matrix.LocRotScale(position,rotation,Vector((1,1,1)))
+    bpy.context.view_layer.update()
+
+def solve_limb(names, target, pole):
+    # Analytic two-bone IK, baked onto the existing deform skeleton. The end
+    # point and pole are controls in world metres, independent of source proportions.
+    a,b,c=names
+    origin=world@rig.pose.bones[a].head
+    ab=rest_positions[b]-rest_positions[a]
+    bc=rest_positions[c]-rest_positions[b]
+    l1,l2=ab.length,bc.length
+    direction=(target-origin).normalized()
+    distance=min((target-origin).length,l1+l2-.001)
+    bend=pole-origin
+    bend=(bend-direction*bend.dot(direction)).normalized()
+    along=(l1*l1-l2*l2+distance*distance)/(2*distance)
+    knee=origin+direction*along+bend*math.sqrt(max(0,l1*l1-along*along))
+    endpoint=origin+direction*distance
+    pose_world(a,origin,ab.rotation_difference(knee-origin)@rest[a])
+    pose_world(b,knee,bc.rotation_difference(endpoint-knee)@rest[b])
+    is_arm=a in ('tripo::0_Right_Limb_0','tripo::1_Left_Limb_0')
+    pose_world(c,endpoint,(bc.rotation_difference(endpoint-knee)@rest[c]) if is_arm else rest[c])
+
+def curve(t,keys):
+    if t<=keys[0][0]:return keys[0][1]
+    for (a,x),(b,y) in zip(keys,keys[1:]):
+        if t<=b:
+            u=max(0,min(1,(t-a)/(b-a)))
+            u=u*u*u*(u*(u*6-15)+10)
+            return x+(y-x)*u
+    return keys[-1][1]
+
+def contact_legs(action,t):
+    # Keep the pelvis steady. No per-frame whole-body correction from the
+    # lowest moving shoe: that produced the previous eight-centimetre bob.
+    root=rig.pose.bones['tripo::Root']
+    m=root.matrix.copy()
+    sway=.004*math.sin(t*math.pi*2) if action=='walk' else 0
+    rise=.003*math.cos(t*math.pi*4) if action=='walk' else 0
+    m.translation+=inverse.to_3x3()@Vector((0,sway,-.025+rise))
+    root.matrix=m
+    bpy.context.view_layer.update()
+    for side,prefix in [(1,'tripo::0_Left_Limb_'),(-1,'tripo::1_Right_Limb_')]:
+        ankle=rest_positions[prefix+'2'].copy()
+        if action=='walk':
+            phase=(t+(0 if side==1 else .5))%1
+            # Constant-speed stance compensates forward navigation; a low,
+            # eased swing returns the foot, with a short double-support interval.
+            if phase<.58:
+                ankle.x+=.095-.19*phase/.58
+            else:
+                u=(phase-.58)/.42
+                ankle.x+=-.095+.19*smooth(u)
+                ankle.z+=.022*math.sin(math.pi*u)**2
+        solve_limb([prefix+str(i) for i in range(3)],ankle,Vector((.5,side*.14,.45)))
+
 for name, original, duration, loop in library:
-    src=robot if name=='wave' else human
+    src=human
     bone_names={n:n if src==robot else 'mixamorig:'+aliases[n] for n in set(mapping.values())}
     source_rest={n:(src.matrix_world@src.data.bones[actual].matrix_local).to_quaternion() for n,actual in bone_names.items()}
-    source_action=actions['Wave'] if src==robot else human_actions['walk' if name=='walk' else ('agree' if name=='nod' else 'idle')]
+    source_action=human_actions['walk' if name=='walk' else ('agree' if name=='nod' else 'idle')]
     rig.animation_data_clear()
     for pb in rig.pose.bones:
         pb.matrix_basis=Matrix.Identity(4)
@@ -174,6 +233,12 @@ for name, original, duration, loop in library:
     action=bpy.data.actions.new(name)
     rig.animation_data_create()
     rig.animation_data.action=action
+    src.animation_data.action=source_action
+    src.animation_data.action_slot=source_action.slots[0]
+    src.animation_data.action=human_actions['idle']
+    src.animation_data.action_slot=human_actions['idle'].slots[0]
+    scene.frame_set(0)
+    idle_reference={n:(src.matrix_world@src.pose.bones[bone_names[n]].matrix).to_quaternion() for n in mapping.values()}
     src.animation_data.action=source_action
     src.animation_data.action_slot=source_action.slots[0]
     start,end=source_action.frame_range
@@ -195,66 +260,63 @@ for name, original, duration, loop in library:
             f=start+(end-start)*phase
             scene.frame_set(math.floor(f),subframe=f%1)
             for n in names:source_rotations[n]=(src.matrix_world@src.pose.bones[bone_names[n]].matrix).to_quaternion()
-        if name!='walk':
-            # The source robot bounces on its toes even in Idle / Wave. A human
-            # shopkeeper keeps a stable stance while gesturing, with torso motion above.
-            for n in lower_names-({'Body'} if name=='idle' else set()):source_rotations[n]=source_rest[n].copy()
+        # Foot contacts are solved in target proportions, not copied from the
+        # source actor's pelvis height or leg rotations.
+        for n in lower_names:source_rotations[n]=source_rest[n].copy()
         for pb in rig.pose.bones:pb.matrix_basis=Matrix.Identity(4)
         bpy.context.view_layer.update()
         for target_name in order:
             source_name=mapping[target_name]
             source_now=source_rotations[source_name]
+            if name=='walk' and source_name not in lower_names:
+                # Retain the human resting arm pose, reduce its excursion rather
+                # than blending toward the T-pose. Small stride needs small arms.
+                amount=.38 if 'Arm' in source_name else .20
+                source_now=idle_reference[source_name].slerp(source_now,amount)
             delta=source_now@source_rest[source_name].inverted()
-            if name=='wave' and source_name in ('Head','Neck','Torso','Abdomen'):
-                delta=Quaternion().slerp(delta,.55)
+            if name=='nod' and source_name in ('Head','Neck'):
+                idle_delta=idle_reference[source_name]@source_rest[source_name].inverted()
+                delta=idle_delta.slerp(delta,.50)
             desired=convert@delta@convert.inverted()@rest[target_name]
             pb=rig.pose.bones[target_name]
             position=(world@pb.matrix).translation
             pb.matrix=inverse@Matrix.LocRotScale(position,desired,Vector((1,1,1)))
             bpy.context.view_layer.update()
-        envelope=math.sin(math.pi*t)**2
-        if name=='idle':
-            axis_world('tripo::Spine_2',(0,1,0),.014*math.sin(t*math.pi*2))
-            axis_world('tripo::Spine_1',(1,0,0),.010*math.sin(t*math.pi*2-.3))
-            axis_world('Xiaoshang_Head',(0,0,1),.025*math.sin(t*math.pi*2-.5))
-        elif name=='walk':
-            axis_world('tripo::Spine_2',(0,0,1),.025*math.sin(t*math.pi*2))
-            axis_world('Xiaoshang_Head',(0,1,0),.018*math.sin(t*math.pi*4-.35))
+        # Deliberate blocking: look first, shift/gesture, hold, then release.
+        # Independent timings stop torso, head and hands reversing together.
+        if name=='walk':
+            axis_world('tripo::Spine_2',(0,0,1),.012*math.sin(t*math.pi*2))
+        elif name=='wave':
+            head=curve(t,[(0,0),(.12,.07),(.68,.07),(1,0)])
+            axis_world('Xiaoshang_Head',(1,0,0),head)
+            axis_world('tripo::Spine_2',(0,1,0),curve(t,[(0,0),(.20,-.025),(.64,-.025),(1,0)]))
+            lift=curve(t,[(0,0),(.08,0),(.30,1),(.70,1),(.96,0),(1,0)])
+            hand_name='tripo::1_Left_Limb_2'
+            baseline=world@rig.pose.bones[hand_name].head
+            sway=curve(t,[(0,0),(.31,0),(.40,-.035),(.51,.035),(.61,-.028),(.70,0),(1,0)])
+            target=baseline.lerp(Vector((.12,-.37+sway,1.48)),lift)
+            elbow=world@rig.pose.bones['tripo::1_Left_Limb_1'].head
+            pole=elbow.lerp(Vector((.22,-.42,1.06)),lift)
+            solve_limb(['tripo::1_Left_Limb_'+str(i) for i in range(3)],target,pole)
         elif name=='talk':
-            axis_world('tripo::0_Right_Limb_1',(0,1,0),.24*math.sin(t*math.pi*4))
-            axis_world('Xiaoshang_Head',(0,1,0),.045*math.sin(t*math.pi*4))
+            offer=curve(t,[(0,0),(.12,.4),(.28,1),(.43,.85),(.60,.25),(.78,0),(1,0)])
+            axis_world('tripo::0_Right_Limb_1',(0,1,0),-.22*offer)
+            axis_world('Xiaoshang_Head',(0,1,0),curve(t,[(0,0),(.20,0),(.32,.035),(.45,0),(1,0)]))
         elif name=='turn':
-            axis_world('Xiaoshang_Hips',(0,0,1),.25*math.sin(t*math.pi*2))
-            axis_world('tripo::Spine_2',(0,0,1),.18*math.sin(t*math.pi*2))
-            axis_world('Xiaoshang_Head',(0,0,1),.40*math.sin(t*math.pi*2))
-        elif name=='window':
-            axis_world('tripo::Spine_1',(0,1,0),.12*envelope)
-            axis_world('Xiaoshang_Head',(0,1,0),.12*envelope)
-            axis_world('Xiaoshang_Head',(0,0,1),.14*math.sin(t*math.pi*3)*envelope)
-        elif name=='lookout':
-            axis_world('Xiaoshang_Head',(0,1,0),-.12*envelope)
-            axis_world('Xiaoshang_Head',(0,0,1),.50*math.sin(t*math.pi*2)*envelope)
-        elif name=='inspect':
-            axis_world('tripo::Spine_1',(0,1,0),.20*envelope)
-            axis_world('Xiaoshang_Head',(0,1,0),.25*envelope)
-            axis_world('tripo::0_Right_Limb_0',(0,1,0),-.24*envelope)
+            axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.25,.45),(.58,.45),(.92,0),(1,0)]))
+            axis_world('tripo::Spine_2',(0,0,1),curve(t,[(0,0),(.12,0),(.38,.16),(.65,.16),(1,0)]))
+        elif name in ('window','lookout','inspect'):
+            lean=curve(t,[(0,0),(.15,0),(.40,1),(.72,1),(1,0)])
+            glance=curve(t,[(0,0),(.24,1),(.65,1),(.90,0),(1,0)])
+            pitch={'window':.10,'lookout':-.07,'inspect':.22}[name]
+            axis_world('Xiaoshang_Head',(0,1,0),pitch*glance)
+            axis_world('tripo::Spine_1',(0,1,0),(.10 if name=='inspect' else .035)*lean)
+            if name=='lookout':
+                axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.26,.27),(.43,.27),(.67,-.20),(.78,-.20),(1,0)]))
+            if name=='window':
+                axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.35,-.12),(.58,-.12),(.77,.10),(1,0)]))
+        contact_legs(name,t)
         relax_hands(name,t)
-        # Exclude hidden armature display widgets (the native file contains an
-        # Icosphere) from contact measurement. Only actual character soles count.
-        bpy.context.view_layer.update()
-        deps=bpy.context.evaluated_depsgraph_get()
-        lowest=10
-        for obj,indices in sole_samples:
-            if indices:
-                evaluated=obj.evaluated_get(deps)
-                mesh=evaluated.to_mesh()
-                lowest=min(lowest,min((evaluated.matrix_world@mesh.vertices[i].co).z for i in indices))
-                evaluated.to_mesh_clear()
-        root=rig.pose.bones['tripo::Root']
-        mat=root.matrix.copy()
-        mat.translation+=inverse.to_3x3()@Vector((0,0,-lowest))
-        root.matrix=mat
-        bpy.context.view_layer.update()
         for pb in rig.pose.bones:
             q=pb.rotation_quaternion.copy()
             if pb.name in previous_quaternions:q.make_compatible(previous_quaternions[pb.name])
@@ -296,9 +358,9 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'organic-v2: human gait, eased gestures, delayed forearms and palm-axis wave',
+    'motion_revision':'merchant-v3: stable pelvis, two-bone foot contacts, small steps and staged greeting',
     'human_motion':{'url':'https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Xbot.glb',
-                    'clips':['idle','walk','talk','turn','window','lookout','inspect','nod'],
+                    'clips':['idle','walk','wave','talk','turn','window','lookout','inspect','nod'],
                     'author':'Mixamo / Adobe; three.js sample asset',
                     'usage':'embedded in this game; not a standalone motion library',
                     'terms':'https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html',
@@ -306,7 +368,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'rig_adjustments':{'head_neck_pelvis':'dedicated joints', 'clavicle':'follows torso, never upper-arm roll',
                        'hand_scale':.82,'fingers':'relaxed flexion; open palm for wave'},
     'source_motion':{'url':'https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive',
-                     'clips':['wave'],
+                     'clips':[],
                      'author':'Tomás Laulhé / Quaternius; modifications Don McCurdy',
                      'license':'CC0-1.0','sha256':hashlib.sha256(motion.read_bytes()).hexdigest()},
     'joint_probes':probes},indent=2),encoding='utf-8')
