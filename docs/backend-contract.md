@@ -32,10 +32,13 @@ backend/
   docker-compose.dev.yml     开发用 MariaDB 10.11
   emc_api/
     main.py config.py errors.py db.py models.py security.py
-    routers/  auth.py me.py projects.py artifacts.py evidence.py verifications.py admin.py
+    ids.py pagination.py middleware.py logging_config.py hashing.py timeutil.py   基础工具
+    routers/  auth.py me.py health.py projects.py artifacts.py evidence.py verifications.py admin.py
     services/ artifact_types.py idempotency.py audit.py storage.py
     admin_ui/                最小审核后台静态资源
   alembic/                   迁移
+  sql/grants.example.sql     最小权限数据库账号示例（占位密码）
+  dev/mariadb-init/          开发容器初始化脚本（测试库授权）
   tests/
 deploy/                      systemd、Apache、部署/备份/恢复脚本（无凭据）
 docs/                        本约定、openapi.json、关卡对接说明
@@ -70,6 +73,8 @@ uv run pytest
 | `EMC_MAX_FILES_PER_SUBMISSION` | 默认 5 |
 | `EMC_SESSION_IDLE_SECONDS` / `EMC_SESSION_ABSOLUTE_SECONDS` | 默认 604800 / 2592000 |
 | `EMC_COOKIE_SECURE` | 生产为 `true` |
+| `EMC_MAX_BODY_BYTES` | 普通请求体上限，默认 262144（256 KiB）；`POST /api/evidence` 另按 `EMC_MAX_UPLOAD_BYTES` + 64 KiB 限制 |
+| `EMC_LOG_LEVEL` | 默认 `INFO`；日志为 JSON 行，含 `request_id` |
 
 ## 5. 身份与会话
 
@@ -94,7 +99,8 @@ uv run pytest
 ## 6. 通用约定
 
 - JSON（UTF-8）；时间为 ISO 8601 UTC；ID 为带前缀的随机字符串：`ply_` 玩家、`prj_` 项目、`art_` 成果、`ver_` 认证申请、`evd_` 证据、`rev_` 审核记录。
-- 每个响应带 `X-Request-ID`。
+- 每个响应带 `X-Request-ID`（默认 `req_…`；若上游传入 8–64 位 `[A-Za-z0-9._:-]` 的值则沿用）。
+- `GET /api/health`：正常 200 `{"status": "ok", "database": "ok"}`；数据库不可用（或 Galera 节点未就绪）503 `{"status": "unavailable", "database": "unavailable"}`。
 - 错误格式：
 
 ```json
@@ -106,7 +112,9 @@ uv run pytest
 | `unauthenticated` | 401 | 未登录或会话过期 |
 | `csrf_failed` | 403 | CSRF 校验失败 |
 | `forbidden` | 403 | 已登录但无权限（如非审核员访问审核接口、审核本人申请） |
+| `bad_request` | 400 等 | 其他无法归类的 4xx 请求错误 |
 | `not_found` | 404 | 不存在或不属于当前玩家（统一 404，防止枚举） |
+| `method_not_allowed` | 405 | 路径存在但不支持该方法（带 `Allow` 头） |
 | `validation_error` | 422 | 字段校验失败，`details.errors` 列出字段 |
 | `idempotency_key_reuse` | 422 | 同一 Idempotency-Key 对应不同请求体 |
 | `version_conflict` | 409 | 乐观锁版本不一致 |
@@ -118,7 +126,8 @@ uv run pytest
 
 - 请求体上限 256 KiB（上传除外）；成果 `content` 序列化后 ≤ 128 KiB，嵌套深度 ≤ 8。
 - 分页：`?limit=`（1–100，默认 20）`&cursor=`；响应 `{"items": [...], "next_cursor": null}`。
-- 幂等：创建类 POST（项目、成果、证据、认证申请、审核）支持 `Idempotency-Key`（1–128 字符）。同一玩家、同一接口、同一 key：请求体相同则返回首次结果，不同则 422 `idempotency_key_reuse`；保留 24 小时。
+- 幂等：创建类 POST（项目、成果、证据、认证申请、审核）支持 `Idempotency-Key`（1–128 个可见 ASCII 字符）。同一玩家、同一接口、同一 key：请求体相同则返回首次结果（响应头 `Idempotency-Replayed: true`），不同则 422 `idempotency_key_reuse`；保留 24 小时。失败的请求不记录，可用同一 key 重试。
+- 非 GET 的 `/api/*` 先校验登录（401）再校验 CSRF（403），之后才校验请求体（422）；超限请求体在此之前直接返回 413。
 - 并发：可修改资源带整数 `version`。PATCH 请求体必须带当前 `version`，不一致返回 409 `version_conflict`。
 
 ## 7. 关卡与成果类型
