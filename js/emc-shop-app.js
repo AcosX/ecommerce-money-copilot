@@ -2,7 +2,7 @@
   'use strict';
   const G=window.EmcGame,S=window.EmcTutorialSave,C=window.EmcCopilot,K=window.EmcSky,$=id=>document.getElementById(id);
   const sceneURL=new URL('./emc-shop-scene.js',document.currentScript.src);sceneURL.search=new URL(document.currentScript.src).search;
-  const audio=window.EmcAudio.create();
+  const audio=window.EmcAudio.create(),juice=window.EmcJuice.create();
   const store=S.createStore(()=>window.localStorage),loaded=store.load();
   let journey=null;
   let tutorial=loaded.data;
@@ -82,7 +82,7 @@
     $('questHint').textContent='领任务 · 带锦囊 · 交成果 · 等确认';
     $('continueText').textContent='继续主线';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
     refreshInventoryDots();
-    $('guideText').textContent='完成真实经营任务，确认后小店成长。';
+    $('guideText').textContent='目标第一单，先拿下这一步！';
     if(panel)renderPanel();
     homeReady=syncHome();
   }
@@ -101,8 +101,8 @@
       $('homeCanvas').hidden=false;sceneLoaded();
     }catch(error){if(token!==homeToken)return;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed(/^[\u4e00-\u9fff]/.test(error.message)?error.message:'场景资源加载失败，请检查网络后重试。');}finally{clearTimeout(deadline);}
   }
-  function openPanel(name){
-    audio.play('open');
+  function openPanel(name,sound='open'){
+    audio.play(sound);
     cancelPaint();finishConversation();
     window.EmcRoute?.onView(name);
     panel=name;activeTask=null;answer=null;feedback=null;
@@ -187,13 +187,13 @@
   $('panelBody').addEventListener('input',e=>{if(e.target.id==='partnerNameInput'){$('partnerNameError').textContent='';e.target.removeAttribute('aria-invalid');}});
   function audioSettings(){
     const a=audio.state();
-    return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">小岛开张 · 8-bit 原创循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
+    return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">开张冲冲冲 · 128 BPM 原创街机循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
   }
   function graphicsSettings(){return `<section class="setting-field" aria-label="画面质量"><p class="field-label">画面质量</p><div class="setting-actions">${[['auto','自动适配'],['smooth','流畅优先'],['detail','精细画面']].map(([id,name])=>`<button class="small-button" data-graphics-quality="${id}" aria-pressed="${game.graphics_quality===id}">${name}</button>`).join('')}</div><p class="muted-note">自动适配会为手机和较低配置使用轻量模型。感觉卡顿时，可以选择流畅优先；切换画质会重新加载小岛。</p></section>`;}
   function renderSettings(){
     $('panelBody').innerHTML=accountSettings()+partnerSettings()+audioSettings()+graphicsSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">伙伴设置、装修和旧版练习保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>完成任务后交回真实成果，确认通过才解锁后续关卡；提交文件不会自动视作通关。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">五级店铺与悬浮岛已接入 Tripo 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
   }
-  function startMain(){openPanel('journey');journey.open();}
+  function startMain(){juice.launch();openPanel('journey','start');journey.open();}
   function showTask(id){
     const t=[...G.MAIN,...G.SIDE].find(t=>t.id===id);if(!t)return;
     activeTask=t;answer=null;feedback=null;
@@ -208,7 +208,7 @@
     feedback={ok:result.ok,message:result.ok?result.why:result.reason};
     if(result.ok){
       save();render();
-      const after=growthStage();audio.play(after>before?'upgrade':'reward');toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'支线挑战完成'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
+      const after=growthStage();audio.play(after>before?'upgrade':'reward');juice.burst($('sideButton'));toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'支线挑战完成'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
     }else{audio.play('wrong');renderQuests();}
   }
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!$('scene').dataset.loading;}
@@ -335,8 +335,8 @@
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));
   document.querySelector('.brand').onclick=e=>{e.preventDefault();closePanel();};
   $('panelBody').addEventListener('input',e=>{const key=e.target.dataset.audioVolume;if(key){audio.set(key,Number(e.target.value)/100);const output=$(key+'Value');if(output)output.textContent=e.target.value+'%';}});
-  document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&!b.disabled&&!b.matches('[data-panel],#closePanel,#continueButton,#sideButton,#submitAnswer,[data-audio-toggle],#copilotSend'))audio.play('click');});
-  window.addEventListener('pagehide',e=>{if(!e.persisted)audio.dispose();});
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&!b.disabled&&!b.matches('[data-panel],#closePanel,#continueButton,#sideButton,#submitAnswer,[data-audio-toggle],#copilotSend,[data-j-action],[data-j-level],[data-j-remove]'))audio.play('click');});
+  window.addEventListener('pagehide',e=>{if(!e.persisted){audio.dispose();juice.dispose();}});
   document.querySelector('.quest-peek').onclick=startMain;
   $('closePanel').onclick=closePanel;$('continueButton').onclick=startMain;$('sideButton').onclick=()=>{tab='side';openPanel('quests');};
   $('panelBody').onclick=e=>{
@@ -366,7 +366,7 @@
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
     }
   });
-  window.render_game_to_text=()=>JSON.stringify({mode:'business_journey',journey:journey?.summary(),audio:audio.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:journey?journey.progress().levels.filter(l=>l.status==='approved').map(l=>l.id):game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:journey?mainTask().id:activeTask?.id||G.current(game)?.id,formal_verification:journey?.progress().certified?'approved':'not_certified',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_textures:homeScene?.textureStatus||null,graphics:homeScene?.performanceSummary()||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
+  window.render_game_to_text=()=>JSON.stringify({mode:'business_journey',journey:journey?.summary(),audio:audio.state(),feedback:juice.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:journey?journey.progress().levels.filter(l=>l.status==='approved').map(l=>l.id):game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:journey?mainTask().id:activeTask?.id||G.current(game)?.id,formal_verification:journey?.progress().certified?'approved':'not_certified',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_textures:homeScene?.textureStatus||null,graphics:homeScene?.performanceSummary()||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
   window.shopDecorTargets=id=>homeScene?.decorTargets(id)||[];
   window.shopPaintTargets=()=>homeScene?.paintTargets()||[];
   window.advanceTime=async ms=>{await homeReady;homeScene?.controls.update();homeScene?.render(true);};
@@ -382,7 +382,7 @@
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
-  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},ask:text=>{closePanel();$('copilotInput').value=text;if(npcAvailable())$('copilotInput').focus({preventScroll:true});else toast('先转一转小岛，让'+partnerName()+'回到视野里再聊。');updateChatAvailability();}});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},ask:text=>{closePanel();$('copilotInput').value=text;if(npcAvailable())$('copilotInput').focus({preventScroll:true});else toast('先转一转小岛，让'+partnerName()+'回到视野里再聊。');updateChatAvailability();}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();

@@ -34,7 +34,7 @@
         const next=progress();
         if(previousProject===project.id&&next.completed>previous.completed){
           celebration={levels:next.levels.filter(l=>l.status==='approved'&&previous.levels.find(old=>old.id===l.id)?.status!=='approved').map(l=>l.id),from:previous.stage,to:next.stage,xp:next.xp-previous.xp};
-          if(view!=='submit'&&view!=='setup'){selectLevel(celebration.levels.at(-1));view='reward';host.scrollTop=0;options.sound('place');}
+          if(view!=='submit'&&view!=='setup'){selectLevel(celebration.levels.at(-1));view='reward';host.scrollTop=0;options.sound(celebration.to>celebration.from?'upgrade':'reward');requestAnimationFrame(()=>options.celebrate?.());}
         }else if(!['submit','setup','supplies','certificate','reward'].includes(view))selectLevel(next.current?.id||'L6');
       }catch(e){if(token===epoch&&!silent)error=e.message||'暂时没能同步经营进度。';}
       finally{if(token===epoch){loading=false;options.onUpdate();renderIfOpen();}}
@@ -116,7 +116,7 @@
         current();const savedProject=await ensureProject();current();project=savedProject;const p=profile();
         if(!attempt.artifact)attempt.artifact=await Api.post('/api/artifacts',{project_id:project.id,artifact_type:l.type,schema_version:1,title:l.title,origin:'formal',source_level_id:l.id,content:{summary:notes.trim()||l.deliverable,platform:p.platform,category:p.category,delivery_method:l.method,agent:p.agent,evidence_groups:groups}},{idempotencyKey:attempt.artifactKey});
         current();attempt.submission=await Api.post('/api/verifications',{artifact_id:attempt.artifact.id,artifact_version:attempt.artifact.version,evidence_ids:groups.flatMap(g=>g.evidence_ids),note:notes.trim()||l.goal},{idempotencyKey:attempt.submissionKey});current();
-        const submitted=attempt.submission,submittedArtifact=attempt.artifact;clearFiles();notes='';view='task';artifacts=[{...submittedArtifact,id:submitted.artifact_id,project_id:project.id,artifact_type:l.type,origin:'formal',status:'submitted'},...artifacts];notice='成果已提交，确认后会收到新的任务。';options.sound('place');await refresh({afterSubmit:true});
+        const submitted=attempt.submission,submittedArtifact=attempt.artifact;clearFiles();notes='';view='task';artifacts=[{...submittedArtifact,id:submitted.artifact_id,project_id:project.id,artifact_type:l.type,origin:'formal',status:'submitted'},...artifacts];notice='成果已提交，确认后会收到新的任务。';options.sound('submit');await refresh({afterSubmit:true});
       }catch(e){error=e.message||'暂时没能提交，已选材料仍在，可以重试。';}
       finally{busy=false;renderIfOpen();options.onUpdate();}
     }
@@ -127,7 +127,7 @@
       const level=e.target.closest('[data-j-level]'),remove=e.target.closest('[data-j-remove]'),b=e.target.closest('[data-j-action]');if(busy)return;
       if(level){celebration=null;selectLevel(level.dataset.jLevel);view='task';kitOpen=false;error='';notice='';render();host.scrollTop=0;return;}
       if(remove){const [slot,index]=remove.dataset.jRemove.split(':');const file=files[slot][Number(index)];if(blobURLs.has(file)){URL.revokeObjectURL(blobURLs.get(file));blobURLs.delete(file);}files[slot].splice(Number(index),1);attempt=null;confirmed=false;render();return;}
-      if(!b)return;error='';notice='';options.sound('click');
+      if(!b)return;error='';notice='';options.sound(b.dataset.jAction==='kit'?'kit':'click');
       if(b.dataset.jAction==='kit'){if(task().status==='locked')return;kitOpen=!kitOpen;}
       else if(b.dataset.jAction==='roadmap'){celebration=null;view='roadmap';}
       else if(b.dataset.jAction==='supplies'){celebration=null;view='supplies';}
