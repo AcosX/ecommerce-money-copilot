@@ -18,7 +18,7 @@
         ──HTTP──> VM1 SafeLine WAF（站点 id 17，server_names '*'）
         ──HTTP──> VM2 HAProxy :18090（按 Host 路由，money.acosx.top -> b_wp_vm3）
         ──HTTP──> VM3 Apache :80 name-based vhost money.acosx.top
-                    ├─ 静态文件：/srv/ecommerce-money-copilot/current/{index.html,assets/,js/}
+                    ├─ 静态文件：/srv/ecommerce-money-copilot/current/{index.html,assets/,css/,js/}
                     └─ /api/ /auth/ /admin/ ──> 127.0.0.1:8790 FastAPI（uvicorn，用户 emc）
                                                    └─> MariaDB 127.0.0.1:3306（Galera 节点）
 ```
@@ -26,7 +26,7 @@
 - ESA 记录：`money.acosx.top` A/AAAA → SafeLine，开启代理，与 `storyoutside.acosx.top` 设置相同。
 - HAProxy：`/etc/haproxy/conf.d/p2-direct.cfg` 的已登记 Host 列表与 `use_backend b_wp_vm3` 各增加一行。未登记的 Host 一律 403。
 - Apache：`/etc/httpd/conf.d/money-acosx.conf`，由 `deploy/apache/money-acosx.conf.template` 渲染。
-  - 静态目录默认拒绝，只放行 `/`、`/index.html`、`/assets/`、`/js/` 和代理路径；点文件、`backend/`、`deploy/`、`docs/` 返回 403。
+  - 静态目录默认拒绝，只放行 `/`、`/index.html`、`/assets/`、`/css/`、`/js/` 和代理路径；点文件、`backend/`、`deploy/`、`docs/` 返回 403。
   - 统一设置 `X-Forwarded-Proto: https`（内部各跳均为 HTTP）。`X-Forwarded-For` 由各跳追加，uvicorn 只信任 127.0.0.1 传来的转发头。
   - 安全头：`X-Content-Type-Options`、`Referrer-Policy`、HSTS、`frame-ancestors 'self'` 的 CSP。当前前端含内联脚本，所以 CSP 允许 `'unsafe-inline'`；脚本迁移到 `js/` 后应收紧。
   - 请求体：`/api/evidence` 上限 11 MiB，其他代理路径上限 1 MiB，超限直接返回 413（后端仍按约定做精确校验）。

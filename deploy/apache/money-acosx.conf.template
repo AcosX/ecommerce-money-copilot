@@ -37,7 +37,7 @@
     <LocationMatch "^/(index\.html)?$">
         Require all granted
     </LocationMatch>
-    <LocationMatch "^/(assets|js)/">
+    <LocationMatch "^/(assets|css|js)/">
         Require all granted
     </LocationMatch>
     <LocationMatch "^/(api|auth|admin)/">
@@ -92,7 +92,7 @@
     <LocationMatch "^/(index\.html)?$">
         Header set Cache-Control "no-cache"
     </LocationMatch>
-    <LocationMatch "^/(assets|js)/">
+    <LocationMatch "^/(assets|css|js)/">
         Header set Cache-Control "public, max-age=3600"
     </LocationMatch>
 
