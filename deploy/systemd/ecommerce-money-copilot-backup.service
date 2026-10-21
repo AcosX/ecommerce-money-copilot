@@ -1,0 +1,15 @@
+[Unit]
+Description=电商搞钱参谋 database + uploads backup
+After=mariadb.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/ecommerce-money-copilot/backup-db.sh --label daily
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/backups/ecommerce-money-copilot
+ReadOnlyPaths=/var/lib/ecommerce-money-copilot

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily 电商搞钱参谋 backup
+
+[Timer]
+# Offset from the host-wide data backup (03:30) to avoid overlapping dumps.
+OnCalendar=*-*-* 02:40:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
