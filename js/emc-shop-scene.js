@@ -236,7 +236,7 @@ export class ShopScene{
     this.root.remove(this.decorPreview,this.decorPreviewBox);disposeGeometry(this.decorPreview);this.decorPreviewBox.geometry.dispose();this.decorPreviewBox.material.dispose();
     this.decorPreviewMaterials.forEach(mat=>{disposeMaterial(mat);const index=this.materials.indexOf(mat);if(index>=0)this.materials.splice(index,1);});this.decorPreview=null;this.decorPreviewBox=null;this.render();
   }
-  select(id){this.selected=this.items.has(id)?id:null;this.selection.visible=!!this.selected;if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.render();}
+  select(id){const next=this.items.has(id)?id:null,changed=next!==this.selected;this.selected=next;if(changed)this.options.onSelect?.(next);this.selection.visible=!!this.selected;if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.render();}
   screenTargets(){const rect=this.renderer.domElement.getBoundingClientRect();return [...this.items].map(([id,obj])=>{const p=new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()).project(this.camera);return {id,x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2};});}
   setNight(night){this.ambient.intensity=night?1.3:2.6;this.sun.intensity=night?.65:3.5;this.fill.intensity=night?1.4:1;this.windowMaterial.color.set(night?'#f6cc83':'#779fa9');this.windowMaterial.emissive.set(night?'#b47735':'#000000');this.windowMaterial.emissiveIntensity=night?.45:0;this.lamp.intensity=night?7:0;this.render();}
   setAtmosphere(light){
@@ -251,16 +251,18 @@ export class ShopScene{
   down(e){
     if(e.button!==0)return;
     if(this.pendingDrag||this.drag){clearTimeout(this.pendingDrag?.timer);this.pendingDrag=null;return;}
-    this.rayAt(e);const hit=this.ray.intersectObjects([...this.items.values()],true)[0];if(!hit)return;
-    let obj=hit.object;while(obj&&!obj.userData.decorationId)obj=obj.parent;const id=obj?.userData.decorationId;if(!id)return;
+    this.rayAt(e);const hit=this.ray.intersectObjects([...this.items.values(),this.shopModel,this.terrain].filter(Boolean),true)[0];
+    let obj=hit?.object;while(obj&&!obj.userData.decorationId)obj=obj.parent;const id=obj?.userData.decorationId||null;
+    this.tapGesture={pointerId:e.pointerId,x:e.clientX,y:e.clientY,id,moved:false};if(!id)return;
     const pending=this.pendingDrag={pointerId:e.pointerId,x:e.clientX,y:e.clientY};
     pending.timer=setTimeout(()=>{
       if(this.pendingDrag!==pending||this.disposed)return;this.pendingDrag=null;
-      this.options.onBeforeChange?.();this.select(id);this.options.onSelect?.(id);this.dragPlane.constant=-obj.position.y;this.rayAt(e);if(!this.ray.ray.intersectPlane(this.dragPlane,this.hit))return;
+      this.options.onBeforeChange?.();this.select(id);this.dragPlane.constant=-obj.position.y;this.rayAt(e);if(!this.ray.ray.intersectPlane(this.dragPlane,this.hit))return;
       const p=this.draft.placements.find(p=>p.id===id);this.drag={id,pointerId:e.pointerId,offset:this.hit.clone().sub(obj.position),original:{x:p.x,z:p.z},returning:false};this.controls.enabled=false;this.renderer.domElement.setPointerCapture(e.pointerId);
     },280);
   }
   move(e){
+    if(this.tapGesture?.pointerId===e.pointerId&&Math.hypot(e.clientX-this.tapGesture.x,e.clientY-this.tapGesture.y)>8)this.tapGesture.moved=true;
     if(this.pendingDrag&&Math.hypot(e.clientX-this.pendingDrag.x,e.clientY-this.pendingDrag.y)>8){clearTimeout(this.pendingDrag.timer);this.pendingDrag=null;}
     if(!this.drag||e.pointerId!==this.drag.pointerId)return;
     this.drag.returning=!!this.options.isInventoryPoint?.(e);this.items.get(this.drag.id).visible=!this.drag.returning;this.selection.visible=!this.drag.returning;if(this.drag.returning){e.stopImmediatePropagation();return;}
@@ -268,7 +270,8 @@ export class ShopScene{
   }
   up(e){
     clearTimeout(this.pendingDrag?.timer);this.pendingDrag=null;
-    if(!this.drag||e.pointerId!==this.drag.pointerId)return;
+    const tap=this.tapGesture;this.tapGesture=null;
+    if(!this.drag||e.pointerId!==this.drag.pointerId){if(e.type==='pointerup'&&tap?.pointerId===e.pointerId&&!tap.moved)this.select(tap.id);return;}
     const drag=this.drag;this.drag=null;this.controls.enabled=true;this.items.get(drag.id).visible=true;
     if(e.type==='pointercancel'){Object.assign(this.draft.placements.find(p=>p.id===drag.id),drag.original);this.sync();}
     else if(drag.returning)this.options.onReturnDecoration?.(drag.id);
