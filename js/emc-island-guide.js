@@ -18,21 +18,23 @@ export class IslandGuide{
       const leg=new THREE.Group();leg.position.set(side*.095,.36,0);this.root.add(leg);box([.115,.26,.13],[0,-.13,0],navy,leg);box([.13,.075,.20],[0,-.29,.035],dark,leg);this.legs.push(leg);
       const arm=new THREE.Group();arm.position.set(side*.235,.71,0);this.root.add(arm);box([.12,.21,.15],[0,-.10,0],mint,arm);box([.10,.10,.13],[0,-.25,0],skin,arm);this.arms.push(arm);
     }
+    this.letter=new THREE.Group();this.arms[1].add(this.letter);this.letter.position.set(0,-.29,.09);box([.40,.25,.025],[0,0,0],scene.mat('#ffe7a1'),this.letter);box([.07,.07,.035],[0,0,.025],scene.mat('#dc674c'),this.letter);this.letter.visible=false;this.holdingLetter=false;this.letterPose=0;
     batchDecoration(body);
     this.route=[[-2.8,3.0],[2.8,3.0],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];this.index=1;this.root.position.set(-2.8,0,3);this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.ray=new THREE.Raycaster();this.ray.firstHitOnly=true;this.root.rotation.y=Math.PI/2;this.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
   }
+  setHoldingLetter(value){this.holdingLetter=!!value;this.letter.visible=!!value;}
   setTalking(value){if(value&&!this.status(true).visible)return false;this.talking=!!value;return true;}
   update(dt){
     this.elapsed+=dt;
     let moving=false;
-    if(this.talking){const camera=this.host.camera.position;this.root.rotation.y=Math.atan2(camera.x-this.root.position.x,camera.z-this.root.position.z);}
+    if(this.talking||this.holdingLetter){const camera=this.host.camera.position;this.root.rotation.y=Math.atan2(camera.x-this.root.position.x,camera.z-this.root.position.z);}
     else if(this.pause>0)this.pause-=dt;
     else{
       const [x,z]=this.route[this.index],dx=x-this.root.position.x,dz=z-this.root.position.z,length=Math.hypot(dx,dz),step=Math.min(length,dt*.46);
       if(length<.035){this.index=(this.index+1)%this.route.length;this.pause=1.6;}
       else{this.root.position.x+=dx/length*step;this.root.position.z+=dz/length*step;this.root.rotation.y=Math.atan2(dx,dz);moving=true;}
     }
-    const stride=moving?Math.sin(this.elapsed*8)*.40:0;this.legs.forEach((limb,i)=>limb.rotation.x=i?stride:-stride);this.arms.forEach((limb,i)=>limb.rotation.x=i?-stride:stride);
+    const stride=moving?Math.sin(this.elapsed*8)*.40:0;this.legs.forEach((limb,i)=>limb.rotation.x=i?stride:-stride);this.letterPose=THREE.MathUtils.damp(this.letterPose,this.holdingLetter?1:0,12,dt);this.arms.forEach((limb,i)=>limb.rotation.x=i?THREE.MathUtils.lerp(-stride,-2.35,this.letterPose):stride);
     if(this.elapsed>=this.groundAt){this.groundAt=this.elapsed+.15;this.root.position.y=this.host.surfaceHeight(this.root.position.x,this.root.position.z)-.02;}
     const status=this.status();this.host.options.onNpcFrame?.(status);
   }
@@ -49,6 +51,6 @@ export class IslandGuide{
       }
       this.ray.far=Infinity;
     }
-    return {visible:!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,position:this.root.position.toArray(),heading:this.root.rotation.y,screen};
+    return {visible:!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,holding_letter:this.holdingLetter,position:this.root.position.toArray(),heading:this.root.rotation.y,screen};
   }
 }
