@@ -118,7 +118,9 @@ library=[('idle','Idle',4.0,True),('walk','Walking',1.5,True),
          ('wave','Wave',2.8,False),('talk','Idle',4.0,True),
          ('turn','Idle',3.2,False),('window','Idle',4.0,False),
          ('lookout','Idle',4.8,False),('inspect','Idle',4.0,False),
-         ('nod','Yes',1.8,False)]
+         ('nod','Yes',1.8,False),('letter','Idle',4.8,False),
+         ('shop_hips','Idle',5.2,False),('sit_cross','Idle',8.0,False),
+         ('sit_cliff','Idle',9.0,False)]
 made=[]
 probes={}
 lower_names={'Body','UpperLeg.L','LowerLeg.L','Foot.L','UpperLeg.R','LowerLeg.R','Foot.R'}
@@ -221,6 +223,83 @@ def contact_legs(action,t):
                 ankle.z+=.022*math.sin(math.pi*u)**2
         solve_limb([prefix+str(i) for i in range(3)],ankle,Vector((.5,side*.14,.45)))
 
+def orient_hand(name, along, normal, weight):
+    # Two anatomical axes define the palm; no arbitrary wrist Euler offsets.
+    side=1 if name=='tripo::0_Right_Limb_2' else -1
+    a=Vector(along).normalized()
+    n=Vector(normal);n=(n-a*n.dot(a)).normalized()
+    delta=Vector((0,side,0)).rotation_difference(a)
+    old=delta@Vector((0,0,-1))
+    delta=Quaternion(a,math.atan2(a.dot(old.cross(n)),old.dot(n)))@delta
+    pb=rig.pose.bones[name];m=world@pb.matrix
+    pose_world(name,m.translation,m.to_quaternion().slerp(delta@rest[name],weight))
+
+def daily_pose(name,t):
+    if name not in ('letter','shop_hips','sit_cross','sit_cliff'):return
+    w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
+    if name=='letter':
+        axis_world('Xiaoshang_Head',(1,0,0),-.045*w)
+        prefix='tripo::1_Left_Limb_'
+        start=world@rig.pose.bones[prefix+'2'].head
+        elbow=world@rig.pose.bones[prefix+'1'].head
+        target=start.lerp(Vector((.16,-.28,1.40)),w)
+        solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(Vector((.24,-.34,1.05)),w))
+    elif name=='shop_hips':
+        axis_world('tripo::Spine_0',(0,1,0),.18*w)
+        axis_world('tripo::Spine_1',(0,1,0),.08*w)
+        axis_world('Xiaoshang_Head',(0,1,0),.055*w)
+        axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.30,-.10),(.44,-.10),(.60,.12),(.73,.12),(1,0)]))
+        for hand,side in hand_specs:
+            prefix=hand[:-1]
+            start=world@rig.pose.bones[hand].head
+            elbow=world@rig.pose.bones[prefix+'1'].head
+            hip=world@rig.pose.bones['Xiaoshang_Hips'].head
+            target=start.lerp(hip+Vector((.06,side*.23,.19)),w)
+            solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(hip+Vector((-.03,side*.48,.30)),w))
+    else:
+        # Full sit-down / rest / stand-up phrases. The seated hold is explicit
+        # so game code can later repeat it without replaying the descent.
+        sit=curve(t,[(0,0),(.04,0),(.27,1),(.73,1),(.98,0),(1,0)])
+        cliff=name=='sit_cliff'
+        root=rig.pose.bones['tripo::Root'];m=root.matrix.copy()
+        m.translation+=inverse.to_3x3()@Vector((0,0,-(.645 if cliff else .605)*sit))
+        root.matrix=m;bpy.context.view_layer.update()
+        anticipation=curve(t,[(0,0),(.11,.18),(.30,0),(.70,0),(.85,.17),(1,0)])
+        axis_world('tripo::Spine_0',(0,1,0),anticipation+(-.55 if cliff else .02)*sit)
+        axis_world('Xiaoshang_Head',(0,1,0),(.15 if cliff else .025)*sit)
+        hold=curve(t,[(0,0),(.28,0),(.35,1),(.65,1),(.73,0),(1,0)])
+        for side,prefix in [(1,'tripo::0_Left_Limb_'),(-1,'tripo::1_Right_Limb_')]:
+            start=rest_positions[prefix+'2'].copy()
+            if cliff:
+                ankle=Vector((start.x+(.42-start.x)*sit,side*.145,start.z-.30*smooth((sit-.58)/.42)))
+                # Each shin has a different phase; hands stay planted.
+                ankle.x+=.045*math.sin((t-.30)*math.pi*10+(0 if side==1 else .7))*hold
+                ankle.z+=.012*math.sin((t-.30)*math.pi*10+(0 if side==1 else .7))*hold
+                pole=Vector((.62,side*.16,.30))
+            else:
+                destination=Vector((.17+(.025 if side==1 else 0),-side*.105,.13+(.025 if side==1 else 0)))
+                ankle=start.lerp(destination,sit)
+                pole=Vector((.14,side*.58,.25))
+            solve_limb([prefix+str(i) for i in range(3)],ankle,pole)
+            if not cliff:axis_world(prefix+'2',(0,0,1),-side*.85*sit)
+        for hand,side in hand_specs:
+            prefix=hand[:-1]
+            start=world@rig.pose.bones[hand].head
+            elbow=world@rig.pose.bones[prefix+'1'].head
+            destination=Vector((-.27,side*.25,.035)) if cliff else Vector((.18,side*.29,.30))
+            target=start.lerp(destination,sit)
+            pole=elbow.lerp(Vector((-.28 if cliff else .15,side*.43,.42)),sit)
+            solve_limb([prefix+str(i) for i in range(3)],target,pole)
+
+def daily_palms(name,t):
+    if name not in ('letter','shop_hips','sit_cross','sit_cliff'):return
+    w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
+    for hand,side in hand_specs:
+        if name=='letter' and side==-1:orient_hand(hand,(0,0,1),(1,0,0),w)
+        elif name=='shop_hips':orient_hand(hand,(.1,0,-1),(0,-side,0),w)
+        elif name=='sit_cross':orient_hand(hand,(1,-side*.25,0),(0,0,-1),w)
+        elif name=='sit_cliff':orient_hand(hand,(-1,0,0),(0,0,-1),w)
+
 for name, original, duration, loop in library:
     src=human
     bone_names={n:n if src==robot else 'mixamorig:'+aliases[n] for n in set(mapping.values())}
@@ -316,7 +395,9 @@ for name, original, duration, loop in library:
             if name=='window':
                 axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.35,-.12),(.58,-.12),(.77,.10),(1,0)]))
         contact_legs(name,t)
+        daily_pose(name,t)
         relax_hands(name,t)
+        daily_palms(name,t)
         for pb in rig.pose.bones:
             q=pb.rotation_quaternion.copy()
             if pb.name in previous_quaternions:q.make_compatible(previous_quaternions[pb.name])
@@ -358,7 +439,10 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'merchant-v3: stable pelvis, two-bone foot contacts, small steps and staged greeting',
+    'motion_revision':'daily-v4: letter, hands-on-hips inspection, cross-legged sit and supported cliff rest',
+    'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
+                           'sit_cross':{'hold_phase':[.30,.70],'surface_y':0},
+                           'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},
     'human_motion':{'url':'https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Xbot.glb',
                     'clips':['idle','walk','wave','talk','turn','window','lookout','inspect','nod'],
                     'author':'Mixamo / Adobe; three.js sample asset',
