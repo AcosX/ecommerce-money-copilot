@@ -138,7 +138,7 @@
   }
 
   function setInert(on) {
-    var app = doc.querySelector('.app');
+    var app = doc.querySelector('.app, .game-shell');
     if (!app) return;
     if (on) app.setAttribute('inert', ''); else app.removeAttribute('inert');
   }
