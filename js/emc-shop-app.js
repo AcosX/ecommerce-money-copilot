@@ -73,7 +73,7 @@
     $('questChapter').textContent=task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
     $('questHint').textContent=task?'完成学习挑战，获得 80 经验':'继续探索支线，装扮你的百货大楼';
     $('continueText').textContent=task?'继续主线':'回顾学习';$('continueHint').textContent=task?.name||'你的下一次经营，才刚开始';
-    $('inventoryDot').hidden=game.side.length===0;
+    refreshInventoryDots();
     $('guideText').textContent=next?'主线让小店成长，支线带来意外惊喜。':'百货大楼落成了，知识会陪你走得更远。';
     if(panel)renderPanel();
     homeReady=syncHome();
@@ -118,12 +118,30 @@
   }
   const partNames={wall:'墙面',sign:'招牌',roof:'屋顶',decor:'装饰'};
   const colorNames={wall:['奶油白','鼠尾草','雾蓝','燕麦棕','浅丁香'],sign:['原木棕','松叶绿','海盐蓝','葡萄紫','蜂蜜金'],roof:['砖红','苔绿','雾蓝','暮紫','可可棕']};
+  function refreshInventoryDots(){
+    const unread=G.unreadInventory(game),keys=new Set(unread.map(item=>item.key)),categories=new Set(unread.map(item=>item.category));
+    $('inventoryDot').hidden=unread.length===0;
+    document.querySelector('[data-panel="inventory"]').setAttribute('aria-label',unread.length?'背包，有新物品':'背包');
+    document.querySelectorAll('[data-bag-tab]').forEach(button=>button.setAttribute('aria-label',partNames[button.dataset.bagTab]+(categories.has(button.dataset.bagTab)?'，有新物品':'')));
+    document.querySelectorAll('[data-new-category]').forEach(dot=>{dot.hidden=!categories.has(dot.dataset.newCategory);});
+    document.querySelectorAll('[data-new-item]').forEach(dot=>{dot.hidden=!keys.has(dot.dataset.newItem);});
+    document.querySelectorAll('[data-inventory-key]').forEach(button=>button.setAttribute('aria-label',button.dataset.inventoryLabel+(keys.has(button.dataset.inventoryKey)?'，新解锁':'')));
+  }
+  function viewInventoryItem(button){
+    if(!button||!G.markInventorySeen(game,button.dataset.inventoryKey))return;
+    refreshInventoryDots();save();
+  }
   function renderInventory(){
-    const tabs=Object.entries(partNames).map(([id,name])=>`<button data-bag-tab="${id}" aria-pressed="${bagTab===id}">${name}</button>`).join('');
+    const dot=(kind,key)=>`<i class="bag-new-dot" data-new-${kind}="${escape(key)}" aria-hidden="true" hidden></i>`;
+    const tabs=Object.entries(partNames).map(([id,name])=>`<button data-bag-tab="${id}" aria-pressed="${bagTab===id}">${name}${dot('category',id)}</button>`).join('');
     let content;
-    if(bagTab!=='decor')content='<div class="paint-grid">'+G.PALETTES[bagTab].map((color,i)=>`<button class="paint-item" data-paint-part="${bagTab}" data-color="${color}" aria-label="${partNames[bagTab]} · ${colorNames[bagTab][i]}" aria-pressed="${game[bagTab+'_color']===color}"><span class="paint-sample sample-${bagTab}" style="--paint:${color}"></span><b>${colorNames[bagTab][i]}</b><small>${game[bagTab+'_color']===color?'使用中':'长按拖动'}</small></button>`).join('')+'</div>';
-    else content='<div class="bag-decor-grid">'+G.DECOR.map(d=>{const owned=rewardOwned(d.id),placed=game.placements.some(p=>p.id===d.id);return `<button class="bag-decor ${owned?'':'locked'}" ${owned?`data-decor-id="${d.id}"`:'data-side="true"'}>${sprite(d.id)}<b>${d.name}</b><small>${owned?(placed?'已摆放 · 可拖动':'长按拖到岛上'):'支线解锁'}</small></button>`}).join('')+'</div>';
+    if(bagTab!=='decor')content='<div class="paint-grid">'+G.PALETTES[bagTab].map((color,i)=>{
+      const key=bagTab+':'+color,label=partNames[bagTab]+' · '+colorNames[bagTab][i];
+      return `<button class="paint-item" data-inventory-key="${key}" data-inventory-label="${escape(label)}" data-paint-part="${bagTab}" data-color="${color}" aria-label="${escape(label)}" aria-pressed="${game[bagTab+'_color']===color}">${dot('item',key)}<span class="paint-sample sample-${bagTab}" style="--paint:${color}"></span><b>${colorNames[bagTab][i]}</b><small>${game[bagTab+'_color']===color?'使用中':'长按拖动'}</small></button>`;
+    }).join('')+'</div>';
+    else content='<div class="bag-decor-grid">'+G.DECOR.map(d=>{const owned=rewardOwned(d.id),placed=game.placements.some(p=>p.id===d.id);return `<button class="bag-decor ${owned?'':'locked'}" ${owned?`data-decor-id="${d.id}" data-inventory-key="decor:${d.id}" data-inventory-label="${escape(d.name)}"`:'data-side="true"'}>${owned?dot('item','decor:'+d.id):''}${sprite(d.id)}<b>${d.name}</b><small>${owned?(placed?'已摆放 · 可拖动':'长按拖到岛上'):'支线解锁'}</small></button>`}).join('')+'</div>';
     $('panelBody').innerHTML=`<div class="bag-tabs">${tabs}</div><p class="bag-hint" id="bagHint">${bagTab==='decor'?'长按物品拖到岛上；拖回背包取消':'长按配色，拖到'+(partNames[bagTab]||'小岛')+'；拖回背包取消'}</p>${content}<div class="bag-footer"><span>松手应用 · 自动保存</span><button id="undoPaint" ${paintUndo?'':'disabled'}>撤销上次修改</button></div>`;
+    refreshInventoryDots();
   }
   function renderCollection(){
     const current=G.stage(game);
@@ -251,7 +269,7 @@
     $('bagHint').textContent=back?'松手取消，不会修改':drag.valid?'绿色区域已选中，松手应用':'拖到对应部位，出现绿色后松手';
   }
   $('panelBody').addEventListener('pointerdown',e=>{
-    const button=e.target.closest('[data-paint-part],[data-decor-id]');if(!button||e.button!==0||!homeScene?.presentable||paintDrag)return;if(button.dataset.decorId&&!rewardOwned(button.dataset.decorId))return;finishConversation();
+    const button=e.target.closest('[data-paint-part],[data-decor-id]');if(!button||e.button!==0||!homeScene?.presentable||paintDrag)return;if(button.dataset.decorId&&!rewardOwned(button.dataset.decorId))return;viewInventoryItem(button);finishConversation();
     const drag=paintDrag={button,pointerId:e.pointerId,part:button.dataset.paintPart||'decor',id:button.dataset.decorId,color:button.dataset.color||G.DECOR.find(d=>d.id===button.dataset.decorId)?.color,x:e.clientX,y:e.clientY,active:false,valid:false};
     button.setPointerCapture(e.pointerId);
     drag.timer=setTimeout(()=>{if(paintDrag!==drag)return;drag.active=true;homeScene.controls.enabled=false;document.body.classList.add('painting');const ghost=$('paintGhost');ghost.hidden=false;ghost.querySelector('span').style.background=drag.color;movePaint(e);},280);
@@ -269,6 +287,7 @@
   document.addEventListener('lostpointercapture',e=>{if(paintDrag?.pointerId===e.pointerId)cancelPaint();});
   window.addEventListener('blur',cancelPaint);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelPaint();});
+  $('panelBody').addEventListener('focusin',e=>viewInventoryItem(e.target.closest('[data-inventory-key]')));
   $('panelBody').addEventListener('contextmenu',e=>{if(e.target.closest('[data-paint-part],[data-decor-id]'))e.preventDefault();});
   $('themeAuto').onclick=()=>setTheme('auto');$('themeDay').onclick=()=>setTheme('day');$('themeNight').onclick=()=>setTheme('night');$('saveRetry').onclick=save;
   $('retryScene').onclick=()=>{homeStage=0;homeReady=syncHome();};
@@ -276,7 +295,7 @@
   document.querySelector('.brand').onclick=e=>{e.preventDefault();closePanel();};
   $('closePanel').onclick=closePanel;$('continueButton').onclick=startMain;$('sideButton').onclick=()=>{tab='side';openPanel('quests');};
   $('panelBody').onclick=e=>{
-    const b=e.target.closest('button');if(!b)return;
+    const b=e.target.closest('button');if(!b)return;viewInventoryItem(b);
     if(b.dataset.accountAction){$(b.dataset.accountAction==='login'?'emcLoginBtn':'emcLogoutBtn')?.click();}
     else if(b.dataset.tab){tab=b.dataset.tab;activeTask=null;feedback=null;renderQuests();}
     else if(b.dataset.task)showTask(b.dataset.task);
@@ -297,7 +316,7 @@
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
     }
   });
-  window.render_game_to_text=()=>JSON.stringify({mode:'tutorial',theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:G.stage(game)+1,xp:G.xp(game),shop_name:game.shop_name,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:game.main,side_completed:game.side,current_task:activeTask?.id||G.current(game)?.id,formal_verification:'not_available',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
+  window.render_game_to_text=()=>JSON.stringify({mode:'tutorial',theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:G.stage(game)+1,xp:G.xp(game),shop_name:game.shop_name,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:activeTask?.id||G.current(game)?.id,formal_verification:'not_available',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
   window.shopDecorTargets=id=>homeScene?.decorTargets(id)||[];
   window.shopPaintTargets=()=>homeScene?.paintTargets()||[];
   window.advanceTime=async ms=>{await homeReady;homeScene?.controls.update();homeScene?.render();};

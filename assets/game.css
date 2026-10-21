@@ -125,3 +125,8 @@ body{position:fixed;inset:0}
   .npc-bubble:before{bottom:-15px;width:5px;height:5px}
 }
 @media(max-width:370px){.npc-bubble{padding:30px 24px 26px}}
+
+/* 新物品红点按入口、分类、物品汇总；仅查看具体物品时清除。 */
+.bag-tabs>button,.paint-item,.bag-decor{position:relative}
+.bag-new-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;background:#ef6468;border:1.5px solid var(--surface);box-shadow:0 0 0 1px #c34f5940;pointer-events:none}
+.paint-item>.bag-new-dot,.bag-decor>.bag-new-dot{top:7px;right:7px;width:9px;height:9px}
