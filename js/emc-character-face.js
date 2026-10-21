@@ -21,7 +21,7 @@ export function createCharacterFace(root,{autoBlink=true,random=Math.random}={})
     const targets={};for(const [key,amount] of Object.entries(FACE_EMOTIONS[emotion]))targets[key]=amount*intensity;
     targets.mouthSmile=clamp((targets.mouthSmile||0)+proximity*.08);
     if(viseme!=='sil'&&mouthAmount){
-      for(const key of ['mouthClose','jawOpen','mouthFunnel','mouthPucker','mouthStretch','lowerLipUp','viseme_oh'])targets[key]=(targets[key]||0)*(1-mouthAmount);
+      for(const key of ['mouthClose','jawOpen','mouthFunnel','mouthPucker','mouthStretch','lowerLipUp','lowerLipDown','upperLipUp','upperLipDown','viseme_oh'])targets[key]=(targets[key]||0)*(1-mouthAmount);
       targets['viseme_'+viseme]=mouthAmount;
       // Rounded vowels relax lip corners; the eyes / cheeks retain the emotion.
       if(['ou','oh','mbp','fv'].includes(viseme))for(const key of ['mouthSmile','mouthFrown'])targets[key]=(targets[key]||0)*(1-mouthAmount*.8);
@@ -38,6 +38,14 @@ export function createCharacterFace(root,{autoBlink=true,random=Math.random}={})
     setEmotion(name,amount=1){if(!FACE_EMOTIONS[name])throw new Error('Unknown emotion');emotion=name;intensity=clamp(amount);},
     setViseme(name,amount=1){if(!FACE_VISEMES.includes(name))throw new Error('Unknown viseme');viseme=name;mouthAmount=clamp(amount);},
     setMorph(name,value){if(!names.includes(name))throw new Error('Unknown facial morph');overrides.set(name,clamp(value));},
+    setLipControls({upperRaise=0,upperPress=0,lowerDrop=0,lowerPress=0,jaw=0}={}){
+      viseme='sil';mouthAmount=0;
+      for(const name of FACE_VISEMES.filter(n=>n!=='sil'))overrides.set('viseme_'+name,0);
+      for(const [key,value] of Object.entries({upperLipUp:upperRaise,upperLipDown:upperPress,lowerLipDown:lowerDrop,lowerLipUp:lowerPress,jawOpen:jaw,mouthClose:0})){
+        if(!names.includes(key))throw new Error('Model needs independent lip contours');
+        overrides.set(key,clamp(value));
+      }
+    },
     clearOverrides(){overrides.clear();},setAutoBlink(value){autoBlink=!!value;blinkAge=-1;},setProximity(value){proximity=clamp(value);},
     state:()=>({emotion,intensity,viseme,mouthAmount,autoBlink,proximity,weights:Object.fromEntries(names.map(name=>[name,meshes[0].morphTargetInfluences[meshes[0].morphTargetDictionary[name]]||0]))})
   };

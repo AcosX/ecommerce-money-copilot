@@ -6,6 +6,7 @@ Landmarks are measured in world space from an orthographic face render, never in
 import json
 import math
 import sys
+import importlib.util
 from pathlib import Path
 
 import bmesh
@@ -70,6 +71,10 @@ def main():
     bm.to_mesh(face_obj.data)
     bm.free()
     face_obj.data.update()
+    mouth_spec = importlib.util.spec_from_file_location('character_mouth', Path(__file__).with_name('character-mouth.py'))
+    mouth_module = importlib.util.module_from_spec(mouth_spec)
+    mouth_spec.loader.exec_module(mouth_module)
+    mouth_tags = mouth_module.rebuild_mouth(face_obj, cfg)
     for polygon in face_obj.data.polygons:
         polygon.use_smooth = True
     if face_obj.data.has_custom_normals:
@@ -99,7 +104,7 @@ def main():
     mx, mz = cfg['mouth_half_width'], cfg['mouth_half_height']
     scale = cfg.get('height', 1.75) / 1.75
 
-    def primitive(name, p):
+    def primitive(name, p, tag=0):
         p = p.copy()
         p.y -= cfg.get('center_y', 0)
         left_y = cfg.get('eye_left_y', -eye_y) - cfg.get('center_y', 0)
@@ -112,6 +117,45 @@ def main():
         brow_left = box(p.y, left_y, cfg['eye_half_width'] * 1.3) * box(p.z, cfg['brow_z'], .020 * scale) * front
         brow_right = box(p.y, right_y, cfg['eye_half_width'] * 1.3) * box(p.z, cfg['brow_z'], .020 * scale) * front
         d = Vector((0, 0, 0))
+        # The replacement mouth has a real opening. Its upper and lower contours,
+        # teeth and cavity have separate semantic regions, not one stretched mask.
+        if tag and name in ('upperLipUp','upperLipDown','lowerLipUp','lowerLipDown',
+                            'jawOpen','mouthClose','mouthFunnel','mouthPucker','mouthStretch',
+                            'mouthSmile','mouthFrown'):
+            upper = tag in (1,3,5)
+            lower = tag in (2,4,6,8)
+            t = min(1, abs(p.y)/.032)
+            arch = math.sqrt(max(0, 1-t*t))
+            fade = 1 if tag not in (1,2) else .48
+            if name == 'upperLipUp' and upper:
+                d.z = .010 * arch * fade
+            elif name == 'upperLipDown' and upper:
+                d.z = -.0012 * arch * fade
+                d.x = .001 * arch * fade
+            elif name == 'lowerLipUp' and lower:
+                d.z = .0012 * arch * fade
+                d.x = .001 * arch * fade
+            elif name == 'lowerLipDown' and lower:
+                d.z = -.018 * arch * fade
+                d.x = -.001 * arch * fade
+            elif name == 'jawOpen' and lower:
+                d.z = -.025 * arch * fade
+                d.x = -.002 * arch * fade
+            elif name == 'mouthClose' and (upper or lower):
+                d.x = .0015 * arch * fade
+                d.z = (-.00035 if upper else .00035) * arch * fade
+            elif name in ('mouthFunnel','mouthPucker') and tag != 7:
+                d.y = -p.y * (.38 if name=='mouthFunnel' else .52) * fade
+                d.x = (.008 if name=='mouthFunnel' else .013) * arch * fade
+            elif name == 'mouthStretch' and tag != 7:
+                d.y = p.y * .26 * fade
+            elif name in ('mouthSmile','mouthFrown') and tag not in (7,8):
+                d.z = (.006 if name=='mouthSmile' else -.005) * t*t * fade
+                d.y = p.y * (.05 if name=='mouthSmile' else -.03) * fade
+            if tag == 8:
+                d.z *= .40
+                d.x = min(0,d.x)
+            return d * scale
         if name in ('eyeBlinkLeft', 'eyeBlinkRight'):
             mask = eye_left if name.endswith('Left') else eye_right
             d.z = (eye_z - p.z) * .98 * mask
@@ -141,33 +185,33 @@ def main():
             d.z = -.019 * scale * weight
             d.x = .003 * scale * weight
         elif name == 'mouthClose':
-            close = box(p.y, 0, mx * 1.4) * box(p.z, mouth_z, mz * 1.8) * front
-            d.z = (mouth_z - p.z) * .98 * close
-            d.x = -.001 * scale * close
+            pass  # Closed neutral lip loops already touch; never flatten the face.
         elif name == 'mouthFunnel':
-            d.y = -p.y * .32 * mouth
-            d.x = .008 * scale * mouth
+            pass  # Lip loops carry the funnel; do not pinch the surrounding cheek.
         elif name == 'mouthPucker':
-            d.y = -p.y * .45 * mouth
-            d.x = .012 * scale * mouth
+            pass
         elif name == 'mouthStretch':
-            d.y = p.y * .23 * mouth
-        elif name == 'lowerLipUp':
-            d.z = .008 * scale * mouth * smooth((mouth_z - p.z) / mz)
+            pass
+        elif name in ('upperLipUp','upperLipDown','lowerLipUp','lowerLipDown'):
+            upper = name.startswith('upper')
+            side = smooth((p.z-mouth_z if upper else mouth_z-p.z)/(.008*scale))
+            amount = {'upperLipUp':.004,'upperLipDown':-.0005,'lowerLipUp':.0005,'lowerLipDown':-.006}[name]
+            d.z = amount * scale * mouth * side
         return d
 
     definitions = {name: {name: 1} for name in [
         'eyeBlinkLeft', 'eyeBlinkRight', 'eyeWideLeft', 'eyeWideRight', 'browInnerUp',
         'browOuterUp', 'browDown', 'mouthSmile', 'mouthFrown', 'cheekRaise', 'jawOpen',
-        'mouthClose', 'mouthFunnel', 'mouthPucker', 'mouthStretch', 'lowerLipUp']}
+        'mouthClose', 'mouthFunnel', 'mouthPucker', 'mouthStretch', 'lowerLipUp',
+        'upperLipUp','upperLipDown','lowerLipDown']}
     definitions.update({
-        'viseme_aa': {'jawOpen': 1},
-        'viseme_ih': {'jawOpen': .18, 'mouthStretch': .55},
-        'viseme_ou': {'jawOpen': .30, 'mouthPucker': .8},
-        'viseme_ee': {'jawOpen': .32, 'mouthStretch': .85},
-        'viseme_oh': {'jawOpen': .72, 'mouthFunnel': .9},
+        'viseme_aa': {'jawOpen': .85, 'upperLipUp': .40, 'lowerLipDown': .35},
+        'viseme_ih': {'jawOpen': .24, 'upperLipUp': .28, 'mouthStretch': .55},
+        'viseme_ou': {'jawOpen': .30, 'upperLipUp': .24, 'mouthPucker': .8},
+        'viseme_ee': {'jawOpen': .30, 'upperLipUp': .35, 'mouthStretch': .85},
+        'viseme_oh': {'jawOpen': .72, 'upperLipUp': .65, 'mouthFunnel': .9},
         'viseme_mbp': {'mouthClose': 1},
-        'viseme_fv': {'mouthClose': .40, 'lowerLipUp': .8},
+        'viseme_fv': {'upperLipUp': .45, 'lowerLipUp': .8},
     })
     report = {'landmarks': cfg, 'face_vertices': len(positions), 'morphs': {}}
     for name, combination in definitions.items():
@@ -175,7 +219,7 @@ def main():
         key.value = 0
         moved, maximum = 0, 0
         for i, position in enumerate(positions):
-            delta = sum((primitive(part, position) * weight for part, weight in combination.items()), Vector())
+            delta = sum((primitive(part, position, mouth_tags.get(i,0)) * weight for part, weight in combination.items()), Vector())
             delta *= boundary_fade[i]
             key.data[i].co = bind_positions[i] + inverse @ delta
             if delta.length > .000001:
@@ -184,6 +228,7 @@ def main():
         if moved < 3:
             raise ValueError(f'Morph {name} has no useful deformation; recheck landmarks')
         report['morphs'][name] = {'moved_vertices': moved, 'max_displacement': maximum}
+    report['mouth_regions'] = {str(tag):sum(t==tag for t in mouth_tags.values()) for tag in range(1,9)}
     for rig in rigs:
         rig.data.pose_position = 'POSE'
     target.parent.mkdir(parents=True, exist_ok=True)
