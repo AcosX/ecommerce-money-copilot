@@ -1,0 +1,112 @@
+# 电商搞钱参谋 测试/演示站点 - Apache name-based vhost (port 80)
+#
+# Route: ESA (TLS at edge) -> SafeLine WAF -> VM2 HAProxy (host routing)
+#        -> VM3 Apache :80 (this vhost) -> FastAPI 127.0.0.1:@API_PORT@
+#
+# Rendered by deploy/scripts/install-host.sh; placeholders:
+#   @SERVER_NAME@  public host name
+#   @BASE_DIR@     release root (contains current -> releases/<tag>)
+#   @API_PORT@     loopback port of the FastAPI service
+# No credentials in this file.
+
+<VirtualHost *:80>
+    ServerName @SERVER_NAME@
+
+    ErrorLog /var/log/httpd/money-acosx-error.log
+    # %a is the last proxy hop (VM2); the forwarded chain is logged separately.
+    CustomLog /var/log/httpd/money-acosx-access.log "%a \"%{X-Forwarded-For}i\" %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %D"
+
+    DocumentRoot "@BASE_DIR@/current"
+    DirectoryIndex index.html
+
+    # ---- Static files: deny by default, allow only the frontend paths ----
+    <Directory "@BASE_DIR@">
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+    # Defense in depth: repository-only paths are never served.
+    <DirectoryMatch "^@BASE_DIR@/current/(backend|deploy|docs|alembic|tests)(/|$)">
+        Require all denied
+    </DirectoryMatch>
+
+    # Location sections are merged in order; later ones win.
+    <Location "/">
+        Require all denied
+    </Location>
+    <LocationMatch "^/(index\.html)?$">
+        Require all granted
+    </LocationMatch>
+    <LocationMatch "^/(assets|css|js)/">
+        Require all granted
+    </LocationMatch>
+    <LocationMatch "^/(api|auth|admin)/">
+        Require all granted
+    </LocationMatch>
+    # Dotfiles / dot-directories (.git, .env, .release ...) anywhere.
+    <LocationMatch "/\.">
+        Require all denied
+    </LocationMatch>
+
+    # ---- Backend: same-origin reverse proxy ----
+    ProxyRequests Off
+    ProxyPreserveHost On
+    # Edge (ESA) terminates TLS; internal hops are private HTTP.
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+    # mod_proxy_http appends X-Forwarded-For / X-Forwarded-Host itself.
+    # Absolute https target: the internal hop is plain HTTP, so a relative
+    # redirect would be built as http://.
+    RedirectMatch 301 "^/admin$" "https://@SERVER_NAME@/admin/"
+    ProxyPass        /api/   http://127.0.0.1:@API_PORT@/api/   retry=0 connectiontimeout=5 timeout=60
+    ProxyPassReverse /api/   http://127.0.0.1:@API_PORT@/api/
+    ProxyPass        /auth/  http://127.0.0.1:@API_PORT@/auth/  retry=0 connectiontimeout=5 timeout=60
+    ProxyPassReverse /auth/  http://127.0.0.1:@API_PORT@/auth/
+    ProxyPass        /admin/ http://127.0.0.1:@API_PORT@/admin/ retry=0 connectiontimeout=5 timeout=60
+    ProxyPassReverse /admin/ http://127.0.0.1:@API_PORT@/admin/
+
+    # ---- Request body limits (backend enforces the exact limits too) ----
+    # Evidence upload: single file <= 10 MiB plus multipart overhead (11 MiB).
+    # Other proxied paths: contract limit 256 KiB; 1 MiB headroom at the edge.
+    # LimitRequestBody alone was observed not to stop proxied requests with a
+    # declared Content-Length on this host, so reject those up front (413)
+    # before mod_proxy streams them; LimitRequestBody stays as a second layer.
+    RewriteEngine On
+    RewriteCond %{HTTP:Content-Length} -gt11534336
+    RewriteRule "^/api/evidence(/|$)" - [R=413,L]
+    RewriteCond %{REQUEST_URI} !^/api/evidence(/|$)
+    RewriteCond %{HTTP:Content-Length} -gt1048576
+    RewriteRule "^/(api|auth|admin)/" - [R=413,L]
+    <Location "/api/">
+        LimitRequestBody 1048576
+    </Location>
+    <Location "/api/evidence">
+        LimitRequestBody 11534336
+    </Location>
+
+    # ---- Compression (static only; API/auth responses are not compressed) ----
+    SetEnvIf Request_URI "^/(api|auth|admin)/" no-gzip
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+
+    # ---- Caching ----
+    <LocationMatch "^/(index\.html)?$">
+        Header set Cache-Control "no-cache"
+    </LocationMatch>
+    <LocationMatch "^/(assets|css|js)/">
+        Header set Cache-Control "public, max-age=3600"
+    </LocationMatch>
+
+    # ---- Security headers ----
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # The current frontend uses one inline <script>, inline <style>, inline
+    # event handlers and a pixel font from the Feishu font CDN, hence
+    # 'unsafe-inline'. Tighten once scripts move to js/ files.
+    # setifempty: a backend-provided CSP (e.g. /admin/) takes precedence.
+    Header setifempty Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://miaoda.feishu.cn; font-src 'self' data: https://sf3-scmcdn-cn.feishucdn.com; img-src 'self' data: blob:; connect-src 'self'; form-action 'self' https://auth.acosx.top; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+    Header always setifempty X-Frame-Options "SAMEORIGIN"
+
+    TraceEnable off
+</VirtualHost>

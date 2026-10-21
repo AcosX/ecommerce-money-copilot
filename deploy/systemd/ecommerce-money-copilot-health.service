@@ -1,0 +1,16 @@
+[Unit]
+Description=电商搞钱参谋 public health probe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/ecommerce-money-copilot/health-check.sh
+StateDirectory=ecommerce-money-copilot-monitor
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+# Appends to the host alert relay log consumed by the existing relay.
+ReadWritePaths=/var/lib/acosx-monitor
