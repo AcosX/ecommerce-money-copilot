@@ -11,10 +11,21 @@ function update(){
  const ready=loader.hidden;
  overlay.dataset.ready=String(ready);
  overlay.classList.toggle('waiting',elapsed&&!ready);
- status.textContent=elapsed&&!ready?'正在准备场景资源，请稍候…':ready?'准备好了，开张！':'正在为你的小店开张…';
+ status.textContent=elapsed&&!ready?'正在准备场景资源，请稍候…':elapsed&&ready?'准备好了，开张！':'正在为你的小店开张…';
  if(elapsed&&ready){finished=true;observer.disconnect();overlay.classList.add('leaving');setTimeout(()=>overlay.remove(),460);}
 }
 retry.onclick=()=>{document.getElementById('retryScene')?.click();update();};
 const observer=new MutationObserver(update);observer.observe(loader,{attributes:true,attributeFilter:['hidden','data-state']});
-setTimeout(()=>{elapsed=true;update();},3000);update();
+// Count rendered foreground time, not a wall-clock timeout that can overtake the animation.
+let played=0,last=null;
+document.addEventListener('visibilitychange',()=>{last=null;overlay.classList.toggle('intro-paused',document.hidden);});
+function tick(now){
+ if(finished)return;
+ if(!document.hidden){if(last!==null)played+=Math.min(100,now-last);last=now;}else last=null;
+ overlay.dataset.playedMs=String(Math.floor(played));
+ if(played>=6000){elapsed=true;update();return;}
+ requestAnimationFrame(tick);
+}
+requestAnimationFrame(()=>requestAnimationFrame(()=>{overlay.classList.add('intro-playing');overlay.classList.toggle('intro-paused',document.hidden);requestAnimationFrame(tick);}));
+update();
 })();
