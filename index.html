@@ -120,7 +120,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
 .cp-fab img{width:100%;height:100%;object-fit:cover;display:block}
 .cp-fab .badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:var(--coral);border:2px solid #0a1326;font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
 .cp-fab .badge.hide{display:none}
-.cp-panel{position:fixed;right:12px;bottom:150px;width:min(360px,calc(100vw - 24px));height:min(520px,calc(100vh - 190px));background:var(--panel);border:3px solid #0a1326;border-radius:14px;box-shadow:0 8px 0 #0a1326,0 0 0 4px rgba(0,0,0,.25);z-index:41;display:none;flex-direction:column;overflow:hidden}
+.cp-panel{position:fixed;right:12px;bottom:150px;width:min(360px,calc(100vw - 24px));height:min(520px,calc(100vh - 190px));background:var(--panel);border:3px solid #0a1326;border-radius:14px;box-shadow:0 8px 0 #0a1326,0 0 0 4px rgba(0,0,0,.25);z-index:55;display:none;flex-direction:column;overflow:hidden}
 .cp-panel.open{display:flex}
 .cp-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel-d);border-bottom:3px solid #0a1326}
 .cp-head .ava{width:44px;height:44px;border-radius:10px;border:2px solid var(--gold);overflow:hidden;flex:0 0 44px}
@@ -284,7 +284,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
     <span class="badge" id="cpBadge">1</span>
   </button>
 
-  <div class="cp-panel" id="cpPanel">
+  <div class="cp-panel" id="cpPanel" role="dialog" aria-label="AI 副驾 向导小商">
     <div class="cp-head">
       <div class="ava"><img src="assets/npc.png" alt="向导"></div>
       <div class="who">
@@ -294,7 +294,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
       <div class="cp-mood">心情
         <span class="bar" id="moodBar"><i style="width:0%"></i></span>
       </div>
-      <button class="cp-close" onclick="closeCopilot()">×</button>
+      <button class="cp-close" type="button" onclick="closeCopilot()" aria-label="关闭 AI 副驾">×</button>
     </div>
     <div class="cp-body" id="cpBody"></div>
     <div class="chips" id="cpChips"></div>
@@ -439,8 +439,11 @@ function openCopilot(){
 }
 function closeCopilot(){
   document.getElementById('cpPanel').classList.remove('open');
-  document.getElementById('cpOverlay').classList.remove('show');
+  if(!document.getElementById('perkBox').classList.contains('open'))document.getElementById('cpOverlay').classList.remove('show');
 }
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&!e.defaultPrevented&&document.getElementById('cpPanel').classList.contains('open')&&!document.getElementById('perkBox').classList.contains('open'))closeCopilot();
+});
 function copilotSay(text,kind){
   const body=document.getElementById('cpBody');
   body.appendChild(el(`<div class="msg npc ${kind==='cool'?'cool':''}">${text.replace(/</g,'&lt;')}</div>`));
@@ -507,7 +510,7 @@ function setMood(){
 }
 function closePerk(){
   document.getElementById('perkBox').classList.remove('open');
-  document.getElementById('cpOverlay').classList.remove('show');
+  if(!document.getElementById('cpPanel').classList.contains('open'))document.getElementById('cpOverlay').classList.remove('show');
   toast('福利已入库：隐藏任务 + 加速道具 + 专属素材模板');
 }
 /* ===== toast ===== */
