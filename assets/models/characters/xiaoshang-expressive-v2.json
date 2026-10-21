@@ -1,0 +1,124 @@
+{
+  "landmarks": {
+    "height": 1.7499997019767761,
+    "center_y": -0.0036851560580544174,
+    "eye_left_y": -0.05423691315809265,
+    "eye_right_y": 0.04587539011845365,
+    "eye_y": 0.05005615163827315,
+    "eye_z": 1.5218337346450426,
+    "eye_half_width": 0.042,
+    "eye_half_height": 0.032,
+    "brow_z": 1.5590041442774236,
+    "mouth_z": 1.4519533645361662,
+    "mouth_half_width": 0.033,
+    "mouth_half_height": 0.011,
+    "front_min_x": -0.06,
+    "face_half_width": 0.113,
+    "face_min_z": 1.35,
+    "face_max_z": 1.595,
+    "deform_min_x": 0.03
+  },
+  "face_vertices": 5598,
+  "morphs": {
+    "eyeBlinkLeft": {
+      "moved_vertices": 453,
+      "max_displacement": 0.020896021854849928
+    },
+    "eyeBlinkRight": {
+      "moved_vertices": 592,
+      "max_displacement": 0.02089752255433184
+    },
+    "eyeWideLeft": {
+      "moved_vertices": 451,
+      "max_displacement": 0.006392242974193375
+    },
+    "eyeWideRight": {
+      "moved_vertices": 588,
+      "max_displacement": 0.00639271305332203
+    },
+    "browInnerUp": {
+      "moved_vertices": 531,
+      "max_displacement": 0.01199999839323562
+    },
+    "browOuterUp": {
+      "moved_vertices": 1029,
+      "max_displacement": 0.009999998054699782
+    },
+    "browDown": {
+      "moved_vertices": 1030,
+      "max_displacement": 0.011762392775820304
+    },
+    "mouthSmile": {
+      "moved_vertices": 120,
+      "max_displacement": 0.009656602531496448
+    },
+    "mouthFrown": {
+      "moved_vertices": 130,
+      "max_displacement": 0.0079999986256588
+    },
+    "cheekRaise": {
+      "moved_vertices": 306,
+      "max_displacement": 0.00368326627250255
+    },
+    "jawOpen": {
+      "moved_vertices": 479,
+      "max_displacement": 0.019235381312741773
+    },
+    "mouthClose": {
+      "moved_vertices": 170,
+      "max_displacement": 0.012877511060356901
+    },
+    "mouthFunnel": {
+      "moved_vertices": 199,
+      "max_displacement": 0.013160786835792722
+    },
+    "mouthPucker": {
+      "moved_vertices": 199,
+      "max_displacement": 0.018966603835227074
+    },
+    "mouthStretch": {
+      "moved_vertices": 199,
+      "max_displacement": 0.007577047293281473
+    },
+    "lowerLipUp": {
+      "moved_vertices": 122,
+      "max_displacement": 0.0079999986256588
+    },
+    "viseme_aa": {
+      "moved_vertices": 479,
+      "max_displacement": 0.019235381312741773
+    },
+    "viseme_ih": {
+      "moved_vertices": 535,
+      "max_displacement": 0.005193232116308496
+    },
+    "viseme_ou": {
+      "moved_vertices": 537,
+      "max_displacement": 0.01638377298059619
+    },
+    "viseme_ee": {
+      "moved_vertices": 538,
+      "max_displacement": 0.008567359867161731
+    },
+    "viseme_oh": {
+      "moved_vertices": 541,
+      "max_displacement": 0.018195513149817516
+    },
+    "viseme_mbp": {
+      "moved_vertices": 170,
+      "max_displacement": 0.012877511060356901
+    },
+    "viseme_fv": {
+      "moved_vertices": 186,
+      "max_displacement": 0.011543270429473897
+    }
+  },
+  "provenance": {
+    "facial_authoring": "tools/build-character-face.py",
+    "reference": "assets/game/characters/xiaoshang-tpose-v2.png",
+    "scope": "23 basic facial morphs; no walk clips, live island integration, or audio-to-viseme timing",
+    "generation_task": "57fdc77d-e943-4ef6-a634-8c753de28def",
+    "rig_task": "f4d18664-a7ac-4eca-9b28-9ea894e1903a",
+    "generator": "Tripo"
+  }
+}
