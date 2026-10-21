@@ -75,7 +75,7 @@
     toastTimer=setTimeout(()=>{$('toast').className='toast'},upgrade?5000:3300);
   }
   function render(){
-    renderPartnerName();renderTheme();const level=growthStage(),stage=journey?{...G.STAGES[level],xp:[0,320,640,800,960][level]}:G.STAGES[level],next=journey?(level<4?{xp:[320,640,800,960][level]}:null):G.STAGES[level+1],xp=journey?journey.progress().xp:G.xp(game),task=mainTask();
+    renderPartnerName();renderSocialChat();renderTheme();const level=growthStage(),stage=journey?{...G.STAGES[level],xp:[0,320,640,800,960][level]}:G.STAGES[level],next=journey?(level<4?{xp:[320,640,800,960][level]}:null):G.STAGES[level+1],xp=journey?journey.progress().xp:G.xp(game),task=mainTask();
     $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=journey?window.EmcJourney.GROWTH[level]:stage.title;
     $('xpCount').textContent=next?xp+' / '+next.xp:xp+' · 满级';
     const progress=next?Math.min(100,(xp-stage.xp)/(next.xp-stage.xp)*100):100;
@@ -306,11 +306,21 @@
     $('panelBody').innerHTML='<p class="muted-note">对话保存在当前浏览器。演示回复会单独标记。</p><div class="chat-log">'+(messages.length?messages.map(m=>`<article class="chat-message ${m.role}"><header><b>${m.role==='user'?'你':escape(partnerName())}</b><small>${m.role==='assistant'?(m.source==='ai'?'AI 副驾':'本地教学演示'):'玩家'}${m.time?' · '+new Date(m.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</small></header><p>${escape(m.text)}</p></article>`).join(''):'<div class="chat-empty">还没有聊过天。<br>在底部向'+escape(partnerName())+'打个招呼吧。</div>')+'</div>';
     $('panelBody').scrollTop=$('panelBody').scrollHeight;
   }
-  function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}]);save();if(panel==='history')renderChatHistory();}
+  function renderSocialChat(){
+    const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
+    $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
+    const rows=C.history(game.npc_chat).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
+    const markup=rows.length?rows.map(row=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(M.brief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
+    if(host.innerHTML!==markup){host.innerHTML=markup;if(nearBottom)host.scrollTop=host.scrollHeight;}
+  }
+  function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}]);save();renderSocialChat();if(panel==='history')renderChatHistory();}
   $('copilotInput').addEventListener('input',updateChatAvailability);
   $('copilotInput').addEventListener('focus',()=>{if(!npcAvailable())return;if(panel!=='companion')closePanel();startConversation();});
   $('copilotInput').addEventListener('blur',()=>{if(!sending&&$('npcBubble').hidden)finishConversation();});
   $('npcInteract').onclick=()=>{if(npcAvailable())openCompanion(true);};
+  const placeSocialChat=()=>{document.querySelector('.copilot-dock').style.setProperty('--social-top',(document.querySelector('.quest-peek').getBoundingClientRect().bottom+16)+'px');};
+  new ResizeObserver(placeSocialChat).observe(document.querySelector('.quest-peek'));window.addEventListener('resize',placeSocialChat);placeSocialChat();
+  $('companionAvatar').onclick=()=>openCompanion();
   $('copilotProfile').onclick=()=>{if(panel==='companion')closePanel();else openCompanion();};
   $('closeNpcBubble').onclick=$('npcContinue').onclick=()=>{finishConversation();$('copilotInput').blur();lastReminderAt=performance.now();};
   $('npcBubble').addEventListener('pointerenter',()=>{if(bubbleKind==='reminder'&&npcAvailable())homeScene.guide.setTalking(true);});
