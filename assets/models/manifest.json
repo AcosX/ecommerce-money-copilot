@@ -33,6 +33,14 @@
         "texture_max_dimension": 2048,
         "texture_format": "webp",
         "geometry_sha256": "e4bd076b8da144c155ee386fae3f3f009eb2ae44eae354d1f76c2bf74d2ef1bf"
+      },
+      "lite": {
+        "model_url": "assets/models/shop-1-lite.glb",
+        "bytes": 1025088,
+        "triangles": 27413,
+        "original_triangles": 45691,
+        "texture_max_dimension": 1024,
+        "simplification_error": 0.001
       }
     },
     "2": {
@@ -65,6 +73,14 @@
         "texture_max_dimension": 2048,
         "texture_format": "webp",
         "geometry_sha256": "df8ba520a3d14df0a6321f60d57703ca952525ce3819048bb009ac63ead29228"
+      },
+      "lite": {
+        "model_url": "assets/models/shop-2-lite.glb",
+        "bytes": 1050080,
+        "triangles": 24190,
+        "original_triangles": 40318,
+        "texture_max_dimension": 1024,
+        "simplification_error": 0.001
       }
     },
     "3": {
@@ -99,6 +115,14 @@
         "texture_max_dimension": 2048,
         "texture_format": "webp",
         "geometry_sha256": "cb342001cb703d89faf56392d247ccb0af94099e7dee3f9ff08b7ba743e64458"
+      },
+      "lite": {
+        "model_url": "assets/models/shop-3-lite.glb",
+        "bytes": 1213924,
+        "triangles": 27088,
+        "original_triangles": 45148,
+        "texture_max_dimension": 1024,
+        "simplification_error": 0.001
       }
     },
     "4": {
@@ -138,6 +162,14 @@
         "texture_max_dimension": 2048,
         "texture_format": "webp",
         "geometry_sha256": "f1d3b8ff8aa945b64f5eb09cd634427f2f7758b04011c005f632ca1bd9fd87e0"
+      },
+      "lite": {
+        "model_url": "assets/models/shop-4-lite.glb",
+        "bytes": 1142680,
+        "triangles": 24293,
+        "original_triangles": 40491,
+        "texture_max_dimension": 1024,
+        "simplification_error": 0.001
       }
     },
     "5": {
@@ -170,6 +202,14 @@
         "texture_max_dimension": 2048,
         "texture_format": "webp",
         "geometry_sha256": "1bddce42f4773eaedd8a42f1d6c5035d60723a685229c5e0a45e0dfae4417d21"
+      },
+      "lite": {
+        "model_url": "assets/models/shop-5-lite.glb",
+        "bytes": 1444644,
+        "triangles": 26126,
+        "original_triangles": 39644,
+        "texture_max_dimension": 1024,
+        "simplification_error": 0.001
       }
     }
   },
@@ -196,6 +236,14 @@
       "texture_max_dimension": 2048,
       "texture_format": "webp",
       "geometry_sha256": "13bac261429e7e175d0b3e184d0a755a27d50ac8b5295c40e293d22a3964c7a9"
+    },
+    "lite": {
+      "model_url": "assets/models/island-lite.glb",
+      "bytes": 1126184,
+      "triangles": 29862,
+      "original_triangles": 46958,
+      "texture_max_dimension": 1024,
+      "simplification_error": 0.001
     }
   }
 }

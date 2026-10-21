@@ -1,10 +1,12 @@
 import * as THREE from 'three';
+import {batchDecoration} from './emc-model-performance.js';
 
 // 岛屿向导：沿建筑外侧巡游；投影与射线遮挡使用同一份三维坐标。
 export class IslandGuide{
   constructor(scene){
     this.host=scene;this.root=new THREE.Group();scene.root.add(this.root);
-    const box=(size,pos,mat,parent=this.root)=>scene.box(parent,size,pos,mat);
+    const body=new THREE.Group();this.root.add(body);
+    const box=(size,pos,mat,parent=body)=>scene.box(parent,size,pos,mat);
     const navy=scene.mat('#30466a'),skin=scene.mat('#e5bb8b'),cream=scene.mat('#eddfbb'),mint=scene.mat('#709d85'),gold=scene.mat('#dfb84e'),dark=scene.mat('#263344');
     box([.34,.39,.23],[0,.53,0],cream);box([.36,.23,.25],[0,.58,0],mint);box([.04,.25,.025],[0,.59,.14],navy);
     box([.33,.31,.28],[0,.89,0],skin);box([.36,.10,.31],[0,1.06,0],navy);box([.39,.045,.14],[0,1.015,.17],navy);box([.08,.055,.015],[0,1.07,.16],gold);
@@ -16,7 +18,8 @@ export class IslandGuide{
       const leg=new THREE.Group();leg.position.set(side*.095,.36,0);this.root.add(leg);box([.115,.26,.13],[0,-.13,0],navy,leg);box([.13,.075,.20],[0,-.29,.035],dark,leg);this.legs.push(leg);
       const arm=new THREE.Group();arm.position.set(side*.235,.71,0);this.root.add(arm);box([.12,.21,.15],[0,-.10,0],mint,arm);box([.10,.10,.13],[0,-.25,0],skin,arm);this.arms.push(arm);
     }
-    this.route=[[-2.8,3.0],[2.8,3.0],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];this.index=1;this.root.position.set(-2.8,0,3);this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.ray=new THREE.Raycaster();this.root.rotation.y=Math.PI/2;
+    batchDecoration(body);
+    this.route=[[-2.8,3.0],[2.8,3.0],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];this.index=1;this.root.position.set(-2.8,0,3);this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.ray=new THREE.Raycaster();this.ray.firstHitOnly=true;this.root.rotation.y=Math.PI/2;this.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
   }
   setTalking(value){if(value&&!this.status(true).visible)return false;this.talking=!!value;return true;}
   update(dt){
@@ -30,7 +33,7 @@ export class IslandGuide{
       else{this.root.position.x+=dx/length*step;this.root.position.z+=dz/length*step;this.root.rotation.y=Math.atan2(dx,dz);moving=true;}
     }
     const stride=moving?Math.sin(this.elapsed*8)*.40:0;this.legs.forEach((limb,i)=>limb.rotation.x=i?stride:-stride);this.arms.forEach((limb,i)=>limb.rotation.x=i?-stride:stride);
-    if(this.elapsed>=this.groundAt){this.groundAt=this.elapsed+.15;this.ray.set(new THREE.Vector3(this.root.position.x,20,this.root.position.z),new THREE.Vector3(0,-1,0));const hit=this.host.terrain?this.ray.intersectObject(this.host.terrain,true)[0]:null;this.root.position.y=(hit?.point.y??0)-.02;this.host.renderer.shadowMap.needsUpdate=true;}
+    if(this.elapsed>=this.groundAt){this.groundAt=this.elapsed+.15;this.root.position.y=this.host.surfaceHeight(this.root.position.x,this.root.position.z)-.02;}
     const status=this.status();this.host.options.onNpcFrame?.(status);
   }
   status(force=false){
