@@ -38,6 +38,7 @@ done
 if command -v semanage > /dev/null; then
   fctx() { semanage fcontext -a -t "$1" "$2" 2> /dev/null || semanage fcontext -m -t "$1" "$2"; }
   fctx httpd_sys_content_t "$EMC_BASE(/.*)?"
+  fctx usr_t "$EMC_BASE/(current|previous)"
   fctx bin_t "$EMC_BASE/releases/[^/]+/backend(/.*)?"
   fctx bin_t "$EMC_BASE/python(/.*)?"
   fctx bin_t "$LIBEXEC(/.*)?"
