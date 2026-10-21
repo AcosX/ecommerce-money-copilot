@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电商搞钱参谋 · 正式成果审核工作台</title>
+  <style>
+    :root {
+      --bg-main: #181425;
+      --bg-panel: #262b44;
+      --bg-card: #1f243a;
+      --border-gold: #f4b41b;
+      --border-muted: #3a4466;
+      --text-main: #f4f4f4;
+      --text-muted: #9badb7;
+      --green: #38b764;
+      --red: #e43b44;
+      --amber: #f4b41b;
+      --blue: #41a6f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Courier New", "PingFang SC", "Microsoft YaHei", monospace;
+      background: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      background: #110e1b;
+      border-bottom: 3px solid var(--border-gold);
+    }
+    .brand {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--border-gold);
+      letter-spacing: 1px;
+    }
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 7px 14px;
+      border: 2px solid var(--border-gold);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--border-gold);
+      color: #110e1b;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-approve {
+      border-color: var(--green);
+      background: #1b4332;
+    }
+    .btn-approve:hover:not(:disabled) {
+      background: var(--green);
+      color: #110e1b;
+    }
+    .btn-reject {
+      border-color: var(--red);
+      background: #4a151b;
+    }
+    .btn-reject:hover:not(:disabled) {
+      background: var(--red);
+      color: #fff;
+    }
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .notice-box {
+      padding: 28px;
+      border: 2px solid var(--border-gold);
+      background: var(--bg-panel);
+      text-align: center;
+      margin-top: 32px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 8px 16px;
+      border: 2px solid var(--border-muted);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .tab.active {
+      border-color: var(--border-gold);
+      color: var(--border-gold);
+      background: var(--bg-panel);
+    }
+    .workbench {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 960px) {
+      .workbench { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--bg-panel);
+      border: 2px solid var(--border-muted);
+      padding: 16px;
+    }
+    .sub-item {
+      padding: 12px;
+      border: 2px solid var(--border-muted);
+      background: var(--bg-card);
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .sub-item.selected {
+      border-color: var(--border-gold);
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: bold;
+      border: 1px solid currentColor;
+    }
+    .badge-pending { color: var(--amber); }
+    .badge-approved { color: var(--green); }
+    .badge-rejected { color: var(--red); }
+    .badge-origin { color: var(--blue); margin-left: 6px; }
+    pre.json-box {
+      background: #110e1b;
+      border: 1px solid var(--border-muted);
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 12px;
+      max-height: 320px;
+      color: #a8e6cf;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 16px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .evidence-list, .review-list {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 16px;
+    }
+    .evidence-list li, .review-list li {
+      background: var(--bg-card);
+      border: 1px solid var(--border-muted);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 84px;
+      background: #110e1b;
+      color: var(--text-main);
+      border: 2px solid var(--border-muted);
+      padding: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      margin: 8px 0 12px;
+    }
+    .error-banner {
+      background: #4a151b;
+      border: 2px solid var(--red);
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .muted { color: var(--text-muted); font-size: 12px; }
+    a.link { color: var(--border-gold); }
+  </style>
+  <script src="/js/emc-api.js"></script>
+  <script src="/js/emc-session.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">像素商战 · 正式成果人工审核工作台</div>
+    <div class="user-bar" id="user-bar">正在检查登录状态...</div>
+  </header>
+
+  <div class="container">
+    <div id="error-area"></div>
+    <div id="guard-area"></div>
+    <div id="main-area" style="display:none;">
+      <div class="tabs" id="status-tabs">
+        <button class="tab active" data-status="pending">待审核 (pending)</button>
+        <button class="tab" data-status="approved">正式认证通过 (approved)</button>
+        <button class="tab" data-status="rejected">已驳回 (rejected)</button>
+        <button class="tab" data-status="all">全部记录 (all)</button>
+        <button class="btn" id="refresh-btn" style="margin-left:auto;">刷新列表</button>
+      </div>
+
+      <div class="workbench">
+        <div class="panel">
+          <h3 style="margin-top:0;">认证申请列表</h3>
+          <div id="submission-list">加载中...</div>
+        </div>
+        <div class="panel" id="detail-panel">
+          <div class="muted">请从左侧选择一条认证申请查看冻结快照与证据附件。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var csrfToken = null;
+      var currentMe = null;
+      var currentStatus = 'pending';
+      var selectedId = null;
+
+      function esc(v) {
+        return String(v == null ? '' : v)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function newIdemKey() {
+        if (window.EmcApi && typeof window.EmcApi.newIdempotencyKey === 'function') {
+          return window.EmcApi.newIdempotencyKey();
+        }
+        return 'rev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+      }
+
+      async function apiRequest(method, path, body, idemKey) {
+        if (window.EmcApi && typeof window.EmcApi.request === 'function') {
+          return window.EmcApi.request(method, path, { body: body, idempotencyKey: idemKey });
+        }
+        var headers = { 'Accept': 'application/json' };
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        if (idemKey) headers['Idempotency-Key'] = idemKey;
+        var resp = await fetch(path, {
+          method: method,
+          headers: headers,
+          credentials: 'same-origin',
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+        var data = await resp.json().catch(function () { return {}; });
+        if (!resp.ok) {
+          var err = new Error((data.error && data.error.message) || ('HTTP ' + resp.status));
+          err.status = resp.status;
+          err.code = data.error && data.error.code;
+          throw err;
+        }
+        return data;
+      }
+
+      function showError(msg) {
+        var el = document.getElementById('error-area');
+        el.innerHTML = msg ? '<div class="error-banner">' + esc(msg) + '</div>' : '';
+      }
+
+      function statusBadge(st) {
+        var label = st === 'approved' ? '正式认证通过' : (st === 'rejected' ? '已驳回' : '待审核');
+        return '<span class="badge badge-' + esc(st) + '">' + label + '</span>';
+      }
+
+      async function loadList() {
+        showError('');
+        var listEl = document.getElementById('submission-list');
+        listEl.innerHTML = '<div class="muted">正在加载...</div>';
+        try {
+          var data = await apiRequest('GET', '/api/admin/verifications?status=' + encodeURIComponent(currentStatus));
+          var items = (data && data.items) || [];
+          if (!items.length) {
+            listEl.innerHTML = '<div class="muted">当前筛选下暂无认证申请。</div>';
+            return;
+          }
+          listEl.innerHTML = items.map(function (item) {
+            var snap = item.snapshot || {};
+            var originLabel = snap.origin === 'tutorial_copy' ? '来自教学模拟' : '正式创建';
+            var activeCls = item.id === selectedId ? 'sub-item selected' : 'sub-item';
+            return (
+              '<div class="' + activeCls + '" data-id="' + esc(item.id) + '">' +
+                '<div>' + statusBadge(item.status) +
+                  '<span class="badge badge-origin">' + esc(originLabel) + '</span>' +
+                '</div>' +
+                '<div style="font-weight:bold;margin-top:6px;">' + esc(snap.title || item.artifact_id) + '</div>' +
+                '<div class="muted">申请人：' + esc(item.owner_display_name || item.owner_id) +
+                  ' · 版本 v' + esc(item.artifact_revision) +
+                  ' · 证据 ' + esc(item.evidence_count) + ' 份</div>' +
+                '<div class="muted">提交时间：' + esc(item.created_at) + '</div>' +
+              '</div>'
+            );
+          }).join('');
+          Array.prototype.forEach.call(listEl.querySelectorAll('.sub-item'), function (node) {
+            node.addEventListener('click', function () {
+              selectSubmission(node.getAttribute('data-id'));
+            });
+          });
+        } catch (err) {
+          showError(err.message || '加载列表失败');
+        }
+      }
+
+      async function selectSubmission(id) {
+        selectedId = id;
+        var panel = document.getElementById('detail-panel');
+        panel.innerHTML = '<div class="muted">正在读取申请详情...</div>';
+        try {
+          var sub = await apiRequest('GET', '/api/admin/verifications/' + encodeURIComponent(id));
+          renderDetail(sub);
+          loadList();
+        } catch (err) {
+          showError(err.message || '加载详情失败');
+        }
+      }
+
+      function renderDetail(sub) {
+        var panel = document.getElementById('detail-panel');
+        var snap = sub.snapshot || {};
+        var isSelf = currentMe && currentMe.player && currentMe.player.id === sub.owner_id;
+        var evHtml = (sub.evidence || []).map(function (ev) {
+          return (
+            '<li>' +
+              '<strong>' + esc(ev.original_filename) + '</strong> ' +
+              '<span class="muted">(' + esc(ev.content_type) + ', ' + esc(ev.size_bytes) + ' B)</span><br/>' +
+              '<span class="muted">SHA-256: ' + esc(ev.sha256) + '</span> · ' +
+              '<a class="link" href="' + esc(ev.download_url) + '" target="_blank" rel="noopener">下载证据附件</a>' +
+            '</li>'
+          );
+        }).join('') || '<li class="muted">无证据附件</li>';
+
+        var revHtml = (sub.reviews || []).map(function (r) {
+          return (
+            '<li>' +
+              statusBadge(r.decision) + ' · 审核员 <code>' + esc(r.reviewer_id) + '</code> · ' +
+              '<span class="muted">' + esc(r.created_at) + '</span>' +
+              (r.reason ? '<div style="margin-top:4px;">原因/意见：' + esc(r.reason) + '</div>' : '') +
+            '</li>'
+          );
+        }).join('') || '<li class="muted">暂无审核记录</li>';
+
+        var actionHtml = '';
+        if (sub.status === 'pending') {
+          if (isSelf) {
+            actionHtml = '<div class="error-banner">安全规则限制：不能审核本人提交的认证申请。</div>';
+          } else {
+            actionHtml = (
+              '<div style="margin-top:16px;border-top:2px solid var(--border-muted);padding-top:14px;">' +
+                '<h4 style="margin:0 0 6px;">执行人工审核决策</h4>' +
+                '<div class="muted">驳回时必须填写原因（1–2000 字）；审核记录一旦写入只追加不可篡改。</div>' +
+                '<textarea id="review-reason" maxlength="2000" placeholder="请输入审核意见或驳回原因（驳回必填）"></textarea>' +
+                '<div style="display:flex;gap:12px;">' +
+                  '<button class="btn btn-approve" id="btn-approve">通过正式认证 (approved)</button>' +
+                  '<button class="btn btn-reject" id="btn-reject">驳回认证申请 (rejected)</button>' +
+                '</div>' +
+              '</div>'
+            );
+          }
+        }
+
+        panel.innerHTML = (
+          '<h3 style="margin-top:0;">申请详情 <code>' + esc(sub.id) + '</code> ' + statusBadge(sub.status) + '</h3>' +
+          '<div class="meta-grid">' +
+            '<div>申请人：<strong>' + esc(sub.owner_display_name || sub.owner_id) + '</strong> (<code>' + esc(sub.owner_id) + '</code>)</div>' +
+            '<div>成果 ID：<code>' + esc(sub.artifact_id) + '</code> (Revision v' + esc(sub.artifact_revision) + ')</div>' +
+            '<div>成果类型：<code>' + esc(snap.artifact_type) + '</code> (Schema v' + esc(snap.schema_version) + ')</div>' +
+            '<div>成果来源：<code>' + esc(snap.origin) + '</code>' + (snap.source_level_id ? ' (' + esc(snap.source_level_id) + ')' : '') + '</div>' +
+            '<div>提交时间：' + esc(sub.created_at) + '</div>' +
+            '<div>决策时间：' + esc(sub.decided_at || '—') + '</div>' +
+          '</div>' +
+          '<div class="muted">快照 SHA-256：<code>' + esc(sub.snapshot_sha256) + '</code></div>' +
+          (sub.note ? '<div style="margin:10px 0;"><strong>玩家提交说明：</strong>' + esc(sub.note) + '</div>' : '') +
+          (sub.rejection_reason ? '<div class="error-banner">最新驳回原因：' + esc(sub.rejection_reason) + '</div>' : '') +
+          '<h4>冻结成果内容快照 (Immutable Snapshot)</h4>' +
+          '<pre class="json-box">' + esc(JSON.stringify(snap, null, 2)) + '</pre>' +
+          '<h4>绑定证据附件 (' + esc((sub.evidence || []).length) + ')</h4>' +
+          '<ul class="evidence-list">' + evHtml + '</ul>' +
+          '<h4>审核历史记录 (Append-Only)</h4>' +
+          '<ul class="review-list">' + revHtml + '</ul>' +
+          actionHtml
+        );
+
+        var btnApprove = document.getElementById('btn-approve');
+        var btnReject = document.getElementById('btn-reject');
+        if (btnApprove && btnReject) {
+          btnApprove.addEventListener('click', function () { submitDecision(sub.id, 'approved'); });
+          btnReject.addEventListener('click', function () { submitDecision(sub.id, 'rejected'); });
+        }
+      }
+
+      async function submitDecision(submissionId, decision) {
+        showError('');
+        var reasonEl = document.getElementById('review-reason');
+        var reason = reasonEl ? reasonEl.value.trim() : '';
+        if (decision === 'rejected' && !reason) {
+          showError('驳回申请时必须填写驳回原因');
+          return;
+        }
+        var idemKey = newIdemKey();
+        try {
+          var updated = await apiRequest(
+            'POST',
+            '/api/admin/verifications/' + encodeURIComponent(submissionId) + '/review',
+            { decision: decision, reason: reason || null },
+            idemKey
+          );
+          renderDetail(updated);
+          await loadList();
+        } catch (err) {
+          showError(err.message || '提交审核结果失败');
+        }
+      }
+
+      async function init() {
+        var userBar = document.getElementById('user-bar');
+        var guardArea = document.getElementById('guard-area');
+        var mainArea = document.getElementById('main-area');
+
+        try {
+          var me = window.EmcSession ? await window.EmcSession.getMe({ force: true }) : await apiRequest('GET', '/api/me');
+          currentMe = me;
+          csrfToken = me && me.csrf_token;
+
+          if (!me || !me.authenticated) {
+            userBar.innerHTML = '未登录';
+            guardArea.innerHTML = (
+              '<div class="notice-box">' +
+                '<h2>请先登录审核工作台</h2>' +
+                '<p class="muted">人工审核仅限配置的审核员账号访问。</p>' +
+                '<a class="btn" href="/auth/login?return_to=%2Fadmin%2F">使用 Acos Connect 登录</a>' +
+              '</div>'
+            );
+            return;
+          }
+
+          var roles = me.roles || [];
+          var isReviewer = roles.indexOf('reviewer') !== -1;
+          userBar.innerHTML = (
+            '<span>当前账号：<strong>' + esc(me.player && me.player.display_name) + '</strong> (' + esc(roles.join(', ')) + ')</span>' +
+            '<a class="btn" href="/">返回游戏</a>'
+          );
+
+          if (!isReviewer) {
+            guardArea.innerHTML = (
+              '<div class="notice-box">' +
+                '<h2>403 · 当前账号无审核员权限</h2>' +
+                '<p class="muted">审核员角色完全由服务端环境变量 <code>EMC_REVIEWER_SUBS</code> 决定，客户端无法自报角色。</p>' +
+              '</div>'
+            );
+            return;
+          }
+
+          mainArea.style.display = 'block';
+          await loadList();
+        } catch (err) {
+          showError(err.message || '初始化审核工作台失败');
+        }
+      }
+
+      Array.prototype.forEach.call(document.querySelectorAll('#status-tabs .tab'), function (tab) {
+        tab.addEventListener('click', function () {
+          Array.prototype.forEach.call(document.querySelectorAll('#status-tabs .tab'), function (t) {
+            t.classList.remove('active');
+          });
+          tab.classList.add('active');
+          currentStatus = tab.getAttribute('data-status');
+          loadList();
+        });
+      });
+
+      document.getElementById('refresh-btn').addEventListener('click', loadList);
+      init();
+    })();
+  </script>
+</body>
+</html>

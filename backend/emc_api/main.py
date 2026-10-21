@@ -20,7 +20,7 @@ from .db import Database
 from .errors import install_exception_handlers
 from .logging_config import configure_logging
 from .middleware import BodySizeLimitMiddleware, RequestContextMiddleware
-from .routers import artifacts, auth, health, me, projects
+from .routers import admin, artifacts, auth, evidence, health, me, projects, verifications
 from .security import require_csrf
 
 # 仓库根目录（backend/ 的上一级），仅 EMC_ENV=dev 时用于提供前端静态文件。
@@ -35,8 +35,35 @@ EVIDENCE_UPLOAD_PATH = "/api/evidence"
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
 
 
+def _router_signatures(router: APIRouter, prefix: str = "/api") -> set[tuple[str, str]]:
+    sigs: set[tuple[str, str]] = set()
+    for route in getattr(router, "routes", ()):
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if path and methods:
+            for m in methods:
+                sigs.add((f"{prefix}{path}", m))
+    return sigs
+
+
 def include_api_router(app: FastAPI, router: APIRouter) -> None:
     """挂载业务路由：前缀 `/api`，所有非 GET/HEAD/OPTIONS 请求强制 CSRF 校验。"""
+    new_sigs = _router_signatures(router, "/api")
+    if new_sigs:
+        app.router.routes[:] = [
+            item
+            for item in app.router.routes
+            if not (
+                getattr(item, "original_router", None) is not None
+                and bool(
+                    _router_signatures(
+                        item.original_router,
+                        getattr(getattr(item, "include_context", None), "prefix", "/api"),
+                    )
+                    & new_sigs
+                )
+            )
+        ]
     app.include_router(router, prefix="/api", dependencies=[Depends(require_csrf)])
 
 
@@ -98,6 +125,10 @@ def create_app(
     include_api_router(app, me.router)
     include_api_router(app, projects.router)
     include_api_router(app, artifacts.router)
+    include_api_router(app, evidence.router)
+    include_api_router(app, verifications.router)
+    include_api_router(app, admin.router)
+    app.include_router(admin.ui_router)
     # /auth/* 由 OIDC 登录模块实现（见 routers/auth.py）。
     app.include_router(auth.router)
 
