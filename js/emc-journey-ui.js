@@ -68,6 +68,7 @@
       ${kit(l)}
       ${l.status==='pending'?`<section class="j-review-state"><span>◷</span><b>成果已交给${esc(options.partnerName())}</b><p>正在等待确认，暂时不会解锁下一关。<br>可以继续逛小岛，确认结果会同步到这里。</p>${receipt(l)}${button('refresh','查看最新进度','quiet')}</section>`:l.status==='rejected'?`<section class="j-return-state"><b>还需要补充一点材料</b><p>${esc(l.submission?.rejection_reason||'请补充与任务要求对应的清晰证据，再次提交。')}</p>${button('deliver','补充成果，再交一次','primary')}</section>`:l.status==='approved'?`<section class="j-review-state approved"><span>✦</span><b>这一步，做到了。</b><p>已获得 160 经验。成果确认后，下一步已经为你打开。</p>${button('next',l.id==='L6'?'看看最终试炼':'继续下一关 →','primary')}</section>`:l.status==='locked'?`<p class="j-muted">先完成前一关并获得确认，这张任务卡就会解锁。</p>`:`<div class="j-task-actions">${['L1','L6'].includes(l.id)?button('ask','找'+esc(options.partnerName())+(l.id==='L1'?'定方向':'做复盘'),'primary')+button('deliver','我来交成果 →','quiet'):button('deliver','我来交成果 →','primary')+button('copy','复制任务指令','quiet')}</div>`}
       ${reward.length?`<section class="j-drops"><h4>${l.status==='approved'?'本关掉落':'完成后掉落'} <span>✦</span></h4>${reward.map(r=>resource(r,l.status!=='approved')).join('')}</section>`:l.id==='L2'&&p.platform==='pinduoduo'?'<p class="j-muted">竞品分析锦囊：拼多多版本待补充，现有小红书技能包不会混作本平台奖励。</p>':''}
+      <div class="j-inline-actions">${button('companion','打开'+esc(options.partnerName())+'的伙伴面板','quiet')}</div>
       <div class="j-card-footer">${button('roadmap','闯关路线','quiet')}${button('supplies','我的锦囊','quiet')}${button('profile',esc(J.PLATFORMS[p.platform]?.name)+' · '+esc(p.category),'quiet')}</div>`;
     }
     function receipt(l){
@@ -139,6 +140,7 @@
       else if(b.dataset.jAction==='next'){celebration=null;const index=J.LEVELS.findIndex(l=>l.id===active);if(index===5)view='final';else{selectLevel(J.LEVELS[index+1].id);view='task';kitOpen=false;}}
       else if(b.dataset.jAction==='refresh'){await refresh();return;}
       else if(b.dataset.jAction==='copy'){await copyBrief();return;}
+      else if(b.dataset.jAction==='companion'){options.openCompanion?.();return;}
       else if(b.dataset.jAction==='ask'){await ask();return;}
       else if(b.dataset.jAction==='login'){Session.requireLogin('提交经营成果');return;}
       render();if(!['kit','copy'].includes(b.dataset.jAction))host.scrollTop=0;
