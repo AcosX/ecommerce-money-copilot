@@ -53,7 +53,7 @@ systemd 单元（`deploy/systemd/`）：
 | `ecommerce-money-copilot-backup.timer` | 每日 02:40 备份 |
 | `ecommerce-money-copilot-health.timer` | 每 5 分钟探测公网健康 |
 
-SELinux（enforcing）：发布目录为 `httpd_sys_content_t`，`releases/*/backend`、uv 管理的 Python 与运维脚本为 `bin_t`，上传目录为 `var_lib_t`（Apache 不可读）。`install-host.sh` 负责登记这些规则，`deploy.sh` 在构建后执行 `restorecon`。
+SELinux（enforcing）：发布目录为 `httpd_sys_content_t`，`current` 与 `previous` 软链接为 `usr_t`（保证 `systemd-executor` 的 `init_t` 与 Apache 的 `httpd_t` 均可读取软链接），`releases/*/backend`、uv 管理的 Python 与运维脚本为 `bin_t`，上传目录为 `var_lib_t`（Apache 不可读）。`install-host.sh` 负责登记这些规则，`lib.sh` 的 `emc_set_symlink` 在原子切换时显式设置 `usr_t`，`deploy.sh` 在构建后执行 `restorecon`。
 
 主机侧组件安装或更新（幂等，不会启动 API）：
 
@@ -168,3 +168,16 @@ tail -f /var/log/httpd/money-acosx-access.log
 systemd 以 root 身份读取 EnvironmentFile 后再切换到 `emc`，因此这些文件不需要对 `emc` 可读。API 进程中会移除 `EMC_MIGRATE_DATABASE_URL`，迁移账号只在 `deploy.sh` 中使用。
 
 添加审核员：编辑 `app.env` 中的 `EMC_REVIEWER_SUBS`（以逗号分隔的 Acos Connect `sub`），然后执行 `systemctl restart ecommerce-money-copilot-api`。
+
+## 9. Phase 6 部署、备份恢复与端到端验收记录（#43, #44, #45, #47, #48）
+
+- **端到端业务闭环与权限边界（#43, #44）**：
+  - `backend/tests/test_e2e_lifecycle.py` 与 `tests/frontend/test_login_entry.py` 自动化覆盖“游客体验 → 本地保存 → 登录 → 教学模拟复制为正式草稿（`origin=tutorial_copy`，不直接视为认证通过）→ 修订版本 → 上传证据 → 提交认证冻结快照 → 跨用户 404 / 非审核员 403 越权隔离 → 审核员驳回 → 玩家修订重提 → 审核员通过”全链路（后端 183 项 pytest 测试、前端 28 项 Playwright 测试全部通过）。
+  - 线上 `https://money.acosx.top` 实测：`/api/health` 返回 `200 {"status":"ok","database":"ok"}`，`/api/me` 匿名返回 `200 {"authenticated":false}`，未登录访问 `/api/projects`、`/api/artifacts`、`/api/verifications`、`/api/admin/verifications` 均返回 `401 unauthenticated`。
+- **Acos Connect 游戏主题与多客户端回归（#45）**：
+  - `GET https://money.acosx.top/auth/login` 正确下发 `HttpOnly; Secure; SameSite=lax` 的状态 Cookie 并 302 跳转至 `https://auth.acosx.top/authorize`（带 `code_challenge_method=S256`、`state`、`nonce`），渲染专属像素游戏主题登录、注册、找回密码与重发验证邮件页面。
+  - 对已有 Acos Connect 全部客户端及独立路由执行兼容性回归比对（各客户端 `/authorize`、`/login`、`/register`、`/forgot-password`、`/resend-verification`、`/verify-email`、`/reset-password`、`/jwks`、`/.well-known/openid-configuration`），非本游戏的客户端响应与改动前保持零非预期差异。
+- **发布、回滚、备份与恢复演练（#47, #48）**：
+  - 验证 `emc-deploy v0.1.0` → `emc-deploy v0.1.1` → `emc-rollback`（原子切回 `v0.1.0`）→ `emc-deploy v0.1.1` 全流程及健康检查失败自动回滚保护。
+  - 验证 `emc-backup-db` 与 `emc-restore-drill`：将备份恢复至临时库 `emc_restore_drill`，11 张业务表逐表 `COUNT(*)` 比对与上传归档校验结果为 `result=OK`。
+  - 演示站点仅允许通过 `emc-deploy <git-tag>` 部署已通过测试的 tag，开发分支与开发机改动不会直接影响比赛演示环境。

@@ -41,8 +41,7 @@ if ! emc_start_and_check "$TARGET"; then
   exit 1
 fi
 if [[ -n $CUR ]]; then
-  ln -sfn -- "$CUR" "$EMC_BASE/.previous.tmp"
-  mv -Tf -- "$EMC_BASE/.previous.tmp" "$EMC_BASE/previous"
+  emc_set_symlink "$CUR" previous
 fi
 emc_record rollback "${TARGET#releases/}" "$COMMIT" ok
 emc_log "now serving $TARGET"
