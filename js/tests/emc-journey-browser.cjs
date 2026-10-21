@@ -26,7 +26,7 @@ async function mock(p,level,{empty=false,platform=profile.platform}={}){
  return store;
 }
 (async()=>{const browser=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||undefined});try{
- for(const width of [1440,390])for(const level of J.LEVELS){
+ for(const width of (process.env.EMC_TEST_WIDTH?[Number(process.env.EMC_TEST_WIDTH)]:[1440,390]))for(const level of J.LEVELS){
   const context=await browser.newContext({viewport:{width,height:width===390?844:1000}}),p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));const store=await mock(p,level.id);
   await p.goto(url);await p.waitForFunction(()=>window.render_game_to_text&&!JSON.parse(render_game_to_text()).journey.loading&&JSON.parse(render_game_to_text()).journey.project_id);await p.locator('#continueButton').click();await p.locator('#drawer[aria-modal=true]').waitFor();
   assert.equal((await state(p)).panel,'journey');assert.match(await p.locator('#panelBody').innerText(),new RegExp(level.title));assert.equal(await p.locator('.quest-options').count(),0);

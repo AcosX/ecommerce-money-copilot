@@ -110,7 +110,7 @@
     document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');
     audio.play(sound);
     cancelPaint();finishConversation();
-    if(name!=='journey')mail.cancel();$('missionBackdrop').hidden=name!=='journey';if(name==='journey'){$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');}else{$('drawer').removeAttribute('role');$('drawer').removeAttribute('aria-modal');}
+    if(name!=='journey')mail.cancel();$('missionBackdrop').hidden=name!=='journey';$('missionBackdrop').classList.toggle('paper-visible',name==='journey');if(name==='journey'){$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');}else{$('drawer').removeAttribute('role');$('drawer').removeAttribute('aria-modal');}
     window.EmcRoute?.onView(name);
     panel=name;activeTask=null;answer=null;feedback=null;
     $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');$('drawer').classList.toggle('journey-card',name==='journey');$('drawer').classList.toggle('companion-panel',name==='companion');renderPanel();$('closePanel').focus({preventScroll:true});
