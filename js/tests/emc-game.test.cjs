@@ -7,3 +7,23 @@ test('只保留连续主线、已拥有装饰和有限坐标',()=>{const s=G.nor
 test('五级边界和兼容旧存档，不损失装修及其他阶段练习',()=>{const g=G.create(),expected=[0,1,1,2,2,2,3,3,3,3,3,4];G.MAIN.forEach((t,i)=>{G.complete(g,t.id,t.answer);assert.equal(G.stage(g),expected[i]);});G.complete(g,G.SIDE[0].id,G.SIDE[0].answer);g.placements=[{id:'ufo',anchor:'roof',x:1,y:.25,z:2,rotation:Math.PI/2}];const root=S.createDefault();root.levels.L2.exercise_result.legacy={note:'保留既有练习'};root.levels.L1.exercise_result.shop_game_v1=g;const d=S.decode(JSON.stringify(root));assert.equal(d.status,'restored');assert.deepEqual(G.normalize(d.data.levels.L1.exercise_result.shop_game_v1),g);assert.deepEqual(d.data.levels.L2.exercise_result.legacy,{note:'保留既有练习'});});
 
 test('新增招牌/屋顶配色兼容旧存档，非法颜色回到默认值',()=>{const old={schema_version:1,main:[],side:[],placements:[],wall_color:G.COLORS[2],shop_name:'旧店名'};let g=G.normalize(old);assert.equal(g.wall_color,G.COLORS[2]);assert.equal(g.sign_color,G.PALETTES.sign[0]);assert.equal(g.roof_color,G.PALETTES.roof[0]);g.sign_color=G.PALETTES.sign[3];g.roof_color=G.PALETTES.roof[2];assert.deepEqual(G.normalize(g),g);assert.equal(G.normalize({...g,roof_color:'url(evil)'}).roof_color,G.PALETTES.roof[0]);});
+
+test('新物品逐件已读并汇总分类，重复奖励不重复提示',()=>{
+ const g=G.create();assert.deepEqual(G.unreadInventory(g),[]);
+ assert.ok(G.complete(g,G.SIDE[0].id,G.SIDE[0].answer).ok);assert.deepEqual(G.unreadInventory(g).map(i=>i.key),['decor:ufo']);
+ assert.equal(G.markInventorySeen(g,'decor:cat'),false);assert.equal(G.markInventorySeen(g,'unknown'),false);
+ assert.equal(G.markInventorySeen(g,'decor:ufo'),true);assert.equal(G.markInventorySeen(g,'decor:ufo'),false);assert.deepEqual(G.unreadInventory(g),[]);
+ G.complete(g,G.SIDE[0].id,G.SIDE[0].answer);assert.deepEqual(G.unreadInventory(g),[]);
+ G.complete(g,G.SIDE[1].id,G.SIDE[1].answer);assert.deepEqual(G.unreadInventory(g).map(i=>i.key),['decor:ramen']);
+});
+test('旧存档迁移不误报历史奖励，已读列表只接受已拥有物品',()=>{
+ const old=G.create();old.side=[G.SIDE[0].id];delete old.inventory_seen;const migrated=G.normalize(old);assert.deepEqual(G.unreadInventory(migrated),[]);
+ const g=G.normalize({...old,inventory_seen:['decor:cat','decor:ufo','decor:ufo','wall:'+G.COLORS[0],'bogus',null]});assert.deepEqual(g.inventory_seen,['decor:ufo','wall:'+G.COLORS[0]]);
+ assert.ok(G.unreadInventory(g).some(i=>i.category==='wall'));assert.ok(G.unreadInventory(g).some(i=>i.category==='sign'));assert.ok(G.unreadInventory(g).some(i=>i.category==='roof'));assert.ok(!G.unreadInventory(g).some(i=>i.category==='decor'));
+});
+test('逐件已读状态可随教学存档保存恢复，保留尚未查看的奖励',()=>{
+ const g=G.create();G.SIDE.slice(0,2).forEach(t=>G.complete(g,t.id,t.answer));G.markInventorySeen(g,'decor:ufo');
+ const data=S.createDefault();data.levels.L1.exercise_result.shop_game_v1=g;
+ const restored=G.normalize(S.decode(JSON.stringify(data)).data.levels.L1.exercise_result.shop_game_v1);
+ assert.deepEqual(G.unreadInventory(restored).map(i=>i.key),['decor:ramen']);assert.deepEqual(restored,g);
+});
