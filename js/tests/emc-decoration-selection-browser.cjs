@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict'),path=require('node:path'),os=require('node:os'),G=require('../emc-game.js'),S=require('../emc-tutorial-save.js');
+const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
+const state=p=>p.evaluate(()=>JSON.parse(render_game_to_text()));
+(async()=>{const b=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||undefined});try{for(const width of [1440,390]){
+ const c=await b.newContext({viewport:{width,height:width===390?844:1000}}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('**/api/me',r=>r.fulfill({contentType:'application/json',body:'{"authenticated":false}'}));
+ const data=S.createDefault(),g=G.create();g.side=G.SIDE.map(t=>t.id);g.placements=[{id:'ufo',anchor:'ground',x:3,y:2.6,z:3,rotation:0}];data.levels.L1.exercise_result.shop_game_v1=g;await p.addInitScript(({k,v})=>{if(!sessionStorage.seeded){sessionStorage.seeded=1;localStorage.setItem(k,v)}},{k:S.KEY,v:JSON.stringify(data)});
+ await p.goto(process.env.EMC_TEST_URL||'http://127.0.0.1:5173');await p.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).scene_status==='ready');
+ assert.equal((await state(p)).selection_visible,false);let t=(await state(p)).decoration_targets.find(t=>t.id==='ufo');await p.mouse.click(t.x,t.y);assert.equal((await state(p)).selected_decoration,'ufo');assert.equal((await state(p)).selection_visible,true);await p.screenshot({path:path.join(os.tmpdir(),'emc-decor-selected-'+width+'.png')});
+ await p.mouse.click(width/2,180);assert.equal((await state(p)).selection_visible,false);assert.equal((await state(p)).selected_decoration,null);
+ t=(await state(p)).decoration_targets[0];await p.mouse.click(t.x,t.y);await p.locator('[data-panel="settings"]').click();assert.equal((await state(p)).selection_visible,false);await p.locator('#closePanel').click();
+ t=(await state(p)).decoration_targets[0];const before=(await state(p)).placements[0],camera=(await state(p)).camera;await p.mouse.move(t.x,t.y);await p.mouse.down();await p.mouse.move(t.x+30,t.y,{steps:5});await p.mouse.up();await p.waitForTimeout(350);assert.deepEqual((await state(p)).placements[0],before);assert.notDeepEqual((await state(p)).camera,camera);assert.equal((await state(p)).selection_visible,false);
+ t=(await state(p)).decoration_targets[0];await p.mouse.move(t.x,t.y);await p.mouse.down();await p.waitForTimeout(340);assert.equal((await state(p)).selection_visible,true);await p.mouse.move(t.x+25,t.y+20,{steps:8});await p.mouse.up();assert.notDeepEqual((await state(p)).placements[0],before);assert.equal((await state(p)).selection_visible,true);
+ await p.mouse.click(width/2,180);assert.equal((await state(p)).selection_visible,false);await p.screenshot({path:path.join(os.tmpdir(),'emc-decor-deselected-'+width+'.png')});if(width===390){
+ const cdp=await c.newCDPSession(p),touch=(type,point)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:point?[{...point,id:1,radiusX:3,radiusY:3,force:1}]:[]});
+ t=(await state(p)).decoration_targets[0];await touch('touchStart',{x:t.x,y:t.y});await touch('touchEnd');assert.equal((await state(p)).selection_visible,true);
+ await touch('touchStart',{x:width/2,y:180});await touch('touchEnd');assert.equal((await state(p)).selection_visible,false);
+ const previous=(await state(p)).placements[0];t=(await state(p)).decoration_targets[0];await touch('touchStart',{x:t.x,y:t.y});await p.waitForTimeout(340);await touch('touchMove',{x:t.x-25,y:t.y+10});await touch('touchEnd');assert.notDeepEqual((await state(p)).placements[0],previous);assert.equal((await state(p)).selection_visible,true);
+ await touch('touchStart',{x:width/2,y:180});await touch('touchEnd');assert.equal((await state(p)).selection_visible,false);
+ }await p.reload();await p.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).scene_status==='ready');assert.equal((await state(p)).selection_visible,false);assert.deepEqual(errors,[]);await c.close();console.log('PASS '+width+'px tap selection, outside/UI deselect, orbit vs long-press move, reload without outline');
+}}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1});
