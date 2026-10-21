@@ -19,3 +19,9 @@ htmlcov/
 .env.*
 !.env.example
 backend/var/
+
+# Local generated asset workspace
+# 本机 Tripo 上下文和生成中间文件；发布模型位于 assets/models/*.glb
+.tripo/
+assets/models/tripo/
+deploy/frpc.toml

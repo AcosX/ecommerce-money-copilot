@@ -1,0 +1,38 @@
+{
+  "ov:island:detailed": {
+    "task_id": "a02264bc-14dd-4587-8488-bdd92dcfaa37",
+    "model_url": "assets/models/island-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  },
+  "ov:shop-4:detailed": {
+    "task_id": "a026ecae-ddbc-4c12-92a4-12afba4ccc64",
+    "model_url": "assets/models/shop-4-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  },
+  "ov:shop-2:detailed": {
+    "task_id": "212af9c6-eddc-4296-b2ce-f23aed6f1dda",
+    "model_url": "assets/models/shop-2-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  },
+  "ov:shop-5:detailed": {
+    "task_id": "0e4e161a-4f3e-40a9-9f4f-664119120ae3",
+    "model_url": "assets/models/shop-5-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  },
+  "ov:shop-3:detailed": {
+    "task_id": "bcdbb44b-40af-4833-83d1-edb53f8b43d0",
+    "model_url": "assets/models/shop-3-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  },
+  "ov:shop-1:detailed": {
+    "task_id": "51251bb7-02aa-4b56-8b38-85046b758c67",
+    "model_url": "assets/models/shop-1-detail.glb",
+    "credits_consumed": 60,
+    "status": "integrated"
+  }
+}
