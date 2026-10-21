@@ -318,7 +318,9 @@ def daily_pose(name,t):
         cliff=name=='sit_cliff'
         sit=curve(t,[(0,0),(.04,0),(.27,1),(.73,1),(.98,0),(1,0)]) if cliff else cross_sit(t)
         root=rig.pose.bones['tripo::Root'];m=root.matrix.copy()
-        m.translation+=inverse.to_3x3()@Vector((0 if cliff else -.08*sit,0,-(.645 if cliff else .605)*sit))
+        # Calibrate the seat to the posed trouser underside, not the pelvis
+        # pivot. Runtime contact probes guard the two posterior support points.
+        m.translation+=inverse.to_3x3()@Vector((0 if cliff else -.08*sit,0,-(.745 if cliff else .605)*sit))
         root.matrix=m;bpy.context.view_layer.update()
         anticipation=curve(t,[(0,0),(.11,.18),(.30,0),(.70,0),(.85,.17),(1,0)])
         axis_world('tripo::Spine_0',(0,1,0),anticipation+(-.55 if cliff else .02)*sit)
@@ -504,7 +506,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'anatomy-v6: neutral letter wrist, forearm pronation, grounded sequential leg folds',
+    'motion_revision':'seat-v7: cliff sitting calibrated against the posed trouser underside, palms solved at surface height',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
                            'sit_cross':{'hold_phase':[.56,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},

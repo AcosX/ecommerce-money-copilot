@@ -1,7 +1,7 @@
 [
   {
     "model_url": "assets/models/characters/xiaoshang-animated-v1-web.glb",
-    "bytes": 5670028,
+    "bytes": 5670036,
     "triangles": 54740,
     "morphs": 26,
     "face_vertices": 5863,
@@ -10,7 +10,7 @@
   },
   {
     "model_url": "assets/models/characters/xiaoshang-animated-v1-lite.glb",
-    "bytes": 3958008,
+    "bytes": 3958016,
     "triangles": 32134,
     "morphs": 26,
     "face_vertices": 5863,
