@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js';
 import {createDecoration} from './emc-decorations.js';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -22,30 +22,36 @@ export class ShopScene{
     this.windowMaterial=new THREE.MeshStandardMaterial({color:'#779fa9',roughness:.4,metalness:.05});this.materials.push(this.windowMaterial);
     this.wallMaterial=new THREE.MeshStandardMaterial({color:this.draft.wall_color,roughness:1,flatShading:true});this.materials.push(this.wallMaterial);
     this.paintUniforms={wall:{value:new THREE.Color(1,1,1)},sign:{value:new THREE.Color('#9c531e')},roof:{value:new THREE.Color('#bd3f23')},preview:{value:0},signStrength:{value:0},roofStrength:{value:0},signMatrix:{value:new THREE.Matrix4()},signSize:{value:new THREE.Vector2()},signBack:{value:-.06},roofY:{value:100}};
-    this.source='procedural_base';this.canPaint=true;this.paintMaterials=[this.wallMaterial];
+    this.textureStatus={shop:0,island:0};this.loadController=new AbortController();this.source='procedural_base';this.canPaint=true;this.paintMaterials=[this.wallMaterial];
     this.buildBase();this.baseIslandObjects=[...this.root.children];const baseObjects=new Set(this.root.children);this.buildShop(options.stage);this.baseShopObjects=this.root.children.filter(obj=>!baseObjects.has(obj));this.decorRoot=new THREE.Group();this.root.add(this.decorRoot);
     this.selection=new THREE.BoxHelper(new THREE.Object3D(),0x51d9be);this.selection.visible=false;this.scene.add(this.selection);
     this.ray=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);this.hit=new THREE.Vector3();
     this.boundDown=e=>this.down(e);this.boundMove=e=>this.move(e);this.boundUp=e=>this.up(e);
-    const canvas=this.renderer.domElement;if(!options.readOnly){canvas.addEventListener('pointerdown',this.boundDown,true);canvas.addEventListener('pointermove',this.boundMove,true);canvas.addEventListener('pointerup',this.boundUp,true);canvas.addEventListener('pointercancel',this.boundUp,true);}
+    const canvas=this.renderer.domElement;canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!this.disposed)this.options.onContextLost?.();});if(!options.readOnly){canvas.addEventListener('pointerdown',this.boundDown,true);canvas.addEventListener('pointermove',this.boundMove,true);canvas.addEventListener('pointerup',this.boundUp,true);canvas.addEventListener('pointercancel',this.boundUp,true);}
     this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);if(options.framingElement)this.resizeObserver.observe(options.framingElement);
     this.sync();this.setNight(options.night);if(options.atmosphere)this.setAtmosphere(options.atmosphere);this.resize();this.loop();this.ready=this.loadReviewedModel(options.stage);
   }
   async loadReviewedModel(stage){
+    let pendingShop=null,pendingIsland=null;
     try{
-      const response=await fetch('assets/models/manifest.json');if(!response.ok)return;
-      const manifest=await response.json(),entry=manifest.shops?.[String(stage)];if(!entry?.model_url||this.disposed)return;
-      const model=await new GLTFLoader().loadAsync(entry.model_url);if(this.disposed){disposeAsset(model.scene);return;}
+      this.options.onLoadProgress?.({phase:'manifest'});
+      const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.shops?.[String(stage)];if(this.disposed)return;if(!entry?.model_url||!manifest.island?.model_url)throw new Error('当前等级的模型清单不完整');
+      const assets=await Promise.allSettled([loadTexturedModel(entry.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(manifest.island.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
+      const failed=assets.find(result=>result.status==='rejected');
+      if(this.disposed||failed){assets.forEach(result=>{if(result.status==='fulfilled')disposeAsset(result.value.scene);});if(failed)throw failed.reason;return;}
+      const model=pendingShop=assets[0].value,island=pendingIsland=assets[1].value;
       const box=new THREE.Box3().setFromObject(model.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
       const scale=4.4/Math.max(size.x,size.z);model.scene.position.set(-center.x,-box.min.y,-center.z);const group=new THREE.Group();group.add(model.scene);group.scale.setScalar(scale);group.rotation.y=entry.rotation_y||0;
+      this.textureStatus.shop=countTexturedMeshes(model.scene);
       this.paintMaterials=[];model.scene.traverse(obj=>{if(!obj.isMesh)return;obj.castShadow=true;obj.receiveShadow=true;const list=Array.isArray(obj.material)?obj.material:[obj.material];list.forEach(mat=>{this.materials.push(mat);if(entry.wall_mask==='cream'){installPartTint(mat,this.paintUniforms);this.paintMaterials.push(mat);}else if(entry.wall_materials?.includes(mat.name))this.paintMaterials.push(mat);});});
       if(manifest.island?.model_url){
-        const island=await new GLTFLoader().loadAsync(manifest.island.model_url);if(this.disposed){disposeAsset(model.scene);disposeAsset(island.scene);return;}
+
+        this.textureStatus.island=countTexturedMeshes(island.scene);
         const bounds=new THREE.Box3().setFromObject(island.scene),dimensions=bounds.getSize(new THREE.Vector3()),mid=bounds.getCenter(new THREE.Vector3()),islandScale=11.4/Math.max(dimensions.x,dimensions.z);
-        island.scene.position.set(-mid.x,-(bounds.min.y+dimensions.y*(manifest.island.surface_ratio??.9)),-mid.z);const islandGroup=new THREE.Group();islandGroup.add(island.scene);islandGroup.scale.setScalar(islandScale);islandGroup.rotation.y=manifest.island.rotation_y||0;this.root.add(islandGroup);this.terrain=islandGroup;this.baseIslandObjects.forEach(obj=>{obj.visible=false;});island.scene.traverse(obj=>{if(obj.isMesh){obj.receiveShadow=true;obj.castShadow=true;(Array.isArray(obj.material)?obj.material:[obj.material]).forEach(mat=>this.materials.push(mat));}});
+        island.scene.position.set(-mid.x,-(bounds.min.y+dimensions.y*(manifest.island.surface_ratio??.9)),-mid.z);const islandGroup=new THREE.Group();islandGroup.add(island.scene);islandGroup.scale.setScalar(islandScale);islandGroup.rotation.y=manifest.island.rotation_y||0;this.root.add(islandGroup);pendingIsland=null;this.terrain=islandGroup;this.baseIslandObjects.forEach(obj=>{obj.visible=false;});island.scene.traverse(obj=>{if(obj.isMesh){obj.receiveShadow=true;obj.castShadow=true;(Array.isArray(obj.material)?obj.material:[obj.material]).forEach(mat=>this.materials.push(mat));}});
       }
-      this.baseShopObjects.forEach(obj=>{obj.visible=false;});this.root.add(group);this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);this.canPaint=this.paintMaterials.length>0;this.sync();this.options.onModelLoaded?.(this.canPaint);
-    }catch(error){if(!this.disposed)this.options.onModelError?.();}
+      this.baseShopObjects.forEach(obj=>{obj.visible=false;});this.root.add(group);pendingShop=null;this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);this.canPaint=this.paintMaterials.length>0;this.sync();this.options.onModelLoaded?.(this.canPaint);
+    }catch(error){if(pendingIsland)disposeAsset(pendingIsland.scene);if(pendingShop)disposeAsset(pendingShop.scene);if(!this.disposed){this.options.onModelError?.(error);throw error;}}
   }
   createShopSign(shop,anchor,height){
     if(!anchor)return;
@@ -269,10 +275,10 @@ export class ShopScene{
     else{this.camera.clearViewOffset();this.camera.aspect=w/h;}
     this.camera.updateProjectionMatrix();this.render();
   }
-  async prepareFrame(){this.resize();await this.renderer.compileAsync(this.scene,this.camera);if(this.disposed)return;this.render();await new Promise(resolve=>requestAnimationFrame(resolve));if(!this.disposed)this.presentable=true;}
+  async prepareFrame(){this.resize();this.options.onLoadProgress?.({phase:'compile'});let timer;try{await Promise.race([this.renderer.compileAsync(this.scene,this.camera),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('显卡准备场景超时，请重试')),15000);})]);}finally{clearTimeout(timer);}if(this.disposed)return;this.render();await new Promise(resolve=>requestAnimationFrame(resolve));if(!this.disposed)this.presentable=true;}
   render(){if(!this.disposed){if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.renderer.render(this.scene,this.camera);}}
   loop(){if(this.disposed)return;this.frame=requestAnimationFrame(()=>this.loop());if(this.container.hidden)return;if(!this.options.readOnly)this.controls.update();const now=performance.now(),dt=Math.min(.05,(now-(this.lastFrame||now))/1000);this.lastFrame=now;if(!document.hidden)this.guide?.update(dt);this.render();}
-  dispose(){clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.renderer.dispose();this.renderer.domElement.remove();}
+  dispose(){this.loadController.abort(new Error('场景已关闭'));clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.renderer.dispose();this.renderer.domElement.remove();}
 }
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
@@ -301,3 +307,5 @@ function installPartTint(material,u){
   };
   material.customProgramCacheKey=()=> 'emc-part-tint-v4';
 }
+
+function countTexturedMeshes(root){let count=0;root.traverse(obj=>{if(obj.isMesh&&(Array.isArray(obj.material)?obj.material:[obj.material]).some(mat=>mat?.map?.image))count++;});return count;}
