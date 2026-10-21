@@ -8,11 +8,12 @@
     let draft={saved:false,platform:'xiaohongshu',agent:'Codex',category:'',shop_name:options.shopName(),partner_name:options.partnerName()},project=null,projects=[],artifacts=[],verifications=[],owner=null,epoch=0;
     try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&typeof raw==='object'){for(const key of ['category','shop_name','partner_name'])if(typeof raw[key]==='string')draft[key]=raw[key].slice(0,key==='category'?64:24);if(J.PLATFORMS[raw.platform])draft.platform=raw.platform;if(J.AGENTS.includes(raw.agent))draft.agent=raw.agent;draft.saved=raw.saved===true;}}catch(_){}
     let view=draft.saved?'task':'setup',active='L1',kitOpen=false,busy=false,loading=false,confirmed=false,error='',notice='',files={},notes='',attempt=null,advisorText=null,celebration=null;
+    const demo=global.EmcJourneyDemo.create({host:options.container,isOpen:options.isOpen,update:()=>options.onUpdate(),sound:options.sound});
     const host=options.container,blobURLs=new Map(),deliveryDrafts=new Map();
     function selectLevel(id){if(active===id)return;deliveryDrafts.set(active,{files,notes,attempt,confirmed});active=id;const saved=deliveryDrafts.get(id);files=saved?.files||{};notes=saved?.notes||'';attempt=saved?.attempt||null;confirmed=saved?.confirmed||false;}
     function clearPrivateDrafts(){for(const url of blobURLs.values())URL.revokeObjectURL(url);blobURLs.clear();deliveryDrafts.clear();files={};notes='';attempt=null;confirmed=false;}
-    const profile=()=>({...draft,platform:project?.platform||draft.platform,category:project?.category||draft.category,shop_name:project?.name||draft.shop_name});
-    const progress=()=>J.progress(project,artifacts,verifications),task=()=>progress().levels.find(l=>l.id===active)||progress().levels[0];
+    const profile=()=>demo.enabled()?{...demo.profile(),partner_name:options.partnerName()}:({...draft,platform:project?.platform||draft.platform,category:project?.category||draft.category,shop_name:project?.name||draft.shop_name});
+    const progress=()=>demo.enabled()?demo.progress():J.progress(project,artifacts,verifications),task=()=>progress().levels.find(l=>l.id===(demo.enabled()?demo.summary().active:active))||progress().levels[0];
     const badge=l=>`<span class="j-status ${l.status}">${STATUS[l.status]}</span>`;
     const button=(action,text,cls='')=>`<button type="button" class="j-button ${cls}" data-j-action="${action}" ${busy?'disabled':''}>${text}</button>`;
     function remember(){try{localStorage.setItem(KEY,JSON.stringify(draft));return true;}catch(_){error='浏览器暂时无法保存入场信息，请稍后重试。';return false;}}
@@ -39,7 +40,7 @@
       }catch(e){if(token===epoch&&!silent)error=e.message||'暂时没能同步经营进度。';}
       finally{if(token===epoch){loading=false;options.onUpdate();renderIfOpen();}}
     }
-    function open(entry){if(busy){view='submit';render();return;}if(celebration){view='reward';render();host.scrollTop=0;return;}error='';notice='';view=draft.saved||project?(progress().completed===6?'final':'task'):'setup';selectLevel(progress().current?.id||'L6');kitOpen=entry==='kit';if(entry==='submit'&&view==='task'&&!['pending','locked','approved'].includes(task().status))view='submit';render();host.scrollTop=0;}
+    function open(entry){if(demo.enabled()){demo.open(entry);return;}if(busy){view='submit';render();return;}if(celebration){view='reward';render();host.scrollTop=0;return;}error='';notice='';view=draft.saved||project?(progress().completed===6?'final':'task'):'setup';selectLevel(progress().current?.id||'L6');kitOpen=entry==='kit';if(entry==='submit'&&view==='task'&&!['pending','locked','approved'].includes(task().status))view='submit';render();host.scrollTop=0;}
     function renderIfOpen(){if(options.isOpen())render();}
     function resource(item,locked=false){
       const id=typeof item==='string'?item:item.id,name=typeof item==='string'?J.SKILLS[id]:item.name,external=typeof item==='object'&&item.external;
@@ -93,10 +94,10 @@
     }
     function finalTrial(){const done=progress().completed===6;return `<span class="j-label">最终试炼 · 真实第一单</span><h3 class="j-task-title">让小店，迎来<br>第一位真实买家。</h3><p class="j-description">${done?'六个经营环节已经完成。最后的门槛，是一笔真实、可核验的成交。':'先完成六个经营环节，再用真实订单完成最后的试炼。'}</p><div class="j-final-stamp" aria-hidden="true">01<span>FIRST ORDER</span></div><section class="j-goal"><h4>需要交回什么</h4><ul><li>□ 平台订单成交或付款成功截图</li><li>□ 对应店铺、商品与成交时间</li><li>□ 可核验的订单信息，隐藏买家隐私</li></ul></section><p class="j-callout">${done?'首单核验与证书领取尚未开放。你的六关成果会保留，开放后可在这里提交。':'六关完成后可准备订单证据；证书将在真实订单核验通过后发放。'}</p><button class="j-button primary wide" disabled>${done?'等待首单核验开放':'完成六关后解锁'}</button>${button('certificate','预览破零证书','quiet')}${button('roadmap','查看闯关路线','quiet')}`;}
     function render(){
-      if(!options.isOpen())return;
+      if(!options.isOpen())return;if(demo.enabled()){demo.render();return;}
       const p=profile();host.classList.add('journey-body');host.dataset.jView=view;
       const top=`<div class="j-project-line"><span class="j-platform-dot" style="--platform-color:${J.PLATFORMS[p.platform]?.color}">${J.PLATFORMS[p.platform]?.short||'店'}</span><span>${esc(p.shop_name||'我的小店')}<small>${esc(p.category||'等你定个方向')} · ${esc(p.agent)}</small></span><button class="j-sync" data-j-action="refresh" ${loading||busy?'disabled':''} aria-label="同步经营进度">${loading?'同步中':'↻'}</button></div>`;
-      host.innerHTML=(view==='setup'?'':top)+(error?`<div class="j-message error" role="alert">${esc(error)}</div>`:'')+(notice?`<div class="j-message" role="status">${esc(notice)}</div>`:'')+(view==='setup'?setup():view==='roadmap'?roadmap():view==='submit'?delivery():view==='final'?finalTrial():view==='supplies'?supplies():view==='reward'?rewardCard():view==='certificate'?certificate():taskCard());
+      host.innerHTML='<div class=demo-entry><span>想先走一遍完整玩法？</span><button class="j-button" data-demo="enter">试玩全部关卡 →</button></div>'+(view==='setup'?'':top)+(error?`<div class="j-message error" role="alert">${esc(error)}</div>`:'')+(notice?`<div class="j-message" role="status">${esc(notice)}</div>`:'')+(view==='setup'?setup():view==='roadmap'?roadmap():view==='submit'?delivery():view==='final'?finalTrial():view==='supplies'?supplies():view==='reward'?rewardCard():view==='certificate'?certificate():taskCard());
     }
     async function ensureProject(){
       if(project)return project;
@@ -158,7 +159,7 @@
       if(!remember()){render();return;}options.onProfile(draft);view='task';selectLevel(progress().current?.id||'L6');kitOpen=false;error='';notice='';render();options.onUpdate();host.scrollTop=0;global.toast?.('小店方向已记好，第一张任务卡给你。');
     });
     setInterval(()=>{if(!document.hidden&&options.isOpen()&&!busy&&!loading&&view==='task'&&progress().levels.some(l=>l.status==='pending'))void refresh({silent:true});},15000);
-    const api={open,render,refresh,prepareContext,profile,progress,isEditing:()=>view==='submit'||view==='setup',context:()=>({journey:{platform:profile().platform,category:profile().category,agent:profile().agent,completed:progress().completed,status:task().status},task:{id:task().id,name:task().title,topic:task().topic,deliverable:task().deliverable,required_evidence:task().slots.filter(s=>s.required).map(s=>s.label)},skill_ids:J.kitIds(task().id,profile().platform),...(advisorText?{skill_instructions:advisorText}:{})}),summary:()=>({project_id:project?.id||null,view,active,loading,busy,error,profile:profile(),completed:progress().completed,stage:progress().stage,status:task().status,files:Object.fromEntries(Object.entries(files).map(([k,v])=>[k,v.length]))})};
+    const api={isDemo:demo.enabled,open,render,refresh,prepareContext,profile,progress,isEditing:()=>view==='submit'||view==='setup',context:()=>({journey:{platform:profile().platform,category:profile().category,agent:profile().agent,completed:progress().completed,status:task().status},task:{id:task().id,name:task().title,topic:task().topic,deliverable:task().deliverable,required_evidence:task().slots.filter(s=>s.required).map(s=>s.label)},skill_ids:J.kitIds(task().id,profile().platform),...(advisorText?{skill_instructions:advisorText}:{})}),summary:()=>demo.enabled()?demo.summary():({project_id:project?.id||null,view,active,loading,busy,error,profile:profile(),completed:progress().completed,stage:progress().stage,status:task().status,files:Object.fromEntries(Object.entries(files).map(([k,v])=>[k,v.length]))})};
     return api;
   }
   global.EmcJourneyUI={create};
