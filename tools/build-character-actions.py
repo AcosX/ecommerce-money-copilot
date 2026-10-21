@@ -11,6 +11,9 @@ import json
 import math
 import sys
 import hashlib
+import os
+import shutil
+import tempfile
 from pathlib import Path
 from mathutils import Vector, Quaternion, Matrix
 
@@ -76,6 +79,21 @@ for obj in meshes:
                 groups['Xiaoshang_Hips'].add([v.index],weight,'REPLACE')
                 root.remove([v.index])
 
+# Targeted rebakes retain verified clips from the previous native delivery.
+# Only explicit EMC_ACTIONS requests use this path; normal builds remain full.
+only={v.strip() for v in os.environ.get('EMC_ACTIONS','').split(',') if v.strip()}
+cached={};cached_probes={};cache_context=None
+if only:
+    previous_native=output.with_suffix('.blend')
+    previous_meta=json.loads(output.with_suffix('.json').read_text(encoding='utf-8'))
+    cached_probes=previous_meta['joint_probes']
+    cache_context=tempfile.TemporaryDirectory(prefix='emc-action-cache-')
+    cached_native=Path(cache_context.name)/previous_native.name
+    shutil.copy2(previous_native,cached_native)
+    with bpy.data.libraries.load(str(cached_native),link=False) as (available,target):
+        target.actions=[n for n in available.actions if n not in only]
+    cached={a.name:a for a in target.actions}
+    original_actions=set(bpy.data.actions)
 before=set(bpy.context.scene.objects)
 bpy.ops.import_scene.gltf(filepath=str(motion))
 imported=set(bpy.context.scene.objects)-before
@@ -91,7 +109,7 @@ bpy.ops.import_scene.gltf(filepath=str(human_path))
 human_objects=set(bpy.context.scene.objects)-before_human
 imported.update(human_objects)
 human=next(o for o in human_objects if o.type=='ARMATURE')
-human_actions={a.name:a for a in bpy.data.actions if a not in before_human_actions}
+human_actions={a.name.split('.')[0]:a for a in bpy.data.actions if a not in before_human_actions}
 for action in human_actions.values():action.name='SRC_HUMAN_'+action.name
 # Source faces -Y; Xiaoshang faces +X. Map anatomical sides by physical position,
 # because the generated target's limb names are not anatomically reliable.
@@ -119,7 +137,7 @@ library=[('idle','Idle',4.0,True),('walk','Walking',1.5,True),
          ('turn','Idle',3.2,False),('window','Idle',4.0,False),
          ('lookout','Idle',6.4,False),('inspect','Idle',4.0,False),
          ('nod','Yes',1.8,False),('letter','Idle',4.8,False),
-         ('shop_hips','Idle',5.2,False),('sit_cross','Idle',8.0,False),
+         ('shop_hips','Idle',5.2,False),('sit_cross','Idle',10.4,False),
          ('sit_cliff','Idle',9.0,False)]
 made=[]
 probes={}
@@ -234,6 +252,29 @@ def orient_hand(name, along, normal, weight):
     pb=rig.pose.bones[name];m=world@pb.matrix
     pose_world(name,m.translation,m.to_quaternion().slerp(delta@rest[name],weight))
 
+def cross_sit(t):
+    return curve(t,[(0,0),(.04,0),(.25,.85),(.33,1),(.78,1),(.90,.85),(1,0)])
+
+def cross_fold(t,side):
+    keys=[(0,0),(.32,0),(.43,1),(.79,1),(.87,0),(1,0)] if side==1 else [(0,0),(.44,0),(.55,1),(.70,1),(.78,0),(1,0)]
+    return curve(t,keys)
+
+def letter_palm(t):
+    hand_name='tripo::1_Left_Limb_2';lower_name='tripo::1_Left_Limb_1'
+    elbow=world@rig.pose.bones[lower_name].head
+    wrist=world@rig.pose.bones[hand_name].head
+    along=(wrist-elbow).normalized()
+    shoulder=world@rig.pose.bones['tripo::1_Left_Limb_0'].head
+    # Use the stable arm bend plane and a small authored presentation roll.
+    # A world-facing normal has a singularity as the forearm points forward.
+    normal=-(elbow-shoulder).cross(along).normalized()
+    w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
+    normal=Quaternion(along,-.80*w)@normal
+    across=along.cross(normal).normalized()
+    delta=Matrix((tuple(across),tuple(-along),tuple(-normal))).transposed().to_quaternion()
+    pose_world(lower_name,elbow,delta@rest[lower_name])
+    pose_world(hand_name,wrist,delta@rest[hand_name])
+
 def daily_pose(name,t):
     if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
@@ -243,7 +284,9 @@ def daily_pose(name,t):
         start=world@rig.pose.bones[prefix+'2'].head
         elbow=world@rig.pose.bones[prefix+'1'].head
         target=start.lerp(Vector((.16,-.28,1.40)),w)
-        solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(Vector((.24,-.34,1.05)),w))
+        target.x+=.16*math.sin(math.pi*w)
+        pole=Vector((.12,-.65,1.00))
+        solve_limb([prefix+str(i) for i in range(3)],target,pole)
     elif name in ('shop_hips','lookout'):
         # Hands settle independently before the hip hinge. Keep feet planted
         # while the pelvis shifts back to counterbalance the forward torso.
@@ -272,10 +315,10 @@ def daily_pose(name,t):
     else:
         # Full sit-down / rest / stand-up phrases. The seated hold is explicit
         # so game code can later repeat it without replaying the descent.
-        sit=curve(t,[(0,0),(.04,0),(.27,1),(.73,1),(.98,0),(1,0)])
         cliff=name=='sit_cliff'
+        sit=curve(t,[(0,0),(.04,0),(.27,1),(.73,1),(.98,0),(1,0)]) if cliff else cross_sit(t)
         root=rig.pose.bones['tripo::Root'];m=root.matrix.copy()
-        m.translation+=inverse.to_3x3()@Vector((0,0,-(.645 if cliff else .605)*sit))
+        m.translation+=inverse.to_3x3()@Vector((0 if cliff else -.08*sit,0,-(.645 if cliff else .605)*sit))
         root.matrix=m;bpy.context.view_layer.update()
         anticipation=curve(t,[(0,0),(.11,.18),(.30,0),(.70,0),(.85,.17),(1,0)])
         axis_world('tripo::Spine_0',(0,1,0),anticipation+(-.55 if cliff else .02)*sit)
@@ -291,31 +334,40 @@ def daily_pose(name,t):
                 pole=Vector((.62,side*.16,.30))
             else:
                 destination=Vector((.17+(.025 if side==1 else 0),-side*.105,.13+(.025 if side==1 else 0)))
-                ankle=start.lerp(destination,sit)
-                pole=Vector((.14,side*.58,.25))
+                fold=cross_fold(t,side)
+                ankle=start.lerp(destination,fold)
+                ankle.z+=.05*math.sin(math.pi*fold)**2
+                pole=Vector((.5,side*.14,.45)).lerp(Vector((.14,side*.58,.25)),fold)
             solve_limb([prefix+str(i) for i in range(3)],ankle,pole)
-            if not cliff:axis_world(prefix+'2',(0,0,1),-side*.85*sit)
+            if not cliff:axis_world(prefix+'2',(0,0,1),-side*.85*fold)
         for hand,side in hand_specs:
             prefix=hand[:-1]
             start=world@rig.pose.bones[hand].head
             elbow=world@rig.pose.bones[prefix+'1'].head
-            destination=Vector((-.27,side*.25,.035)) if cliff else Vector((.18,side*.29,.30))
+            knee_prefix='tripo::0_Left_Limb_' if side==1 else 'tripo::1_Right_Limb_'
+            knee=world@rig.pose.bones[knee_prefix+'1'].head
+            destination=Vector((-.27,side*.25,.035)) if cliff else knee+Vector((.015,side*.015,.075))
             target=start.lerp(destination,sit)
-            pole=elbow.lerp(Vector((-.28 if cliff else .15,side*.43,.42)),sit)
+            pole=elbow.lerp(Vector((-.28 if cliff else .12,side*(.43 if cliff else .35),.42 if cliff else .50)),sit)
             solve_limb([prefix+str(i) for i in range(3)],target,pole)
 
 def daily_palms(name,t):
     if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
     for hand,side in hand_specs:
-        if name=='letter' and side==-1:orient_hand(hand,(0,0,1),(1,0,0),w)
+        if name=='letter' and side==-1:letter_palm(t)
         elif name in ('shop_hips','lookout'):
             reach=curve(t,[(0,0),(.03 if side==1 else .08,0),(.24 if side==1 else .30,1),(.82 if side==1 else .78,1),(.98,0),(1,0)])
             orient_hand(hand,(.1,0,-1),(0,-side,0),reach)
-        elif name=='sit_cross':orient_hand(hand,(1,-side*.25,0),(0,0,-1),w)
+        elif name=='sit_cross':orient_hand(hand,(1,-side*.25,0),(0,0,-1),cross_sit(t))
         elif name=='sit_cliff':orient_hand(hand,(-1,0,0),(0,0,-1),w)
 
 for name, original, duration, loop in library:
+    if only and name not in only:
+        if name not in cached:raise ValueError('Missing cached clip: '+name)
+        made.append(cached[name]);probes[name]=cached_probes[name]
+        print('RETAINED',name,flush=True)
+        continue
     src=human
     bone_names={n:n if src==robot else 'mixamorig:'+aliases[n] for n in set(mapping.values())}
     source_rest={n:(src.matrix_world@src.data.bones[actual].matrix_local).to_quaternion() for n,actual in bone_names.items()}
@@ -452,9 +504,9 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'lookout-v5: hands-on-hips, counterbalanced hip hinge and staggered inspection timing',
+    'motion_revision':'anatomy-v6: neutral letter wrist, forearm pronation, grounded sequential leg folds',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
-                           'sit_cross':{'hold_phase':[.30,.70],'surface_y':0},
+                           'sit_cross':{'hold_phase':[.56,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},
     'human_motion':{'url':'https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Xbot.glb',
                     'clips':['idle','walk','wave','talk','turn','window','lookout','inspect','nod'],
@@ -469,3 +521,5 @@ output.with_suffix('.json').write_text(json.dumps({
                      'author':'Tomás Laulhé / Quaternius; modifications Don McCurdy',
                      'license':'CC0-1.0','sha256':hashlib.sha256(motion.read_bytes()).hexdigest()},
     'joint_probes':probes},indent=2),encoding='utf-8')
+
+if cache_context:cache_context.cleanup()
