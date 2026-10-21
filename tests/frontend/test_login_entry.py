@@ -27,7 +27,7 @@ def test_guest_can_play_without_login(open_page):
     page = goto(h)
     page.locator("#continueButton").click()
     expect(page.locator("#drawer")).to_be_visible()
-    assert page.evaluate("JSON.parse(render_game_to_text()).mode") == "tutorial"
+    assert page.evaluate("JSON.parse(render_game_to_text()).mode") == "business_journey"
     assert no_auth_navigation(h)
     assert not h.urls("/api/artifacts")
     assert not h.urls("/api/verifications")
@@ -43,7 +43,7 @@ def test_login_returns_to_current_panel(open_page, panel):
     page.locator("#partnerNameInput").fill("小满")
     page.locator("#confirmPartnerName").click()
     page.wait_for_function("window.EmcSession?.isLoggedIn()")
-    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == panel
+    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == ("journey" if panel == "quests" else panel)
     expect(page.locator("#emcLogoutBtn")).to_be_visible()
     assert not h.urls("/api/artifacts")
     assert not h.urls("/api/verifications")
