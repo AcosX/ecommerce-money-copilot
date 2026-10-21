@@ -1,8 +1,10 @@
-"""Retarget CC0 humanoid actions and author small NPC gesture layers on Xiaoshang.
+"""Retarget human gait and author organic NPC gesture layers on Xiaoshang.
 
 blender --factory-startup --background --python tools/build-character-actions.py --
   character.blend RobotExpressive.glb output.glb
 The facial source is preserved. Added neck/head/pelvis joints use explicit weights.
+Xbot.glb is read from the same source directory; both motion sources are credited
+with their own usage terms in the generated asset metadata.
 """
 import bpy
 import json
@@ -79,6 +81,18 @@ bpy.ops.import_scene.gltf(filepath=str(motion))
 imported=set(bpy.context.scene.objects)-before
 src=next(o for o in imported if o.type=='ARMATURE')
 actions={a.name:a for a in bpy.data.actions if a not in original_actions}
+for action in actions.values():action.name='SRC_ROBOT_'+action.name
+robot=src
+human_path=motion.with_name('Xbot.glb')
+if not human_path.is_file():raise FileNotFoundError('Human motion source required: '+str(human_path))
+before_human=set(bpy.context.scene.objects)
+before_human_actions=set(bpy.data.actions)
+bpy.ops.import_scene.gltf(filepath=str(human_path))
+human_objects=set(bpy.context.scene.objects)-before_human
+imported.update(human_objects)
+human=next(o for o in human_objects if o.type=='ARMATURE')
+human_actions={a.name:a for a in bpy.data.actions if a not in before_human_actions}
+for action in human_actions.values():action.name='SRC_HUMAN_'+action.name
 # Source faces -Y; Xiaoshang faces +X. Map anatomical sides by physical position,
 # because the generated target's limb names are not anatomically reliable.
 convert=Quaternion((0,0,1),math.pi/2)
@@ -93,13 +107,15 @@ mapping={
  'tripo::0_Left_Limb_2':'Foot.L','tripo::1_Right_Limb_0':'UpperLeg.R',
  'tripo::1_Right_Limb_1':'LowerLeg.R','tripo::1_Right_Limb_2':'Foot.R'}
 rest={b.name:(world@b.matrix_local).to_quaternion() for b in rig.data.bones}
-source_rest={b.name:(src.matrix_world@b.matrix_local).to_quaternion() for b in src.data.bones}
+aliases={'Body':'Hips','Hips':'Spine','Abdomen':'Spine1','Torso':'Spine2','Neck':'Neck','Head':'Head',
+ 'UpperArm.L':'LeftArm','LowerArm.L':'LeftForeArm','UpperArm.R':'RightArm','LowerArm.R':'RightForeArm',
+ 'UpperLeg.L':'LeftUpLeg','LowerLeg.L':'LeftLeg','Foot.L':'LeftFoot',
+ 'UpperLeg.R':'RightUpLeg','LowerLeg.R':'RightLeg','Foot.R':'RightFoot'}
 order=sorted(mapping,key=lambda n:len(rig.data.bones[n].parent_recursive))
 scene=bpy.context.scene
 scene.render.fps=30
-source_clips={name:tuple(a.frame_range) for name,a in actions.items()}
 library=[('idle','Idle',4.0,True),('walk','Walking',1.2,True),
-         ('wave','Wave',2.2,False),('talk','Idle',3.2,True),
+         ('wave','Wave',2.8,False),('talk','Idle',4.0,True),
          ('turn','Idle',3.2,False),('window','Idle',4.0,False),
          ('lookout','Idle',4.8,False),('inspect','Idle',4.0,False),
          ('nod','Yes',1.8,False)]
@@ -114,6 +130,10 @@ def axis_world(name,axis,angle):
     pb.matrix=inverse@Matrix.LocRotScale(m.translation,q,Vector((1,1,1)))
     bpy.context.view_layer.update()
 
+def smooth(value):
+    value=max(0,min(1,value))
+    return value*value*(3-2*value)
+
 def relax_hands(action,phase):
     for hand_name,side in hand_specs:
         hand=rig.pose.bones[hand_name]
@@ -121,23 +141,32 @@ def relax_hands(action,phase):
         along=(delta@Vector((0,side,0))).normalized()
         normal=delta@Vector((0,0,-1))
         waving=action=='wave' and side==-1
-        desired=Vector((1,0,0)) if waving else Vector((0,-side,0))
+        wave_weight=smooth((phase-.08)/.22)*(1-smooth((phase-.78)/.22)) if waving else 0
+        desired=Vector((0,-side,0)).lerp(Vector((1,0,0)),wave_weight).normalized()
         a=(normal-along*normal.dot(along)).normalized()
         b=(desired-along*desired.dot(along)).normalized()
         angle=math.atan2(along.dot(a.cross(b)),max(-1,min(1,a.dot(b))))
         axis_world(hand_name,along,angle)
-        if waving:axis_world(hand_name,along,.10*math.sin(phase*math.pi*6))
+        if waving:
+            palm_axis=(world@hand.matrix).to_quaternion()@rest[hand_name].inverted()@Vector((0,0,-1))
+            axis_world(hand_name,palm_axis,.16*math.sin((phase-.04)*math.pi*5)*wave_weight)
         delta=(world@hand.matrix).to_quaternion()@rest[hand_name].inverted()
         flex_axis=delta@Vector((1,0,0))
         starts=[11,14,17] if side==1 else [27,30,33]
         for finger,start in enumerate(starts):
-            curls=(.05,.10,.07) if waving else (.18+finger*.055,.32+finger*.045,.22+finger*.035)
+            closed=(.18+finger*.055,.32+finger*.045,.22+finger*.035)
+            curls=tuple(a*(1-wave_weight)+b*wave_weight for a,b in zip(closed,(.05,.10,.07)))
             for joint,curl in enumerate(curls):
-                axis_world('bone_'+str(start+joint),flex_axis,-side*curl)
+                overlap=.016*math.sin(phase*math.pi*2-finger*.25-joint*.15)
+                axis_world('bone_'+str(start+joint),flex_axis,-side*(curl+overlap))
         prefix='tripo::0_Right_Limb_' if side==1 else 'tripo::1_Left_Limb_'
-        for index in (3,4,5):axis_world(prefix+str(index),flex_axis,-side*(.06 if waving else .16))
+        for index in (3,4,5):axis_world(prefix+str(index),flex_axis,-side*(.16-.10*wave_weight))
 
 for name, original, duration, loop in library:
+    src=robot if name=='wave' else human
+    bone_names={n:n if src==robot else 'mixamorig:'+aliases[n] for n in set(mapping.values())}
+    source_rest={n:(src.matrix_world@src.data.bones[actual].matrix_local).to_quaternion() for n,actual in bone_names.items()}
+    source_action=actions['Wave'] if src==robot else human_actions['walk' if name=='walk' else ('agree' if name=='nod' else 'idle')]
     rig.animation_data_clear()
     for pb in rig.pose.bones:
         pb.matrix_basis=Matrix.Identity(4)
@@ -145,28 +174,39 @@ for name, original, duration, loop in library:
     action=bpy.data.actions.new(name)
     rig.animation_data_create()
     rig.animation_data.action=action
-    src.animation_data.action=actions[original]
-    if src.animation_data.action_slot is None and actions[original].slots:
-        src.animation_data.action_slot=actions[original].slots[0]
-    start,end=source_clips[original]
+    src.animation_data.action=source_action
+    src.animation_data.action_slot=source_action.slots[0]
+    start,end=source_action.frame_range
     steps=round(duration*30)
     samples=[]
+    previous_quaternions={}
     for frame in range(steps+1):
         t=frame/steps
         # Set source time first, then key the target at its own frame number.
-        source_frame=start+(end-start)*t
+        source_phase=t if loop else smooth(t)
+        source_frame=start+(end-start)*source_phase
         scene.frame_set(math.floor(source_frame),subframe=source_frame%1)
-        source_rotations={n:(src.matrix_world@src.pose.bones[n].matrix).to_quaternion() for n in mapping.values()}
+        source_rotations={n:(src.matrix_world@src.pose.bones[bone_names[n]].matrix).to_quaternion() for n in mapping.values()}
+        # Forearms follow a little later than the upper arm. Head / neck lead the
+        # gesture slightly, rather than every joint reversing on the same frame.
+        for delay,names in [(.025,['LowerArm.L','LowerArm.R']),(-.012,['Head','Neck'])]:
+            phase=source_phase-delay
+            phase=phase%1 if loop else max(0,min(1,phase))
+            f=start+(end-start)*phase
+            scene.frame_set(math.floor(f),subframe=f%1)
+            for n in names:source_rotations[n]=(src.matrix_world@src.pose.bones[bone_names[n]].matrix).to_quaternion()
         if name!='walk':
             # The source robot bounces on its toes even in Idle / Wave. A human
             # shopkeeper keeps a stable stance while gesturing, with torso motion above.
-            for n in lower_names:source_rotations[n]=source_rest[n].copy()
+            for n in lower_names-({'Body'} if name=='idle' else set()):source_rotations[n]=source_rest[n].copy()
         for pb in rig.pose.bones:pb.matrix_basis=Matrix.Identity(4)
         bpy.context.view_layer.update()
         for target_name in order:
             source_name=mapping[target_name]
             source_now=source_rotations[source_name]
             delta=source_now@source_rest[source_name].inverted()
+            if name=='wave' and source_name in ('Head','Neck','Torso','Abdomen'):
+                delta=Quaternion().slerp(delta,.55)
             desired=convert@delta@convert.inverted()@rest[target_name]
             pb=rig.pose.bones[target_name]
             position=(world@pb.matrix).translation
@@ -174,8 +214,12 @@ for name, original, duration, loop in library:
             bpy.context.view_layer.update()
         envelope=math.sin(math.pi*t)**2
         if name=='idle':
-            axis_world('tripo::Spine_2',(0,1,0),.008*math.sin(t*math.pi*2))
-            axis_world('Xiaoshang_Head',(0,0,1),.035*math.sin(t*math.pi*2))
+            axis_world('tripo::Spine_2',(0,1,0),.014*math.sin(t*math.pi*2))
+            axis_world('tripo::Spine_1',(1,0,0),.010*math.sin(t*math.pi*2-.3))
+            axis_world('Xiaoshang_Head',(0,0,1),.025*math.sin(t*math.pi*2-.5))
+        elif name=='walk':
+            axis_world('tripo::Spine_2',(0,0,1),.025*math.sin(t*math.pi*2))
+            axis_world('Xiaoshang_Head',(0,1,0),.018*math.sin(t*math.pi*4-.35))
         elif name=='talk':
             axis_world('tripo::0_Right_Limb_1',(0,1,0),.24*math.sin(t*math.pi*4))
             axis_world('Xiaoshang_Head',(0,1,0),.045*math.sin(t*math.pi*4))
@@ -212,6 +256,10 @@ for name, original, duration, loop in library:
         root.matrix=mat
         bpy.context.view_layer.update()
         for pb in rig.pose.bones:
+            q=pb.rotation_quaternion.copy()
+            if pb.name in previous_quaternions:q.make_compatible(previous_quaternions[pb.name])
+            pb.rotation_quaternion=q
+            previous_quaternions[pb.name]=q.copy()
             pb.keyframe_insert('rotation_quaternion',frame=frame)
             pb.keyframe_insert('location',frame=frame)
         if frame in (0,steps//4,steps//2,steps*3//4,steps):
@@ -248,9 +296,17 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
+    'motion_revision':'organic-v2: human gait, eased gestures, delayed forearms and palm-axis wave',
+    'human_motion':{'url':'https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Xbot.glb',
+                    'clips':['idle','walk','talk','turn','window','lookout','inspect','nod'],
+                    'author':'Mixamo / Adobe; three.js sample asset',
+                    'usage':'embedded in this game; not a standalone motion library',
+                    'terms':'https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html',
+                    'sha256':hashlib.sha256(human_path.read_bytes()).hexdigest()},
     'rig_adjustments':{'head_neck_pelvis':'dedicated joints', 'clavicle':'follows torso, never upper-arm roll',
                        'hand_scale':.82,'fingers':'relaxed flexion; open palm for wave'},
     'source_motion':{'url':'https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive',
+                     'clips':['wave'],
                      'author':'Tomás Laulhé / Quaternius; modifications Don McCurdy',
                      'license':'CC0-1.0','sha256':hashlib.sha256(motion.read_bytes()).hexdigest()},
     'joint_probes':probes},indent=2),encoding='utf-8')
