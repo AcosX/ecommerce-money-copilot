@@ -128,8 +128,7 @@ if ! emc_start_and_check "$NEW"; then
 fi
 
 if [[ -n $PREV && $PREV != "$NEW" ]]; then
-  ln -sfn -- "$PREV" "$EMC_BASE/.previous.tmp"
-  mv -Tf -- "$EMC_BASE/.previous.tmp" "$EMC_BASE/previous"
+  emc_set_symlink "$PREV" previous
 fi
 emc_record deploy "$TAG" "$COMMIT" ok
 if [[ $EMC_ENABLE_UNITS == 1 ]] && emc_has_backend "$EMC_BASE/$NEW"; then

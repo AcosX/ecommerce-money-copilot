@@ -41,12 +41,23 @@ emc_load_env() {
 
 emc_has_backend() { [[ -f $1/backend/pyproject.toml ]]; }
 
+# Point $EMC_BASE/$2 (default: current) at a release path relative to $EMC_BASE (atomic rename).
+emc_set_symlink() {
+  local target=$1 name=${2:-current}
+  ln -sfn -- "$target" "$EMC_BASE/.$name.tmp"
+  # SELinux: systemd-executor (init_t) cannot read httpd_sys_content_t symlinks,
+  # while both init_t and httpd_t can traverse usr_t symlinks.
+  if [[ -x /usr/bin/chcon ]]; then
+    /usr/bin/chcon -h -t usr_t "$EMC_BASE/.$name.tmp" 2> /dev/null || true
+  fi
+  mv -Tf -- "$EMC_BASE/.$name.tmp" "$EMC_BASE/$name"
+}
+
 # Point $EMC_BASE/current at a release path relative to $EMC_BASE (atomic rename).
 emc_activate() {
   local target=$1
   [[ -f $EMC_BASE/$target/.release ]] || emc_die "not a complete release: $target"
-  ln -sfn -- "$target" "$EMC_BASE/.current.tmp"
-  mv -Tf -- "$EMC_BASE/.current.tmp" "$EMC_BASE/current"
+  emc_set_symlink "$target" current
 }
 
 emc_wait_url() { # $1=url $2=attempts [$3=Host header]
