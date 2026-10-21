@@ -4,11 +4,15 @@
   const sceneURL=new URL('./emc-shop-scene.js',document.currentScript.src);sceneURL.search=new URL(document.currentScript.src).search;
   const audio=window.EmcAudio.create();
   const store=S.createStore(()=>window.localStorage),loaded=store.load();
+  let journey=null;
   let tutorial=loaded.data;
   const rawGame=tutorial.levels.L1.exercise_result.shop_game_v1;
   let game=G.normalize(rawGame),panel=null,tab='main',activeTask=null,answer=null,feedback=null,selected=null,toastTimer,bagTab='wall',paintDrag=null,paintUndo=null;
   let continueLogin=null;
   const partnerName=()=>game.companion_name;
+  if(!game.companion_named)game.companion_name='小商';
+  const growthStage=()=>journey?journey.progress().stage-1:G.stage(game);
+  const mainTask=()=>{if(!journey)return G.current(game);const current=journey.progress().current;return current?{id:current.id,name:current.title,topic:current.topic}:{id:'first_order',name:'卖出真实第一单',topic:'最终试炼'};};
   const futureGame=rawGame&&rawGame.schema_version>1;
   let npcState=null,conversation=false,sending=false,bubbleUntil=0,bubbleKind=null,lastReminderAt=performance.now()-28000,replyController=null,speechEpoch=0;
   let homeScene=null,homeStage=0,homeToken=0,homeReady=Promise.resolve();
@@ -28,7 +32,7 @@
   const theme=()=>skyState.ui_theme;
   const rewardOwned=id=>game.side.some(side=>G.SIDE.find(t=>t.id===side).reward===id);
   function saveStatus(status){
-    const messages={empty:'教学模拟 · 当前浏览器自动保存',restored:'教学模拟 · 已恢复本地进度',saved:'教学模拟 · 已保存',recovered:'已恢复备份 · 原始存档会保留',corrupt:'存档损坏 · 操作后先备份原文再保存',unsupported:'存档来自更新版本 · 当前进度不会保存',unavailable:'保存失败 · 刷新可能丢失进度',recovery_full:'原始存档已保护 · 请先处理恢复副本',invalid:'数据格式异常 · 未覆盖存档'};
+    const messages={empty:'小岛设置 · 当前浏览器保存',restored:'小岛设置 · 已恢复',saved:'小岛设置 · 已保存',recovered:'已恢复备份 · 原始存档会保留',corrupt:'存档损坏 · 操作后先备份原文再保存',unsupported:'存档来自更新版本 · 当前进度不会保存',unavailable:'保存失败 · 刷新可能丢失进度',recovery_full:'原始存档已保护 · 请先处理恢复副本',invalid:'数据格式异常 · 未覆盖存档'};
     $('saveStatus').textContent=messages[status]||messages.unavailable;
     $('saveRetry').hidden=!['unavailable','invalid'].includes(status);
     document.querySelector('.save-footer').classList.toggle('warning',!['empty','restored','saved'].includes(status));
@@ -67,23 +71,23 @@
     toastTimer=setTimeout(()=>{$('toast').className='toast'},upgrade?5000:3300);
   }
   function render(){
-    renderPartnerName();renderTheme();const level=G.stage(game),stage=G.STAGES[level],next=G.STAGES[level+1],xp=G.xp(game),task=G.current(game);
-    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=stage.title;
+    renderPartnerName();renderTheme();const level=growthStage(),stage=journey?{...G.STAGES[level],xp:[0,320,640,800,960][level]}:G.STAGES[level],next=journey?(level<4?{xp:[320,640,800,960][level]}:null):G.STAGES[level+1],xp=journey?journey.progress().xp:G.xp(game),task=mainTask();
+    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=journey?window.EmcJourney.GROWTH[level]:stage.title;
     $('xpCount').textContent=next?xp+' / '+next.xp:xp+' · 满级';
     const progress=next?Math.min(100,(xp-stage.xp)/(next.xp-stage.xp)*100):100;
     $('xpFill').style.width=progress+'%';
     const progressbar=document.querySelector('.xp-track');progressbar.setAttribute('aria-valuenow',String(xp));progressbar.setAttribute('aria-valuemax',String(next?.xp||Math.max(xp,800)));
     $('sceneCaption').innerHTML=escape(stage.name)+' <span>·</span> Lv.'+(level+1);
-    $('questChapter').textContent=task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
-    $('questHint').textContent=task?'完成学习挑战，获得 80 经验':'继续探索支线，装扮你的百货大楼';
-    $('continueText').textContent=task?'继续主线':'回顾学习';$('continueHint').textContent=task?.name||'你的下一次经营，才刚开始';
+    $('questChapter').textContent=journey?mainTask().id+' · '+mainTask().topic:task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
+    $('questHint').textContent='领任务 · 带锦囊 · 交成果 · 等确认';
+    $('continueText').textContent='继续主线';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
     refreshInventoryDots();
-    $('guideText').textContent=next?'主线让小店成长，支线带来意外惊喜。':'百货大楼落成了，知识会陪你走得更远。';
+    $('guideText').textContent='完成真实经营任务，确认后小店成长。';
     if(panel)renderPanel();
     homeReady=syncHome();
   }
   async function syncHome(){
-    const stage=G.stage(game)+1;
+    const stage=growthStage()+1;
     if(homeScene&&homeStage===stage){homeScene.draft=game;homeScene.sync();homeScene.setShopName(game.shop_name);homeScene.setAtmosphere(skyState.light);return homeScene.ready;}
     if(homeStage===stage)return;
     const token=++homeToken;selected=null;homeStage=stage;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=false;
@@ -102,20 +106,22 @@
     cancelPaint();finishConversation();
     window.EmcRoute?.onView(name);
     panel=name;activeTask=null;answer=null;feedback=null;
-    $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');renderPanel();$('closePanel').focus({preventScroll:true});
+    $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');$('drawer').classList.toggle('journey-card',name==='journey');renderPanel();$('closePanel').focus({preventScroll:true});
   }
   function closePanel(){continueLogin=null;if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
   function renderPanel(){
-    const titles={quests:['ONE SMALL STEP','任务手册'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字']};
+    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],journey:['ONE STEP CLOSER','主线任务卡']};
+    $('panelBody').classList.toggle('journey-body',panel==='journey');
     $('panelEyebrow').textContent=titles[panel][0];$('panelTitle').textContent=titles[panel][1];
-    if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
+    if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
   }
   function renderQuests(){
+    if(tab==='main'&&journey){startMain();return;}
     const body=$('panelBody');
-    const tabs=`<div class="panel-tabs"><button class="${tab==='main'?'active':''}" data-tab="main">主线学习 <small>${game.main.length}/12</small></button><button class="${tab==='side'?'active':''}" data-tab="side">可选支线 <small>${game.side.length}/6</small></button></div>`;
+    const tabs=`<div class="panel-tabs"><button class="${tab==='main'?'active':''}" data-tab="main">回到主线任务卡</button><button class="${tab==='side'?'active':''}" data-tab="side">可选支线 <small>${game.side.length}/6</small></button></div>`;
     if(activeTask){
       const t=activeTask,done=(t.level==='side'?game.side:game.main).includes(t.id);
-      body.innerHTML=tabs+`<p class="eyebrow">${escape(t.topic)} · 教学挑战</p><h3 class="quest-heading">${escape(t.name)}</h3><p class="quest-question">${escape(t.question)}</p><div class="quest-options">${t.options.map((o,i)=>`<button class="quest-option ${answer===i?'selected':''}" data-answer="${i}" aria-pressed="${answer===i}" ${done?'disabled':''}><span class="choice-key">${String.fromCharCode(65+i)}</span><span>${escape(o)}</span></button>`).join('')}</div>${feedback?`<div class="quest-feedback ${feedback.ok?'success':''}" role="status">${escape(feedback.message)}</div>`:''}<div class="quest-reward"><span>✦ 经验 +${t.xp}</span>${t.reward?`<span>解锁 ${escape(G.DECOR.find(d=>d.id===t.reward).name)}</span>`:''}</div><button class="small-button gold quest-submit" id="submitAnswer" ${!done&&answer===null?'disabled':''}>${done?(t.level==='side'?'返回支线列表':'继续下一步'):'确认我的判断'}</button><p class="muted-note">可以随时离开，已完成的进度会保留。<br>当前为教学练习，不会执行真实平台操作。</p>`;
+      body.innerHTML=tabs+`<p class="eyebrow">${escape(t.topic)} · 教学挑战</p><h3 class="quest-heading">${escape(t.name)}</h3><p class="quest-question">${escape(t.question)}</p><div class="quest-options">${t.options.map((o,i)=>`<button class="quest-option ${answer===i?'selected':''}" data-answer="${i}" aria-pressed="${answer===i}" ${done?'disabled':''}><span class="choice-key">${String.fromCharCode(65+i)}</span><span>${escape(o)}</span></button>`).join('')}</div>${feedback?`<div class="quest-feedback ${feedback.ok?'success':''}" role="status">${escape(feedback.message)}</div>`:''}<div class="quest-reward"><span>${t.level==='side'?'✦ 完成装饰挑战':'✦ 经验 +'+t.xp}</span>${t.reward?`<span>解锁 ${escape(G.DECOR.find(d=>d.id===t.reward).name)}</span>`:''}</div><button class="small-button gold quest-submit" id="submitAnswer" ${!done&&answer===null?'disabled':''}>${done?(t.level==='side'?'返回支线列表':'继续下一步'):'确认我的判断'}</button><p class="muted-note">可以随时离开，已完成的进度会保留。<br>当前为教学练习，不会执行真实平台操作。</p>`;
     }else if(tab==='main'){
       body.innerHTML=tabs+(game.main.length===G.MAIN.length?`<div class="completed-banner">${icons('star')}<h3>从第一步，到独当一面。</h3><p>六个学习阶段已完成。<br>你的小店已成长为百货大楼，<br>也可以随时回顾每一项练习。</p></div>`:'')+G.MAIN.map((t,i)=>`<button class="quest-row" data-task="${t.id}"><span class="eyebrow">${String(i+1).padStart(2,'0')}</span><span class="row-text"><b>${escape(t.name)}</b><small>${t.level} · ${t.topic} · +80 经验</small></span><span>${game.main.includes(t.id)?'✓ 已完成':G.current(game)?.id===t.id?'进行中 →':'可预览'}</span></button>`).join('');
     }else{
@@ -150,8 +156,8 @@
     refreshInventoryDots();
   }
   function renderCollection(){
-    const current=G.stage(game);
-    $('panelBody').innerHTML='<p class="muted-note">五次成长，六段电商学习。<br>达到经验门槛并完成对应主线，小店就会蜕变。</p>'+G.STAGES.map((s,i)=>`<div class="stage-item ${i===current?'current':''}"><img src="assets/game/shop-${i+1}.png" alt="${s.name}" loading="lazy"><div><b>Lv.${i+1} ${s.name}</b><p>${s.title}<br>${i===0?'从这里出发':s.xp+' 经验 · 完成 '+s.mains+' 项主线'}</p></div><span class="stage-state">${i===current?'当前店铺':i<current?'已达成':'待成长'}</span></div>`).join('')+'<p class="muted-note">建筑等级代表教学成长，不是平台成交或正式认证。</p>';
+    const current=growthStage();
+    $('panelBody').innerHTML='<p class="muted-note">五段成长，从小店到真实第一单。<br>关卡成果确认后成长，首单核验通过才成为破零卖家。</p>'+G.STAGES.map((s,i)=>`<div class="stage-item ${i===current?'current':''}"><img src="assets/game/shop-${i+1}.png" alt="${s.name}" loading="lazy"><div><b>Lv.${i+1} ${s.name}</b><p>${window.EmcJourney.GROWTH[i]}<br>${i===0?'L1 定方向 · L2 会选品':['','完成 L2','完成 L4','完成 L5 · L6 复盘','真实第一单核验通过'][i]}</p></div><span class="stage-state">${i===current?'当前店铺':i<current?'已达成':'待成长'}</span></div>`).join('')+'<p class="muted-note">建筑等级代表教学成长，不是平台成交或正式认证。</p>';
   }
   function accountSettings(){
     const me=window.EmcSession?.current(),logged=me?.authenticated;
@@ -184,9 +190,9 @@
     return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">小岛开张 · 8-bit 原创循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
   }
   function renderSettings(){
-    $('panelBody').innerHTML=accountSettings()+partnerSettings()+audioSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">这是一个电商教学小游戏。当前教学进度与装修仅保存在本浏览器，清除站点数据或换设备可能丢失。<br><br>正式经营与人工认证继续由原有服务端接口处理，本试玩不模拟认证通过。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">五级店铺与悬浮岛已接入 Tripo 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
+    $('panelBody').innerHTML=accountSettings()+partnerSettings()+audioSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">伙伴设置、装修和旧版练习保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>完成任务后交回真实成果，确认通过才解锁后续关卡；提交文件不会自动视作通关。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">五级店铺与悬浮岛已接入 Tripo 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
   }
-  function startMain(){openPanel('quests');tab='main';activeTask=G.current(game);answer=null;feedback=null;renderQuests();}
+  function startMain(){openPanel('journey');journey.open();}
   function showTask(id){
     const t=[...G.MAIN,...G.SIDE].find(t=>t.id===id);if(!t)return;
     activeTask=t;answer=null;feedback=null;
@@ -197,11 +203,11 @@
     if(!activeTask)return;
     const done=(activeTask.level==='side'?game.side:game.main).includes(activeTask.id);
     if(done){activeTask=activeTask.level==='side'?null:G.current(game);answer=null;feedback=null;renderQuests();return;}
-    const before=G.stage(game),result=G.complete(game,activeTask.id,answer);
+    const before=growthStage(),result=G.complete(game,activeTask.id,answer);
     feedback={ok:result.ok,message:result.ok?result.why:result.reason};
     if(result.ok){
       save();render();
-      const after=G.stage(game);audio.play(after>before?'upgrade':'reward');toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'获得 '+result.xp+' 经验'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
+      const after=growthStage();audio.play(after>before?'upgrade':'reward');toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'支线挑战完成'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
     }else{audio.play('wrong');renderQuests();}
   }
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!$('scene').dataset.loading;}
@@ -265,7 +271,8 @@
     closePanel();startConversation();sending=true;const scene=homeScene,epoch=speechEpoch;appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
-      const context={companion_name:partnerName(),stage:G.stage(game)+1,xp:G.xp(game),task:G.current(game)?{id:G.current(game).id,name:G.current(game).name,topic:G.current(game).topic}:null,history:C.history(game.npc_chat).slice(-12)};
+      const context={...(journey?.context()||{}),companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat).slice(-12)};
+      if(typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},20000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       appendChat('assistant',result.text,result.source);
@@ -279,7 +286,7 @@
   setInterval(()=>{
     const now=performance.now();
     if(bubbleUntil&&now>bubbleUntil){$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;if(document.activeElement!==$('copilotInput')&&!sending)finishConversation();}
-    if(!document.hidden&&!panel&&!sending&&!conversation&&!paintDrag&&npcAvailable()&&now-lastReminderAt>35000){lastReminderAt=now;const task=G.current(game);speak(task?'下一步可以试试「'+task.name+'」。不急，准备好了就开始。':'主线已完成！去支线逛逛，给小店带件新装饰吧。','reminder');}
+    if(!document.hidden&&!panel&&!sending&&!conversation&&!paintDrag&&npcAvailable()&&now-lastReminderAt>35000){lastReminderAt=now;const task=mainTask();speak(task?'下一步可以试试「'+task.name+'」。不急，准备好了就开始。':'主线已完成！去支线逛逛，给小店带件新装饰吧。','reminder');}
   },500);
   function inBackpack(e){const r=$('drawer').getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;}
   function cancelPaint(){
@@ -329,6 +336,7 @@
   $('panelBody').addEventListener('input',e=>{const key=e.target.dataset.audioVolume;if(key){audio.set(key,Number(e.target.value)/100);const output=$(key+'Value');if(output)output.textContent=e.target.value+'%';}});
   document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&!b.disabled&&!b.matches('[data-panel],#closePanel,#continueButton,#sideButton,#submitAnswer,[data-audio-toggle],#copilotSend'))audio.play('click');});
   window.addEventListener('pagehide',e=>{if(!e.persisted)audio.dispose();});
+  document.querySelector('.quest-peek').onclick=startMain;
   $('closePanel').onclick=closePanel;$('continueButton').onclick=startMain;$('sideButton').onclick=()=>{tab='side';openPanel('quests');};
   $('panelBody').onclick=e=>{
     const b=e.target.closest('button');if(!b)return;viewInventoryItem(b);
@@ -356,7 +364,7 @@
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
     }
   });
-  window.render_game_to_text=()=>JSON.stringify({mode:'tutorial',audio:audio.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:G.stage(game)+1,xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:activeTask?.id||G.current(game)?.id,formal_verification:'not_available',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_textures:homeScene?.textureStatus||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
+  window.render_game_to_text=()=>JSON.stringify({mode:'business_journey',journey:journey?.summary(),audio:audio.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:journey?journey.progress().levels.filter(l=>l.status==='approved').map(l=>l.id):game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:journey?mainTask().id:activeTask?.id||G.current(game)?.id,formal_verification:journey?.progress().certified?'approved':'not_certified',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_textures:homeScene?.textureStatus||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
   window.shopDecorTargets=id=>homeScene?.decorTargets(id)||[];
   window.shopPaintTargets=()=>homeScene?.paintTargets()||[];
   window.advanceTime=async ms=>{await homeReady;homeScene?.controls.update();homeScene?.render();};
@@ -365,13 +373,14 @@
   window.toast=toast;
   document.addEventListener('emc:route-restore',e=>{
     e.preventDefault();const view=e.detail.view==='level'?'quests':e.detail.view;
-    if(['quests','inventory','collection','settings','history'].includes(view))openPanel(view);
+    if(['journey','quests','inventory','collection','settings','history'].includes(view))openPanel(view);
   });
-  document.addEventListener('emc:session-changed',()=>{if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
+  document.addEventListener('emc:session-changed',()=>{void journey?.refresh();if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
   let lastSessionRefresh=Date.now();
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},ask:text=>{closePanel();$('copilotInput').value=text;if(npcAvailable())$('copilotInput').focus({preventScroll:true});else toast('先转一转小岛，让'+partnerName()+'回到视野里再聊。');updateChatAvailability();}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();
