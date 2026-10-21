@@ -377,3 +377,62 @@ def test_narrow_widths_have_no_horizontal_overflow(open_page, width, height, ses
     # 所有可交互的新按钮至少 36px 高
     heights = page.evaluate("""[...document.querySelectorAll('.emc-acct button, .emc-real button')].map(b => b.getBoundingClientRect().height)""")
     assert heights and min(heights) >= 36
+
+
+# ---------- 状态区分与同源真实经营工作台 (#36, #41) ----------
+
+def test_ui_distinguishes_tutorial_vs_formal_statuses(open_page, state):
+    state.roles = ["player", "reviewer"]
+    h = open_page(session=True)
+    page = goto(h)
+
+    # 1. 状态图例始终明确区分 5 种状态
+    legend = page.locator("#emcStatusLegend")
+    assert legend.is_visible()
+    for label in ["教学通关（仅前端本地）", "草稿", "待审核", "正式认证通过", "已驳回"]:
+        assert label in legend.inner_text()
+
+    # 2. 教学关卡核验只产生「教学通关（仅前端本地）」，绝不产生正式认证通过
+    page.locator("#questPath .qnode").first.click()
+    for i in range(3):
+        page.locator("#taskList .task").nth(i).click()
+    page.locator("#verifyBtn").click()
+    page.locator("#tab-level").click()
+    res_text = page.locator("#resultCard").inner_text()
+    assert "教学通关（仅前端本地）" in res_text
+    assert "不代表正式认证通过" in res_text
+    page.locator("#tab-town").click()
+
+    # 3. 打开真实经营内嵌工作台（审核员可见 /admin/ 入口）
+    gate_button(page, "真实经营").click()
+    wb = page.locator("#emcRealWorkbench")
+    assert wb.is_visible()
+    assert page.locator("#emcWbAdminLink").get_attribute("href") == "/admin/"
+
+    # 4. 从教学模拟复制为正式草稿：显示「草稿」+「来自教学模拟」
+    page.locator("#emcWbCopyTutorialBtn").click()
+    page.wait_for_function("document.querySelectorAll('#emcWbList [data-artifact-id]').length === 1")
+    first_item = page.locator("#emcWbList [data-artifact-id]").first
+    assert "草稿" in first_item.inner_text()
+    assert "来自教学模拟" in first_item.inner_text()
+
+    # 5. 上传证据并提交认证：状态切换为「待审核」
+    page.locator("#emcWbSubmitVerifyBtn").click()
+    page.wait_for_function("document.querySelectorAll('#emcWbList [data-verification-id]').length === 1")
+    assert page.locator("#emcWbCurrentStatus").inner_text() == "待审核"
+
+    # 6. 审核员驳回后同步：状态显示「已驳回」及驳回原因
+    state.verifications[0]["status"] = "rejected"
+    state.verifications[0]["reviews"] = [{"decision": "rejected", "reason": "请补充真实物流轨迹截图"}]
+    state.artifacts[0]["status"] = "rejected"
+    page.locator("#emcWbLoadBtn").click()
+    page.wait_for_function("document.getElementById('emcWbCurrentStatus').textContent === '已驳回'")
+    assert "请补充真实物流轨迹截图" in page.locator("[data-emc-rejection-reason]").inner_text()
+
+    # 7. 审核员通过后同步：状态显示「正式认证通过」
+    state.verifications[0]["status"] = "approved"
+    state.artifacts[0]["status"] = "approved"
+    page.locator("#emcWbLoadBtn").click()
+    page.wait_for_function("document.getElementById('emcWbCurrentStatus').textContent === '正式认证通过'")
+    assert page.locator("#emcWbCurrentStatus").inner_text() == "正式认证通过"
+    assert not h.foreign

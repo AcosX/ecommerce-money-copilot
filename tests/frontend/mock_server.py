@@ -41,8 +41,11 @@ class MockState:
     def reset(self):
         self.me_status = 200          # 设为 500 模拟后端故障
         self.display_name = "店主"
+        self.roles = ["player"]
         self.sessions = set()
         self.calls = []               # 记录 /api、/auth 调用，供测试断言
+        self.artifacts = []
+        self.verifications = []
         self.lock = threading.Lock()
 
     def new_session(self):
@@ -134,7 +137,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {
                 "authenticated": True,
                 "player": {"id": "ply_mock0001", "display_name": self.state.display_name, "email": "mock@example.com"},
-                "roles": ["player"],
+                "roles": list(self.state.roles),
                 "csrf_token": CSRF_TOKEN,
             })
         if path == "/api/health":
@@ -144,6 +147,16 @@ class Handler(BaseHTTPRequestHandler):
             if not self._session_id():
                 return self._error(401, "unauthenticated", "请先登录")
             return self._json(200, {"items": [], "next_cursor": None})
+        if path == "/api/artifacts":
+            self.state.record(method="GET", path=path)
+            if not self._session_id():
+                return self._error(401, "unauthenticated", "请先登录")
+            return self._json(200, {"items": list(self.state.artifacts), "next_cursor": None})
+        if path == "/api/verifications":
+            self.state.record(method="GET", path=path)
+            if not self._session_id():
+                return self._error(401, "unauthenticated", "请先登录")
+            return self._json(200, {"items": list(self.state.verifications), "next_cursor": None})
         if path == "/auth/login":
             target = safe_return_to((parse_qs(url.query).get("return_to") or [""])[0])
             self.state.record(method="GET", path=path, query=url.query, location=target)
@@ -182,6 +195,63 @@ class Handler(BaseHTTPRequestHandler):
             if not ok_csrf:
                 return self._error(403, "csrf_failed", "CSRF 校验失败", {"hint": "header"})
             return self._json(201, {"id": "prj_mock0001", "name": body.get("name")})
+        if path == "/api/artifacts":
+            sid = self._session_id()
+            ok_csrf = self._csrf_ok()
+            body = self._body()
+            self.state.record(method="POST", path=path, csrf=self.headers.get("X-CSRF-Token"),
+                              origin=body.get("origin"), authed=bool(sid), csrf_ok=ok_csrf)
+            if not sid:
+                return self._error(401, "unauthenticated", "请先登录")
+            if not ok_csrf:
+                return self._error(403, "csrf_failed", "CSRF 校验失败")
+            art = {
+                "id": f"art_mock{len(self.state.artifacts) + 1:04d}",
+                "project_id": body.get("project_id", "prj_mock0001"),
+                "artifact_type": body.get("artifact_type", "product_selection"),
+                "schema_version": body.get("schema_version", 1),
+                "title": body.get("title", "测试成果"),
+                "status": "draft",
+                "origin": body.get("origin", "formal"),
+                "origin_label": "来自教学模拟" if body.get("origin") == "tutorial_copy" else "正式创建",
+                "source_level_id": body.get("source_level_id"),
+                "current_revision": 1,
+                "version": 1,
+            }
+            self.state.artifacts.insert(0, art)
+            return self._json(201, art)
+        if path == "/api/evidence":
+            sid = self._session_id()
+            ok_csrf = self._csrf_ok()
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > 0:
+                self.rfile.read(n)
+            self.state.record(method="POST", path=path, csrf=self.headers.get("X-CSRF-Token"),
+                              authed=bool(sid), csrf_ok=ok_csrf)
+            if not sid:
+                return self._error(401, "unauthenticated", "请先登录")
+            if not ok_csrf:
+                return self._error(403, "csrf_failed", "CSRF 校验失败")
+            return self._json(201, {"id": "evd_mock0001", "original_filename": "order-evidence.png"})
+        if path == "/api/verifications":
+            sid = self._session_id()
+            ok_csrf = self._csrf_ok()
+            body = self._body()
+            self.state.record(method="POST", path=path, csrf=self.headers.get("X-CSRF-Token"),
+                              authed=bool(sid), csrf_ok=ok_csrf)
+            if not sid:
+                return self._error(401, "unauthenticated", "请先登录")
+            if not ok_csrf:
+                return self._error(403, "csrf_failed", "CSRF 校验失败")
+            sub = {
+                "id": f"ver_mock{len(self.state.verifications) + 1:04d}",
+                "artifact_id": body.get("artifact_id", "art_mock0001"),
+                "status": "pending",
+                "note": body.get("note", ""),
+                "reviews": [],
+            }
+            self.state.verifications.insert(0, sub)
+            return self._json(201, sub)
         return self._error(404, "not_found", "不存在")
 
     # ---- 静态文件 ----
