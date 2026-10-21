@@ -12,7 +12,7 @@ function update(){
  overlay.dataset.ready=String(ready);
  overlay.classList.toggle('waiting',elapsed&&!ready);
  status.textContent=elapsed&&!ready?'正在准备场景资源，请稍候…':elapsed&&ready?'准备好了，开张！':'正在为你的小店开张…';
- if(elapsed&&ready){finished=true;observer.disconnect();overlay.classList.add('leaving');setTimeout(()=>overlay.remove(),460);}
+ if(elapsed&&ready){finished=true;observer.disconnect();overlay.classList.add('leaving');overlay.addEventListener('animationend',event=>{if(event.target===overlay&&event.animationName==='boot-exit')overlay.remove();});setTimeout(()=>overlay.remove(),matchMedia('(prefers-reduced-motion: reduce)').matches?120:1100);}
 }
 retry.onclick=()=>{document.getElementById('retryScene')?.click();update();};
 const observer=new MutationObserver(update);observer.observe(loader,{attributes:true,attributeFilter:['hidden','data-state']});
