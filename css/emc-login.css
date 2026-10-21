@@ -1,0 +1,38 @@
+/* 登录入口：账号指示、真实经营入口、登录提示。沿用 index.html 的 CSS 变量与像素风。 */
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.guest-banner[hidden]{display:none}
+.emc-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* 顶栏账号 */
+.emc-acct{display:flex;align-items:center;gap:8px;min-width:0}
+.emc-acct .px-btn{min-height:40px;padding:6px 12px}
+.emc-acct-name{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:700;color:var(--gold);background:var(--panel-d);border:2px solid #0a1326;padding:7px 10px}
+
+/* 真实经营入口 */
+.emc-real{margin-top:18px;background:rgba(27,43,79,.92);border:3px solid #0a1326;border-radius:12px;padding:14px 16px 18px;box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.emc-real h2{font-size:15px;color:var(--gold);margin-bottom:6px}
+.emc-real p{font-size:12px;color:var(--sub);line-height:1.6;margin-bottom:14px}
+.emc-real-actions{display:flex;flex-wrap:wrap;gap:14px 10px}
+.emc-real-actions .px-btn{flex:1 1 150px}
+
+/* 登录提示 */
+.emc-modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:12px}
+.emc-modal[hidden]{display:none}
+.emc-modal-backdrop{position:absolute;inset:0;background:rgba(10,19,38,.72)}
+.emc-dialog{position:relative;width:min(420px,100%);max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:auto;background:var(--panel-l);border:3px solid var(--gold);border-radius:14px;box-shadow:0 8px 0 #0a1326,0 0 40px rgba(255,217,74,.25);padding:16px}
+.emc-dialog:focus{outline:none}
+.emc-dialog-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.emc-ava{width:48px;height:48px;flex:0 0 48px;border-radius:10px;border:2px solid var(--gold);overflow:hidden}
+.emc-ava img{width:100%;height:100%;object-fit:cover;display:block}
+.emc-dialog-title{font-size:16px;line-height:1.4;color:var(--gold)}
+.emc-dialog-body{font-size:13px;line-height:1.7;color:var(--ink);background:var(--panel-d);border:2px solid #0a1326;border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.emc-dialog-actions{display:flex;flex-wrap:wrap;gap:14px 12px}
+.emc-dialog-actions .px-btn{flex:1 1 130px}
+
+@media (max-width:600px){
+  .hud .emc-acct{order:1;margin-left:auto}
+  .hud .stats{order:2;flex:1 0 100%}
+}
+@media (max-width:480px){
+  .emc-acct-name{max-width:6em}
+}
