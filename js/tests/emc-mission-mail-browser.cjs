@@ -9,7 +9,7 @@ const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
     await page.locator('.quest-peek').click();assert.equal(await page.locator('.mission-list li').count(),7);assert.equal(await page.locator('.j-goal').count(),0);
     await page.locator('#closePanel').click();await page.locator('#continueButton').click();
     if(!reduced){await page.waitForTimeout(180);assert.equal(await page.locator('#missionFlight').isVisible(),true);await page.screenshot({path:path.join(os.tmpdir(),`emc-letter-flight-${width}.png`)});}
-    await page.locator('#drawer[aria-modal=true]').waitFor();await page.waitForTimeout(550);
+    await page.locator('#drawer[aria-modal=true]').waitFor();await page.locator('[data-demo=begin]').click();await page.waitForTimeout(550);
     const rect=await page.locator('#drawer').boundingBox();assert.ok(Math.abs(rect.x+rect.width/2-width/2)<3);assert.ok(rect.y>=0&&rect.y+rect.height<=901);assert.equal(await page.locator('#sideButton').isVisible(),false);
     assert.ok(await page.locator('[data-demo=work]').isVisible());await page.screenshot({path:path.join(os.tmpdir(),`emc-letter-open-${width}.png`)});
     await page.keyboard.press('Escape');assert.equal(await page.locator('#drawer').isVisible(),false);assert.equal(await page.locator('#missionBackdrop').isVisible(),false);
