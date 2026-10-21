@@ -231,6 +231,10 @@ def main():
     report['mouth_regions'] = {str(tag):sum(t==tag for t in mouth_tags.values()) for tag in range(1,9)}
     for rig in rigs:
         rig.data.pose_position = 'POSE'
+    finish_spec = importlib.util.spec_from_file_location('character_materials', Path(__file__).with_name('finish-character-materials.py'))
+    finish_module = importlib.util.module_from_spec(finish_spec)
+    finish_spec.loader.exec_module(finish_module)
+    finish_module.finish_materials()
     target.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=str(target), export_format='GLB', export_materials='EXPORT', export_morph=True)
     blend = target.with_suffix('.blend')
