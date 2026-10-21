@@ -36,3 +36,29 @@
 @media (max-width:480px){
   .emc-acct-name{max-width:6em}
 }
+
+/* 状态徽章：严格区分 教学通关（本地） / 草稿 / 待审核 / 正式认证通过 / 已驳回 (#36) */
+.emc-status-legend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px;padding:8px 10px;background:var(--panel-d);border:2px solid #0a1326;border-radius:8px;font-size:11px;color:var(--sub);line-height:1.5}
+.emc-status-legend-label{font-weight:700;color:var(--ink);margin-right:2px}
+.emc-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;line-height:1.4;border:1px solid #0a1326;white-space:nowrap}
+.emc-badge.tutorial{background:#2b3d63;color:#9fd3ff;border-color:#54a0ff}
+.emc-badge.draft{background:#3a3320;color:var(--gold);border-color:var(--gold)}
+.emc-badge.origin-copy{background:#2d2546;color:#d6b4fc;border-color:#9b6dff}
+.emc-badge.pending{background:#4a3219;color:#ffb142;border-color:#ffb142}
+.emc-badge.approved{background:#163e35;color:var(--mint);border-color:var(--mint)}
+.emc-badge.rejected{background:#471f28;color:var(--rose);border-color:var(--rose)}
+
+/* 真实经营内嵌工作台 (#36, #41) */
+.emc-workbench{margin-top:14px;padding:12px;background:var(--panel-d);border:2px solid var(--gold);border-radius:10px}
+.emc-workbench[hidden]{display:none}
+.emc-wb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.12)}
+.emc-wb-title{font-size:13px;font-weight:700;color:var(--gold);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.emc-wb-admin-link{font-size:12px;color:var(--mint);text-decoration:underline;font-weight:700}
+.emc-wb-form{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px}
+.emc-wb-input{width:100%;min-width:0;padding:8px 10px;background:#0e1830;border:2px solid #0a1326;border-radius:8px;color:var(--ink);font-size:12px}
+.emc-wb-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.emc-wb-actions .px-btn{flex:1 1 140px;min-height:40px;font-size:12px;padding:8px 10px}
+.emc-wb-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.emc-wb-item{padding:9px 10px;background:rgba(27,43,79,.85);border:2px solid #0a1326;border-radius:8px;font-size:12px;line-height:1.6;word-break:break-word}
+.emc-wb-item-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:4px;font-weight:700;color:var(--ink)}
+.emc-wb-reason{margin-top:4px;padding:5px 8px;background:rgba(255,107,129,.12);border-left:3px solid var(--rose);color:#ffc2cb;font-size:11px;border-radius:4px}

@@ -214,11 +214,20 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
         <section class="emc-real" aria-labelledby="emcRealTitle">
           <h2 id="emcRealTitle">真实经营</h2>
           <p>教学全程无需登录。进入真实经营、生成正式选品单、提交认证需要先登录，成果会保存在你的账号下。</p>
-          <div class="emc-real-actions">
-            <button type="button" class="px-btn" data-emc-gate="真实经营" data-emc-placeholder>真实经营</button>
-            <button type="button" class="px-btn" data-emc-gate="生成正式选品单" data-emc-placeholder>生成正式选品单</button>
-            <button type="button" class="px-btn" data-emc-gate="提交认证" data-emc-placeholder>提交认证</button>
+          <div class="emc-status-legend" id="emcStatusLegend" aria-label="状态区分说明">
+            <span class="emc-status-legend-label">状态区分：</span>
+            <span class="emc-badge tutorial" data-emc-status="tutorial">教学通关（仅前端本地）</span>
+            <span class="emc-badge draft" data-emc-status="draft">草稿</span>
+            <span class="emc-badge pending" data-emc-status="pending">待审核</span>
+            <span class="emc-badge approved" data-emc-status="approved">正式认证通过</span>
+            <span class="emc-badge rejected" data-emc-status="rejected">已驳回</span>
           </div>
+          <div class="emc-real-actions">
+            <button type="button" class="px-btn" data-emc-gate="真实经营">真实经营</button>
+            <button type="button" class="px-btn" data-emc-gate="生成正式选品单">生成正式选品单</button>
+            <button type="button" class="px-btn" data-emc-gate="提交认证">提交认证</button>
+          </div>
+          <div id="emcRealWorkbench" class="emc-workbench" hidden></div>
         </section>
       </div>
     </div>
@@ -243,7 +252,8 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
         <div class="verify-strip" id="verifyStrip"></div>
         <div class="arrow-tx" id="verifyHint"></div>
         <div class="result-card" id="resultCard" style="display:none">
-          <b>核验通过</b>：L1 真实结果 = 产出可执行经营方案（产品内输出物，S5 行为链核验）。已解锁 <b>定位向导</b>。
+          <span class="emc-badge tutorial" data-emc-status="tutorial">教学通关（仅前端本地）</span>
+          <b>教学演练完成</b>：L1 练习产出可执行经营方案（本地模拟，不代表正式认证通过；正式认证需在「真实经营」提交证据并经人工审核）。已解锁 <b>定位向导</b>。
         </div>
       </div>
       <button class="px-btn mint" style="width:100%" onclick="verifyLevel()" id="verifyBtn">完成全部任务并提交核验</button>
@@ -325,6 +335,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
 <script src="js/emc-api.js"></script>
 <script src="js/emc-session.js"></script>
 <script src="js/emc-account-ui.js"></script>
+<script src="js/emc-formal-ui.js"></script>
 <script>
 /* ===== 数据 ===== */
 const LEVELS=[
@@ -525,6 +536,7 @@ function toast(t){
 renderQuest();renderTasks();renderVerifyStrip();setMood();
 go('town');
 if(window.EmcAccountUI)EmcAccountUI.start();
+if(window.EmcFormalUI)EmcFormalUI.start();
 </script>
 </body>
 </html>
