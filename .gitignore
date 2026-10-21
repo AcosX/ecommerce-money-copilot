@@ -5,6 +5,17 @@
 *.log
 *.tmp
 
-# Python
+# Python / backend
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local config and private data (never commit)
+.env
+.env.*
+!.env.example
+backend/var/
