@@ -373,7 +373,7 @@
   window.toast=toast;
   document.addEventListener('emc:route-restore',e=>{
     e.preventDefault();const view=e.detail.view==='level'?'quests':e.detail.view;
-    if(['journey','quests','inventory','collection','settings','history'].includes(view))openPanel(view);
+    if(['journey','quests','inventory','collection','settings','history'].includes(view)){openPanel(view);if(view==='journey')journey?.open();}
   });
   document.addEventListener('emc:session-changed',()=>{void journey?.refresh();if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
   let lastSessionRefresh=Date.now();

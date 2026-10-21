@@ -16,6 +16,7 @@
     {id:'L5',type:'content_post',topic:'会内容',title:'让商品被看见',description:'把卖点变成一篇有人愿意看的笔记或视频：说清价值、拿出证据、写给具体的人。',goal:'提交内容发布成功截图，可补充工具使用过程。',deliverable:'发布成功截图',tip:'用内容工具或 agent 生成图文、脚本和视频；发布前自己看一遍，确认内容与商品一致。',checks:['卖点清楚，有真实素材支撑','发布前已人工检查','平台显示内容发布成功'],slots:[{id:'published',label:'发布成功',hint:'包含内容与发布状态的截图',required:true,images:true},{id:'tool',label:'工具使用过程',hint:'可选，附上生成过程的截图',required:false,images:true}],kits:{xiaohongshu:['xhs-video-script','xhs-note-optimizer'],pinduoduo:['pdd-video-script']},reward:'ads',method:'content'},
     {id:'L6',type:'data_review',topic:'会复盘',title:'从数据里解锁出单密码',description:'看清哪里好、哪里差，找到最该优化的一环，为下一轮经营排出顺序。',goal:'提交归因与调优策略报告，附上使用的数据。',deliverable:'归因与调优策略报告',tip:'把经营数据交给伙伴或自己的 agent，先确认时间范围与数据口径，再讨论原因和优化动作。',checks:['数据来源、时间范围与口径明确','区分事实、假设与待验证的问题','优化动作有优先级与验证办法'],slots:[{id:'review',label:'复盘报告',hint:'归因分析与下一步调优策略',required:true},{id:'data',label:'经营数据',hint:'可选，补充后台数据截图或 PDF',required:false}],kits:{both:[]},method:'review'}
   ];
+  const LISTING_TOOLS={xiaohongshu:[{name:'逸淘 · 张飞搬家',url:'https://www.1tsoft.com/html/pay_down.html',hint:'从官方页面选择小红书铺货工具'}],pinduoduo:[{name:'妙手 · 拼多多上货',url:'https://pdd.91miaoshou.com/',hint:'前往官方上货工具'},{name:'逸淘 · 大胡子搬家',url:'https://www.1tsoft.com/html/pay_down.html',hint:'从官方页面选择拼多多铺货工具'}]};
   const GROWTH=['新手店主','成长店主','成熟店主','进阶店主','破零卖家'];
   function level(id){return LEVELS.find(l=>l.id===id);}
   function kitIds(id,platform){const kits=level(id)?.kits||{};return [...(kits.both||[]),...(kits[platform]||[])];}
@@ -33,5 +34,5 @@
     return `我在${PLATFORMS[profile.platform]?.name||'小红书 / 拼多多'}经营「${profile.category||'待确定类目'}」，正在完成「${l.title}」。\n请帮我产出${l.deliverable}。\n需要覆盖：\n${l.checks.map((x,i)=>`${i+1}. ${x}`).join('\n')}\n请标明数据来源与日期；缺失的数据说明待验证，不编造结果。对外发布或上架前先让我确认。\n最后给出我可以提交给伙伴${name}的成果和证据清单。`;
   }
   function validateFiles(task,groups){const all=[];for(const slot of task.slots){const files=groups[slot.id]||[];if(slot.required&&!files.length)return `请先添加「${slot.label}」。`;for(const file of files){if(!['image/png','image/jpeg','image/webp',...(!slot.images?['application/pdf']:[])].includes(file.type))return '请使用 PNG、JPG、WebP'+(!slot.images?' 或 PDF':'')+'；表格和文档可先导出 PDF。';if(file.size>10*1024*1024)return '每个文件需小于 10 MB。';all.push(file);}}return all.length>5?'每次最多提交 5 个文件。':null;}
-  return {PLATFORMS,AGENTS,SKILLS,LEVELS,GROWTH,SCORE_URL,level,kitIds,rewards,progress,brief,validateFiles};
+  return {PLATFORMS,AGENTS,SKILLS,LEVELS,GROWTH,LISTING_TOOLS,SCORE_URL,level,kitIds,rewards,progress,brief,validateFiles};
 });

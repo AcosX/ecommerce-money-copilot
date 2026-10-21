@@ -252,3 +252,12 @@ def test_existing_formal_component_contract_is_preserved(open_page, state):
     page.wait_for_function("document.getElementById('emcWbCurrentStatus').textContent === '正式认证通过'")
     assert page.locator("#emcWbCurrentStatus").inner_text() == "正式认证通过"
     assert not h.foreign
+
+
+def test_journey_deep_link_still_requires_shop_entry(open_page):
+    h = open_page()
+    page = goto(h, "/#view=journey")
+    expect(page.locator("#journeySetup")).to_be_visible()
+    assert page.evaluate("JSON.parse(render_game_to_text()).journey.view") == "setup"
+    assert not h.urls("/api/artifacts")
+    assert not h.urls("/api/verifications")
