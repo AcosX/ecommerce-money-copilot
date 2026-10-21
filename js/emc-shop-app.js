@@ -318,7 +318,7 @@
   $('copilotInput').addEventListener('focus',()=>{if(!npcAvailable())return;if(panel!=='companion')closePanel();startConversation();});
   $('copilotInput').addEventListener('blur',()=>{if(!sending&&$('npcBubble').hidden)finishConversation();});
   $('npcInteract').onclick=()=>{if(npcAvailable())openCompanion(true);};
-  const placeSocialChat=()=>{document.querySelector('.copilot-dock').style.setProperty('--social-top',(document.querySelector('.quest-peek').getBoundingClientRect().bottom+16)+'px');};
+  const placeSocialChat=()=>{const nav=document.querySelector('.quest-peek').getBoundingClientRect(),dock=document.querySelector('.copilot-dock');dock.style.setProperty('--social-top',(nav.bottom+16)+'px');dock.style.setProperty('--social-right',(innerWidth-nav.right)+'px');dock.style.setProperty('--social-width',nav.width+'px');};
   new ResizeObserver(placeSocialChat).observe(document.querySelector('.quest-peek'));window.addEventListener('resize',placeSocialChat);placeSocialChat();
   $('companionAvatar').onclick=()=>openCompanion();
   $('copilotProfile').onclick=()=>{if(panel==='companion')closePanel();else openCompanion();};
