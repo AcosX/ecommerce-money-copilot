@@ -1,0 +1,43 @@
+[Unit]
+Description=电商搞钱参谋 API (FastAPI, test/demo)
+Documentation=https://github.com/AcosX/ecommerce-money-copilot/blob/main/docs/operations.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emc
+Group=emc
+# Env files are read by systemd (as root) before dropping privileges,
+# so they stay root-only (0600). No credentials in this unit.
+EnvironmentFile=/etc/ecommerce-money-copilot/app.env
+EnvironmentFile=/etc/ecommerce-money-copilot/oauth.env
+EnvironmentFile=/etc/ecommerce-money-copilot/db.env
+# The migrate URL is only for deploy.sh; the API never needs DDL rights.
+UnsetEnvironment=EMC_MIGRATE_DATABASE_URL
+WorkingDirectory=/srv/ecommerce-money-copilot/current/backend
+ExecStart=/srv/ecommerce-money-copilot/current/backend/.venv/bin/uvicorn emc_api.main:app --host 127.0.0.1 --port 8790 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/ecommerce-money-copilot
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+LimitNOFILE=8192
+MemoryMax=1G
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target
