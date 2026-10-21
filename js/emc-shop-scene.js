@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js';
+import {createDecoration} from './emc-decorations.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
@@ -159,27 +160,7 @@ export class ShopScene{
     // 门前灯和暖光窗户随日夜切换，使用同一套几何。
     const lamp=new THREE.PointLight('#ffcd79',0,9,2);lamp.position.set(0,1.5,3);this.scene.add(lamp);this.lamp=lamp;
   }
-  makeDecoration(id){
-    const group=new THREE.Group(),metal=this.mat('#929ba7'),wood=this.mat('#956842'),gold=this.mat('#dfb657'),green=this.mat('#648a65');
-    if(id==='ufo'){
-      this.cylinder(group,.65,.45,.18,12,[0,.2,0],metal);const dome=new THREE.Mesh(new THREE.SphereGeometry(.35,12,6,0,Math.PI*2,0,Math.PI/2),this.mat('#5bbdb7'));dome.position.y=.3;group.add(dome);
-      for(let i=0;i<6;i++){const a=i*Math.PI/3;this.box(group,[.1,.08,.1],[Math.cos(a)*.5,.25,Math.sin(a)*.5],gold);}
-    }else if(id==='ramen'){
-      this.box(group,[.8,.9,.14],[0,.45,0],wood);this.cylinder(group,.26,.12,.18,10,[0,.4,.11],this.mat('#f58e69'));
-      this.box(group,[.48,.04,.06],[0,.65,.12],gold);
-    }else if(id==='flowers'){
-      this.box(group,[1,.35,.5],[0,.17,0],wood);for(let i=0;i<3;i++){this.box(group,[.07,.4,.07],[-.3+i*.3,.46,0],green);this.box(group,[.22,.16,.22],[-.3+i*.3,.68,0],gold);}
-    }else if(id==='telescope'){
-      this.cylinder(group,.04,.04,.8,6,[0,.4,0],wood);const tube=this.cylinder(group,.13,.17,.8,8,[.18,.85,0],metal);tube.rotation.z=-.9;
-      for(let i=0;i<3;i++){const a=i*Math.PI*2/3;const leg=this.box(group,[.06,.6,.06],[Math.cos(a)*.2,.22,Math.sin(a)*.2],wood);leg.rotation.z=Math.cos(a)*.45;}
-    }else if(id==='windmill'){
-      this.cylinder(group,.2,.4,.85,6,[0,.4,0],trimMaterial(this));
-      this.box(group,[1.2,.13,.09],[0,.85,.3],wood);this.box(group,[.13,1.2,.09],[0,.85,.3],wood);
-    }else{
-      const cat=this.mat('#d69c61');this.box(group,[.8,.16,.6],[0,.08,0],this.mat('#6889b5'));const body=new THREE.Mesh(new THREE.SphereGeometry(.28,10,6),cat);body.scale.set(1.25,.65,1);body.position.y=.29;group.add(body);this.box(group,[.3,.25,.3],[.3,.28,.08],cat);
-    }
-    group.userData.decorationId=id;return group;
-  }
+  makeDecoration(id){return createDecoration(this,id);}
   sync(){
     const c=new THREE.Color(this.draft.wall_color),base=new THREE.Color('#eee0c5');this.paintUniforms.wall.value.setRGB(c.r/base.r,c.g/base.g,c.b/base.b);
     this.paintUniforms.sign.value.set(this.draft.sign_color||'#9c531e');this.paintUniforms.roof.value.set(this.draft.roof_color||'#bd3f23');this.paintUniforms.signStrength.value=this.draft.sign_color&&this.draft.sign_color!=='#9c531e'?1:0;this.paintUniforms.roofStrength.value=this.draft.roof_color&&this.draft.roof_color!=='#bd3f23'?1:0;
@@ -296,7 +277,6 @@ export class ShopScene{
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
 function disposeAsset(obj){obj.traverse(child=>{child.geometry?.dispose();if(child.material)(Array.isArray(child.material)?child.material:[child.material]).forEach(disposeMaterial);});}
-function trimMaterial(scene){return scene.mat('#e4d8bd');}
 // 单张生成贴图按原始色相和空间边界着色，保留纹理；预览只覆盖对应部位。
 function installPartTint(material,u){
   material.onBeforeCompile=shader=>{
