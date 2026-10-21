@@ -10,6 +10,8 @@ const distance=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((x,j)=>x-b[i]
   for(const profile of ['detail','lite']){
    if(profile==='lite'){await page.locator('#lite').click();await page.waitForFunction(()=>characterPreviewState().loaded&&characterPreviewState().profile==='lite');}
    await page.waitForTimeout(150);const state=await page.evaluate(()=>characterPreviewState());assert.equal(state.bones,43);assert.equal(state.morphs.length,26);assert.ok(state.triangles<(profile==='lite'?33000:55000));
+   const head=await page.evaluate(()=>characterHeadProbe());assert.ok(head.every(hit=>hit&&hit.outer>.10&&hit.outward),'Both ear/scalp sides must have outward faces rather than reveal the inside');
+   if(width===1440){for(const angle of [-90,90,180]){await page.evaluate(a=>characterPreviewAngle(a),angle);await page.waitForTimeout(200);await page.screenshot({path:path.join(os.tmpdir(),`emc-xiaoshang-head-${profile}-${angle}.png`)});}await page.evaluate(()=>characterPreviewAngle(0));}
    await page.evaluate(()=>characterInspectMorph(null));const before=await page.evaluate(()=>characterPreviewProbe());
    for(const name of state.morphs){await page.evaluate(n=>characterInspectMorph(n),name);const after=await page.evaluate(()=>characterPreviewProbe());assert.ok(distance(before.face,after.face)>.00001,'Visible morph '+name);assert.ok(distance(before.face,after.face)<.06,'Bounded facial deformation '+name);assert.equal(distance(before.body,after.body),0,'Outfit must remain unchanged');}
    await page.evaluate(()=>characterInspectMorph(null));const lips=await page.evaluate(()=>characterLipProbe());assert.ok(lips.upper.length>10&&lips.lower.length>10&&lips.teeth.length>10,'Actual upper/lower contours and teeth must exist');

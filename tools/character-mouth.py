@@ -65,6 +65,8 @@ def rebuild_mouth(obj, cfg):
     # glTF splits vertices at UV / normal seams. Weld positions while retaining
     # per-loop UVs before cutting, otherwise a visually continuous lip is disconnected.
     bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=.00001)
+    bm.normal_update()
+    original_normals = {f:f.normal.copy() for f in bm.faces}
     uv_layer = bm.loops.layers.uv.active
     deform = bm.verts.layers.deform.active
     region = bm.verts.layers.int.new('mouth_region')
@@ -191,6 +193,13 @@ def rebuild_mouth(obj, cfg):
         bmesh.ops.smooth_vert(bm, verts=list(transition), factor=.35,
                               use_axis_x=True,use_axis_y=True,use_axis_z=True)
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    # The face is separated from the body and contains open hair / ear patches.
+    # Global recalculation can invert those disconnected islands. Keep their
+    # original outward winding; only the newly authored mouth needs new normals.
+    for face,normal in original_normals.items():
+        if face.is_valid and face.normal.dot(normal)<0:
+            face.normal_flip()
+    bm.normal_update()
     bm.verts.index_update()
     tags={v.index:v[region] for v in bm.verts if v[region]}
     bm.to_mesh(mesh)

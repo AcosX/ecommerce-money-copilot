@@ -152,5 +152,6 @@
     "body_normal_strength": 0.22,
     "face_normal_strength": 0,
     "note": "Material-only adjustment. Base color atlas, UVs, skinning and mouth morphs are preserved."
-  }
+  },
+  "head_revision": "Preserve original outward face winding on separated ear/hair islands; bilateral ray checks pass."
 }
