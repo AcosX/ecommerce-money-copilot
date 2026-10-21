@@ -6,7 +6,7 @@ const movement=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((v,j)=>v-b[i]
 (async()=>{const browser=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||undefined});try{
  for(const width of [1440,390]){
   const page=await browser.newPage({viewport:{width,height:width===390?844:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(root+'/tools/character-preview.html?motion=1');await page.waitForFunction(()=>window.characterPreviewState?.().loaded);await page.locator('#blink').click();
+  await page.goto(root+'/tools/character-preview.html?motion=1');await page.waitForFunction(()=>window.characterPreviewState?.().loaded);await page.locator('#blink').click();await page.locator('#repeatMotion').click();
   for(const profile of ['detail','lite']){
    if(profile==='lite'){await page.locator('#lite').click();await page.waitForFunction(()=>characterPreviewState().loaded&&characterPreviewState().profile==='lite');}
    const initial=await page.evaluate(()=>characterPreviewState());assert.equal(initial.bones,46);assert.equal(initial.morphs.length,26);assert.equal(initial.motion.clips.length,13);
@@ -17,6 +17,10 @@ const movement=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((v,j)=>v-b[i]
     assert.ok(Math.max(movement(before.face,after.face),movement(before.body,after.body))>.002,'Actual skinned motion '+clip);
     const bounds=await page.evaluate(()=>characterMotionProbe());if(clip==='sit_cliff'){assert.ok(bounds.minY>-.40&&bounds.minY<-.08,'Legs hang below the edge '+JSON.stringify(bounds));assert.ok(bounds.maxY>.85&&bounds.maxY<1.25,'Seated cliff height');}else if(clip==='sit_cross'){assert.ok(bounds.minY>-.045&&bounds.minY<.07,'Cross-legged floor contact '+JSON.stringify(bounds));assert.ok(bounds.maxY>1&&bounds.maxY<1.3,'Seated cross-legged height');}else{assert.ok(bounds.minY>-.02&&bounds.minY<.035,'Ground contact '+clip+' '+JSON.stringify(bounds));assert.ok(bounds.maxY>1.4&&bounds.maxY<2.1,'Bounded character '+clip);}
    }
+   const observation=await page.evaluate(()=>{characterInspectMotion('idle',.4);const standing=characterJointProbe();characterInspectMotion('lookout',.50);return {standing,pose:characterJointProbe()};});
+   const bone=(frame,suffix)=>Object.entries(frame).find(([name])=>name.endsWith(suffix))[1];
+   for(const wrist of ['0_Right_Limb_2','1_Left_Limb_2']){const hand=bone(observation.pose,wrist),hip=bone(observation.pose,'Xiaoshang_Hips');assert.ok(Math.abs(hand[1]-hip[1]-.19)<.015&&Math.abs(Math.abs(hand[2]-hip[2])-.22)<.015,'Both hands must visibly reach the waist');}
+   assert.ok(bone(observation.pose,'Xiaoshang_Head')[0]-bone(observation.standing,'Xiaoshang_Head')[0]>.12,'Lookout needs a readable forward lean');
    const gait=await page.evaluate(()=>Array.from({length:61},(_,i)=>{characterInspectMotion('walk',i/60);return characterJointProbe();}));
    const joint=(frame,suffix)=>Object.entries(frame).find(([name])=>name.endsWith(suffix))[1];
    const range=values=>Math.max(...values)-Math.min(...values);
@@ -32,6 +36,7 @@ const movement=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((v,j)=>v-b[i]
    for(const wrist of ['0_Right_Limb_2','1_Left_Limb_2']){const points=seated.map(f=>joint(f,wrist));assert.ok(points.every(p=>p[1]<.05&&p[0]<-.20),'Palms must reach the supporting surface behind the body');assert.ok(Math.max(...points.map(p=>Math.hypot(...p.map((v,i)=>v-points[0][i]))))<.012,'Supporting hands stay planted');}
    const legs=seated.map(f=>joint(f,'0_Left_Limb_2'));assert.ok(range(legs.map(p=>p[0]))>.02,'Cliff shins actually swing');
    const exit=await page.evaluate(()=>{characterInspectMotion('sit_cross',.5);document.querySelector('[data-motion=walk]').click();const queued=characterPreviewState().motion;for(let i=0;i<55;i++)characterMotionStep(.1);return {queued,after:characterPreviewState().motion};});assert.equal(exit.queued.name,'sit_cross');assert.equal(exit.queued.pending,'walk');assert.equal(exit.after.name,'walk','Stand up before continuing requested motion');
+   const repeated=await page.evaluate(()=>{characterInspectMotion('lookout',0);document.getElementById('repeatMotion').click();document.querySelector('[data-motion=lookout]').click();for(let i=0;i<140;i++)characterMotionStep(.1);const result=characterPreviewState().motion;document.getElementById('repeatMotion').click();return result;});assert.equal(repeated.repeat,true);assert.equal(repeated.name,'lookout','Repeated preview must not end in an uninformative idle pose');
    await page.locator('aside').evaluate(o=>o.scrollTop=0);
    for(const clip of ['idle','walk','wave','lookout','inspect','letter','shop_hips','sit_cross','sit_cliff']){await page.evaluate(n=>characterInspectMotion(n,.4),clip);await page.waitForTimeout(150);await page.screenshot({path:path.join(os.tmpdir(),`emc-xiaoshang-motion-${profile}-${width}-${clip}.png`)});}
    await page.getByRole('button',{name:'手部近景',exact:true}).click();await page.waitForTimeout(200);await page.screenshot({path:path.join(os.tmpdir(),`emc-xiaoshang-motion-${profile}-${width}-hand.png`)});await page.getByRole('button',{name:'全身动作',exact:true}).click();

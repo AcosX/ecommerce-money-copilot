@@ -13,7 +13,7 @@ export const CHARACTER_MOTIONS={
 // The caller supplies navigation and facing. Clips are in-place and contain no
 // facial tracks, so dialogue / emotion can keep controlling the face independently.
 export function createCharacterMotion(root,clips){
- const mixer=new THREE.AnimationMixer(root),actions=new Map();let current=null,paused=false,transition=null,pending=null;
+ const mixer=new THREE.AnimationMixer(root),actions=new Map();let current=null,paused=false,transition=null,pending=null,repeat=false;
  for(const clip of clips){
   if(!CHARACTER_MOTIONS[clip.name])continue;
   const body=clip.clone();body.tracks=body.tracks.filter(t=>!t.name.includes('morphTargetInfluences'));
@@ -37,12 +37,12 @@ export function createCharacterMotion(root,clips){
   else next.setEffectiveWeight(1);
   current=next;paused=false;mixer.update(0);
  }
- mixer.addEventListener('finished',event=>{if(event.action===current&&!paused){const next=pending||'idle';pending=null;play(next);}});
+ mixer.addEventListener('finished',event=>{if(event.action===current&&!paused){const next=pending||(repeat?current.getClip().name:'idle');pending=null;play(next,{instant:repeat&&next===current.getClip().name});}});
  play('idle',{instant:true});
- return {play,update(dt){if(paused)return;const seconds=Math.max(0,Math.min(.1,dt||0));if(transition){transition.age+=seconds;const t=Math.min(1,transition.age/transition.duration),s=t*t*(3-2*t);for(const [action,weight] of transition.from)action.setEffectiveWeight(weight*(1-s));transition.to.setEffectiveWeight(transition.initial+(1-transition.initial)*s);if(t===1){for(const [action] of transition.from)action.stop();transition=null;}}mixer.update(seconds);},
+ return {play,setRepeat(value){repeat=!!value;},update(dt){if(paused)return;const seconds=Math.max(0,Math.min(.1,dt||0));if(transition){transition.age+=seconds;const t=Math.min(1,transition.age/transition.duration),s=t*t*(3-2*t);for(const [action,weight] of transition.from)action.setEffectiveWeight(weight*(1-s));transition.to.setEffectiveWeight(transition.initial+(1-transition.initial)*s);if(t===1){for(const [action] of transition.from)action.stop();transition=null;}}mixer.update(seconds);},
   pause(value=true){paused=!!value;if(current)current.paused=paused;},
   seek(phase){if(!current)return;pending=null;transition=null;for(const action of actions.values())if(action!==current)action.stop();current.setEffectiveWeight(1);paused=true;current.paused=true;current.time=Math.max(0,Math.min(.99999,phase))*current.getClip().duration;mixer.update(0);},
-  state:()=>({name:current?.getClip().name,time:current?.time||0,duration:current?.getClip().duration||0,paused,pending,clips:[...actions.keys()],transitioning:!!transition,weights:Object.fromEntries([...actions].filter(([,a])=>a.isScheduled()).map(([name,a])=>[name,a.getEffectiveWeight()]))}),
+  state:()=>({name:current?.getClip().name,time:current?.time||0,duration:current?.getClip().duration||0,paused,pending,repeat,clips:[...actions.keys()],transitioning:!!transition,weights:Object.fromEntries([...actions].filter(([,a])=>a.isScheduled()).map(([name,a])=>[name,a.getEffectiveWeight()]))}),
   dispose(){mixer.stopAllAction();mixer.uncacheRoot(root);}
  };
 }

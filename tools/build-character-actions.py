@@ -117,7 +117,7 @@ scene.render.fps=30
 library=[('idle','Idle',4.0,True),('walk','Walking',1.5,True),
          ('wave','Wave',2.8,False),('talk','Idle',4.0,True),
          ('turn','Idle',3.2,False),('window','Idle',4.0,False),
-         ('lookout','Idle',4.8,False),('inspect','Idle',4.0,False),
+         ('lookout','Idle',6.4,False),('inspect','Idle',4.0,False),
          ('nod','Yes',1.8,False),('letter','Idle',4.8,False),
          ('shop_hips','Idle',5.2,False),('sit_cross','Idle',8.0,False),
          ('sit_cliff','Idle',9.0,False)]
@@ -235,7 +235,7 @@ def orient_hand(name, along, normal, weight):
     pose_world(name,m.translation,m.to_quaternion().slerp(delta@rest[name],weight))
 
 def daily_pose(name,t):
-    if name not in ('letter','shop_hips','sit_cross','sit_cliff'):return
+    if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
     if name=='letter':
         axis_world('Xiaoshang_Head',(1,0,0),-.045*w)
@@ -244,18 +244,31 @@ def daily_pose(name,t):
         elbow=world@rig.pose.bones[prefix+'1'].head
         target=start.lerp(Vector((.16,-.28,1.40)),w)
         solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(Vector((.24,-.34,1.05)),w))
-    elif name=='shop_hips':
-        axis_world('tripo::Spine_0',(0,1,0),.18*w)
-        axis_world('tripo::Spine_1',(0,1,0),.08*w)
-        axis_world('Xiaoshang_Head',(0,1,0),.055*w)
-        axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.30,-.10),(.44,-.10),(.60,.12),(.73,.12),(1,0)]))
+    elif name in ('shop_hips','lookout'):
+        # Hands settle independently before the hip hinge. Keep feet planted
+        # while the pelvis shifts back to counterbalance the forward torso.
+        lean=curve(t,[(0,0),(.20,0),(.39,1),(.66,1),(.87,0),(1,0)])
+        hip=rig.pose.bones['Xiaoshang_Hips'];m=hip.matrix.copy()
+        m.translation+=inverse.to_3x3()@Vector((-.025*lean,.006*lean,-.008*lean))
+        hip.matrix=m;bpy.context.view_layer.update()
+        axis_world('Xiaoshang_Hips',(0,1,0),.09*lean)
+        axis_world('tripo::Spine_0',(0,1,0),.24*lean)
+        axis_world('tripo::Spine_1',(0,1,0),.055*lean)
+        axis_world('Xiaoshang_Head',(0,1,0),-.10*lean)
+        glance=curve(t,[(0,0),(.13,-.10),(.29,-.10),(.43,-.17),(.49,-.17),(.63,.16),(.70,.16),(.90,0),(1,0)])
+        axis_world('Xiaoshang_Head',(0,0,1),glance)
+        axis_world('tripo::Spine_2',(0,0,1),glance*.22)
+        for prefix in ('tripo::0_Left_Limb_','tripo::1_Right_Limb_'):
+            side=1 if '0_Left' in prefix else -1
+            solve_limb([prefix+str(i) for i in range(3)],rest_positions[prefix+'2'],Vector((.5,side*.14,.45)))
         for hand,side in hand_specs:
+            reach=curve(t,[(0,0),(.03 if side==1 else .08,0),(.24 if side==1 else .30,1),(.82 if side==1 else .78,1),(.98,0),(1,0)])
             prefix=hand[:-1]
             start=world@rig.pose.bones[hand].head
             elbow=world@rig.pose.bones[prefix+'1'].head
             hip=world@rig.pose.bones['Xiaoshang_Hips'].head
-            target=start.lerp(hip+Vector((.06,side*.23,.19)),w)
-            solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(hip+Vector((-.03,side*.48,.30)),w))
+            target=start.lerp(hip+Vector((.05,side*.22,.19)),reach)
+            solve_limb([prefix+str(i) for i in range(3)],target,elbow.lerp(hip+Vector((-.10,side*.43,.31)),reach))
     else:
         # Full sit-down / rest / stand-up phrases. The seated hold is explicit
         # so game code can later repeat it without replaying the descent.
@@ -292,11 +305,13 @@ def daily_pose(name,t):
             solve_limb([prefix+str(i) for i in range(3)],target,pole)
 
 def daily_palms(name,t):
-    if name not in ('letter','shop_hips','sit_cross','sit_cliff'):return
+    if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
     for hand,side in hand_specs:
         if name=='letter' and side==-1:orient_hand(hand,(0,0,1),(1,0,0),w)
-        elif name=='shop_hips':orient_hand(hand,(.1,0,-1),(0,-side,0),w)
+        elif name in ('shop_hips','lookout'):
+            reach=curve(t,[(0,0),(.03 if side==1 else .08,0),(.24 if side==1 else .30,1),(.82 if side==1 else .78,1),(.98,0),(1,0)])
+            orient_hand(hand,(.1,0,-1),(0,-side,0),reach)
         elif name=='sit_cross':orient_hand(hand,(1,-side*.25,0),(0,0,-1),w)
         elif name=='sit_cliff':orient_hand(hand,(-1,0,0),(0,0,-1),w)
 
@@ -384,14 +399,12 @@ for name, original, duration, loop in library:
         elif name=='turn':
             axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.25,.45),(.58,.45),(.92,0),(1,0)]))
             axis_world('tripo::Spine_2',(0,0,1),curve(t,[(0,0),(.12,0),(.38,.16),(.65,.16),(1,0)]))
-        elif name in ('window','lookout','inspect'):
+        elif name in ('window','inspect'):
             lean=curve(t,[(0,0),(.15,0),(.40,1),(.72,1),(1,0)])
             glance=curve(t,[(0,0),(.24,1),(.65,1),(.90,0),(1,0)])
-            pitch={'window':.10,'lookout':-.07,'inspect':.22}[name]
+            pitch={'window':.10,'inspect':.22}[name]
             axis_world('Xiaoshang_Head',(0,1,0),pitch*glance)
             axis_world('tripo::Spine_1',(0,1,0),(.10 if name=='inspect' else .035)*lean)
-            if name=='lookout':
-                axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.26,.27),(.43,.27),(.67,-.20),(.78,-.20),(1,0)]))
             if name=='window':
                 axis_world('Xiaoshang_Head',(0,0,1),curve(t,[(0,0),(.35,-.12),(.58,-.12),(.77,.10),(1,0)]))
         contact_legs(name,t)
@@ -439,7 +452,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'daily-v4: letter, hands-on-hips inspection, cross-legged sit and supported cliff rest',
+    'motion_revision':'lookout-v5: hands-on-hips, counterbalanced hip hinge and staggered inspection timing',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
                            'sit_cross':{'hold_phase':[.30,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},
