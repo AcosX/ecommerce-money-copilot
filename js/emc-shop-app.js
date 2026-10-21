@@ -85,7 +85,7 @@
     $('sceneCaption').innerHTML=escape(stage.name)+' <span>·</span> Lv.'+(level+1);
     $('questChapter').textContent=journey?mainTask().id+' · '+mainTask().topic:task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
     $('questHint').textContent='领任务 · 带锦囊 · 交成果 · 等确认';
-    $('continueText').textContent=partnerName()+'来信了';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
+    $('continueText').textContent='';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
     refreshInventoryDots();
     $('guideText').textContent='目标第一单，先拿下这一步！';
     if(panel)renderPanel();
