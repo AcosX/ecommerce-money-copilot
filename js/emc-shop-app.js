@@ -86,7 +86,7 @@
     $('questChapter').textContent=journey?mainTask().id+' · '+mainTask().topic:task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
     $('questHint').textContent='领任务 · 带锦囊 · 交成果 · 等确认';
     $('continueText').textContent='';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
-    refreshInventoryDots();
+    refreshInventoryDots();renderJournal();
     $('guideText').textContent='目标第一单，先拿下这一步！';
     if(panel)renderPanel();
     homeReady=syncHome();
@@ -117,10 +117,10 @@
   }
   function closePanel(){mail.close();continueLogin=null;if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('role');$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
   function renderPanel(){
-    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
+    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],journal:['MY SHOP JOURNAL','经营手帐'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
     $('panelBody').classList.toggle('journey-body',panel==='journey');
     $('panelEyebrow').textContent=titles[panel][0];$('panelTitle').textContent=titles[panel][1];
-    if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
+    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
   }
   function renderMissionList(){
     const p=journey.profile(),state=journey.progress(),labels={approved:'已完成',pending:'确认中',rejected:'待补充',ready:'进行中',draft:'草稿',locked:'未解锁'};
@@ -205,6 +205,19 @@
   function graphicsSettings(){return `<section class="setting-field" aria-label="画面质量"><p class="field-label">画面质量</p><div class="setting-actions">${[['auto','自动适配'],['smooth','流畅优先'],['detail','精细画面']].map(([id,name])=>`<button class="small-button" data-graphics-quality="${id}" aria-pressed="${game.graphics_quality===id}">${name}</button>`).join('')}</div><p class="muted-note">自动适配会为手机和较低配置使用轻量模型。感觉卡顿时，可以选择流畅优先；切换画质会重新加载小岛。</p></section>`;}
   function renderSettings(){
     $('panelBody').innerHTML=accountSettings()+`<section class="setting-field" aria-label="演示模式"><p class="field-label">演示模式</p><div class="audio-row"><span>试玩全部关卡</span><button type="button" class="small-button" data-demo-toggle role="switch" aria-label="演示模式" aria-checked="${Boolean(journey?.isDemo())}">${journey?.isDemo()?"开启":"关闭"}</button></div><p class="muted-note">使用示例材料体验完整旅程，不影响正式进度。关闭后回到正式模式，试玩记录会保留。</p></section>`+partnerSettings()+audioSettings()+graphicsSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">伙伴设置、装修和旧版练习保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>完成任务后交回真实成果，确认通过才解锁后续关卡；提交文件不会自动视作通关。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">五级店铺与悬浮岛已接入 Tripo 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
+  }
+
+  function journalState(){
+    const state=journey?.progress(),p=journey?.profile(),id=state?.current?.id||'first_order',story=window.EmcJourneyStory.get(id),records=journey?.practiceRecords()||[];
+    const methods=(state?.levels||[]).filter(l=>l.status==='approved').flatMap(l=>window.EmcJourney.rewards(l.id,p?.platform));
+    return {state,p,id,story,records,methods};
+  }
+  function renderJournal(){
+    const host=$('shopJournal');if(!host||!journey)return;const j=journalState(),welcome=journey.summary().view==='welcome';
+    host.innerHTML=`<header class="journal-heading"><b>经营手帐</b><small>FIELD NOTES</small></header><p class="journal-now"><b>${welcome?'从这里开始':'正在学 · '+(j.state.current?.topic||'真实第一单')}</b>${escape(welcome?'认识你的小店，先跟着小商做一件小事。':j.story.learn)}</p><div class="journal-counts"><span><strong>${j.records.length}</strong>份草稿</span><span><strong>${j.methods.length}</strong>个方法</span></div><button type="button" data-panel="journal" aria-label="打开经营手帐">翻开手帐 <span aria-hidden="true">↗</span></button>`;host.querySelector('button').onclick=()=>openPanel('journal');
+  }
+  function renderJournalPanel(){
+    const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${journey.isDemo()?'DEMO · 演示手帐':'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">工作纸是你的个人草稿，保存在当前浏览器。试玩与正式记录分开，填写或勾选都不会自动通关。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的工作纸</h4>${j.records.length?j.records.filter(r=>journey.isDemo()||Number(r.id.slice(1))<=j.state.completed+1).map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${r.filled} 处记录 · 从来信附件继续整理</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有草稿。取出信里的实践附件，写下的想法会自动留在这里。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.external?m.url:'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
   }
   function openMission(entry,level){if(mail.state().opening)return;closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level);else journey.open(entry);$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');});}
   function startMain(){openMission();}
@@ -459,14 +472,14 @@
   window.toast=toast;
   document.addEventListener('emc:route-restore',e=>{
     e.preventDefault();const view=e.detail.view==='level'?'quests':e.detail.view;
-    if(['journey','missions','quests','inventory','collection','settings','history','companion'].includes(view)){openPanel(view);if(view==='journey')journey?.open();}
+    if(['journey','missions','quests','inventory','collection','settings','history','companion','journal'].includes(view)){openPanel(view);if(view==='journey')journey?.open();}
   });
   document.addEventListener('emc:session-changed',()=>{void journey?.refresh();if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
   let lastSessionRefresh=Date.now();
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
-  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),ask:text=>{openCompanion();askCompanion(text);}});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),ask:text=>{openCompanion();askCompanion(text);}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();
