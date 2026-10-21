@@ -6,7 +6,7 @@
   const store=S.createStore(()=>window.localStorage),loaded=store.load();
   let journey=null,companionFeedback=null,companionQuote='',perkExpanded=false,companionSaveOk=true;
   const guidedPrompts=new Set();
-  const companionScope=()=>String(window.EmcSession?.current()?.player?.id||'guest')+':'+String(journey?.summary().project_id||'local');
+  const companionScope=()=>String(window.EmcSession?.current()?.player?.id||'guest')+':'+String(journey?.summary().project_id||'local')+(journey?.isDemo()?':demo':'');
   const companionStore=M.createStore({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value)},companionScope);
 
   let tutorial=loaded.data;
@@ -76,7 +76,7 @@
   }
   function render(){
     renderPartnerName();renderSocialChat();renderTheme();const level=growthStage(),stage=journey?{...G.STAGES[level],xp:[0,320,640,800,960][level]}:G.STAGES[level],next=journey?(level<4?{xp:[320,640,800,960][level]}:null):G.STAGES[level+1],xp=journey?journey.progress().xp:G.xp(game),task=mainTask();
-    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=journey?window.EmcJourney.GROWTH[level]:stage.title;
+    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=journey?.isDemo()?'演示 · '+window.EmcJourney.GROWTH[level]:journey?window.EmcJourney.GROWTH[level]:stage.title;
     $('xpCount').textContent=next?xp+' / '+next.xp:xp+' · 满级';
     const progress=next?Math.min(100,(xp-stage.xp)/(next.xp-stage.xp)*100):100;
     $('xpFill').style.width=progress+'%';
@@ -336,10 +336,10 @@
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
       const context={...(journey?.context()||{}),companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat).slice(-12)};
-      if(typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
+      if(!journey?.isDemo()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},20000);});
-      const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
+      const result=await Promise.race([C.reply(message,context,{transport:journey?.isDemo()?undefined:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=change.changed?change:null;companionQuote=result.text;
       appendChat('assistant',result.text,result.source);
