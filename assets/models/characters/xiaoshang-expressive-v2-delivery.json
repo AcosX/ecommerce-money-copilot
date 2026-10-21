@@ -1,0 +1,20 @@
+[
+  {
+    "model_url": "assets/models/characters/xiaoshang-expressive-v2-web.glb",
+    "bytes": 4617364,
+    "triangles": 54528,
+    "morphs": 23,
+    "face_vertices": 5608,
+    "bones": 43,
+    "texture_limit": 2048
+  },
+  {
+    "model_url": "assets/models/characters/xiaoshang-expressive-v2-lite.glb",
+    "bytes": 2626084,
+    "triangles": 31922,
+    "morphs": 23,
+    "face_vertices": 5608,
+    "bones": 43,
+    "texture_limit": 1024
+  }
+]
