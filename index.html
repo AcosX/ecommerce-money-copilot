@@ -6,27 +6,30 @@
   <meta name="theme-color" content="#e8f4fc">
   <title>第一单 · 从一间小店开始</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='3' y='14' width='34' height='23' fill='%23f7ce46' stroke='%2318274a' stroke-width='3'/%3E%3Cpath d='M2 15L9 3h22l7 12z' fill='%234a7a65' stroke='%2318274a' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/game.css?v=20261022-arcade4">
-  <link rel="stylesheet" href="assets/account.css?v=20261022-arcade4">
-  <link rel="stylesheet" href="assets/journey.css?v=20261022-arcade4">
-  <link rel="stylesheet" href="assets/arcade.css?v=20261022-arcade4">
+  <link rel="stylesheet" href="assets/game.css?v=20261022-companion1">
+  <link rel="stylesheet" href="assets/account.css?v=20261022-companion1">
+  <link rel="stylesheet" href="assets/journey.css?v=20261022-companion1">
+  <link rel="stylesheet" href="assets/arcade.css?v=20261022-companion1">
+  <link rel="stylesheet" href="assets/companion.css?v=20261022-companion1">
   <script type="importmap">{"imports":{"three":"./assets/vendor/three/build/three.module.js","three/addons/":"./assets/vendor/three/examples/jsm/"}}</script>
-  <script src="js/emc-api.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-session.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-route.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-account-ui.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-tutorial-save.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-copilot.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-sky.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-game.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-audio.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-juice.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-journey.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-journey-ui.js?v=20261022-arcade4" defer></script>
-  <script src="js/emc-shop-app.js?v=20261022-arcade4" defer></script>
+  <script src="js/emc-api.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-session.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-route.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-account-ui.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-tutorial-save.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-companion.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-copilot.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-sky.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-game.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-audio.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-juice.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-journey.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-journey-ui.js?v=20261022-companion1" defer></script>
+  <script src="js/emc-shop-app.js?v=20261022-companion1" defer></script>
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3M7 18h10"/></symbol>
   <symbol id="i-shop" viewBox="0 0 24 24"><path d="M3 10v11h18V10M2 10l3-7h14l3 7M2 10h20M8 21v-8h8v8M7 3l-1 7m6-7v7m5-7 1 7"/></symbol>
   <symbol id="i-time" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></symbol>
@@ -69,8 +72,8 @@
     <div id="sceneLoader" class="scene-loader" data-state="loading" role="status" aria-live="polite"><svg aria-hidden="true"><use href="#i-shop"/></svg><b id="sceneLoadTitle">正在打开你的小店</b><p id="sceneLoadHint">正在准备岛屿与店铺…</p><div class="loading-pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><button id="retryScene" class="small-button" hidden>重新加载</button></div>
     <span class="scene-caption" id="sceneCaption">一间小店，无限可能 <span>·</span> Lv.1</span>
   </section>
-  <div id="npcAnchor" class="npc-anchor" hidden><button id="npcInteract" class="npc-interact" aria-label="和岛上向导阿策对话"><span>阿策</span></button><section id="npcBubble" class="npc-bubble" aria-label="阿策的消息" hidden><svg class="npc-cloud" viewBox="0 0 300 180" preserveAspectRatio="none" aria-hidden="true"><path d="M42 154C17 155 5 139 10 123C-1 106 5 87 21 80C9 56 26 36 48 39C55 16 80 10 99 23C117 3 147 6 162 21C183 7 211 16 216 36C243 25 267 37 269 57C295 60 305 83 289 102C305 128 286 151 261 150C251 171 224 178 205 166C185 185 155 178 145 168C128 182 102 177 92 164C71 179 46 175 42 154Z"/></svg><header><b>阿策</b><small id="npcReplySource">本地教学演示</small><button id="closeNpcBubble" aria-label="收起消息">×</button></header><p id="npcSpeech" role="status" aria-live="polite"></p><footer class="npc-bubble-actions"><small id="npcScrollHint" hidden>滑动查看</small><button id="npcTask" class="npc-continue" hidden>看看任务 →</button><button id="npcContinue" class="npc-continue">继续逛逛 →</button></footer></section></div>
-  <section class="copilot-dock" aria-label="与 AI 副驾对话"><p id="copilotStatus" class="copilot-status" aria-live="polite">阿策正在上岛…</p><form id="copilotForm"><svg aria-hidden="true"><use href="#i-chat"/></svg><input id="copilotInput" aria-label="给阿策发消息" maxlength="240" placeholder="问问阿策，下一步怎么做…" autocomplete="off" disabled><button id="copilotSend" type="submit" aria-label="发送消息" disabled><svg><use href="#i-send"/></svg></button></form><button id="copilotHistory" class="copilot-history" aria-label="打开历史对话记录"><svg><use href="#i-history"/></svg></button></section>
+  <div id="npcAnchor" class="npc-anchor" hidden><button id="npcInteract" class="npc-interact" aria-label="和岛上向导阿策对话"><span>阿策</span></button><section id="npcBubble" class="npc-bubble" aria-label="阿策的消息" hidden><svg class="npc-cloud" viewBox="0 0 300 180" preserveAspectRatio="none" aria-hidden="true"><path d="M42 154C17 155 5 139 10 123C-1 106 5 87 21 80C9 56 26 36 48 39C55 16 80 10 99 23C117 3 147 6 162 21C183 7 211 16 216 36C243 25 267 37 269 57C295 60 305 83 289 102C305 128 286 151 261 150C251 171 224 178 205 166C185 185 155 178 145 168C128 182 102 177 92 164C71 179 46 175 42 154Z"/></svg><header><b>阿策</b><small id="npcReplySource">本地教学演示</small><button id="closeNpcBubble" aria-label="收起消息">×</button></header><p id="npcSpeech" role="status" aria-live="polite"></p><div id="npcMissionActions" class="companion-bubble-actions" hidden><button type="button" data-companion-action="kit">打开锦囊</button><button type="button" data-companion-action="deliver">我来交成果</button><button type="button" data-companion-action="card">回看任务卡</button></div><footer class="npc-bubble-actions"><small id="npcScrollHint" hidden>滑动查看</small><button id="npcTask" class="npc-continue" hidden>看看任务 →</button><button id="npcContinue" class="npc-continue">继续逛逛 →</button></footer></section></div>
+  <section class="copilot-dock" aria-label="与 AI 副驾对话"><p id="copilotStatus" class="copilot-status" aria-live="polite">阿策正在上岛…</p><form id="copilotForm"><svg aria-hidden="true"><use href="#i-chat"/></svg><input id="copilotInput" aria-label="给阿策发消息" maxlength="240" placeholder="问问阿策，下一步怎么做…" autocomplete="off" disabled><button id="copilotSend" type="submit" aria-label="发送消息" disabled><svg><use href="#i-send"/></svg></button></form><button id="copilotProfile" class="copilot-profile" type="button" aria-label="查看小商的角色面板" title="我的伙伴"><svg aria-hidden="true"><use href="#i-person"/></svg></button><button id="copilotHistory" class="copilot-history" aria-label="打开历史对话记录"><svg><use href="#i-history"/></svg></button></section>
   <div class="micro-guide"><span class="guide-dot">?</span><span id="guideText">目标第一单，先拿下这一步！</span></div>
   <nav class="main-actions" aria-label="学习任务"><button class="action-secondary" id="sideButton"><svg><use href="#i-quest"/></svg><span>支线任务</span></button><button class="action-primary" id="continueButton"><span class="play-pixel">▶</span><span><b id="continueText">继续主线</b><small id="continueHint">认识你的第一位顾客</small></span><svg><use href="#i-arrow"/></svg></button></nav>
   <footer class="save-footer"><svg><use href="#i-save"/></svg><span id="saveStatus" role="status" aria-live="polite">教学模拟 · 当前浏览器存档</span><button id="saveRetry" hidden>重试保存</button></footer>
