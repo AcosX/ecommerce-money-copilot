@@ -17,6 +17,15 @@ const movement=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((v,j)=>v-b[i]
     assert.ok(Math.max(movement(before.face,after.face),movement(before.body,after.body))>.002,'Actual skinned motion '+clip);
     const bounds=await page.evaluate(()=>characterMotionProbe());assert.ok(bounds.minY>-.02&&bounds.minY<.035,'Ground contact '+clip+' '+JSON.stringify(bounds));assert.ok(bounds.maxY>1.4&&bounds.maxY<2.1,'Bounded character '+clip);
    }
+   const gait=await page.evaluate(()=>Array.from({length:61},(_,i)=>{characterInspectMotion('walk',i/60);return characterJointProbe();}));
+   const joint=(frame,suffix)=>Object.entries(frame).find(([name])=>name.endsWith(suffix))[1];
+   const range=values=>Math.max(...values)-Math.min(...values);
+   assert.ok(range(gait.map(f=>joint(f,'Xiaoshang_Hips')[1]))<.008,'Walking pelvis bounce under 8 mm');
+   assert.ok(range(gait.map(f=>joint(f,'Xiaoshang_Head')[1]))<.018,'Head bounce under 18 mm');
+   for(const foot of ['0_Left_Limb_2','1_Right_Limb_2'])assert.ok(range(gait.map(f=>joint(f,foot)[1]))<.026,'Small, low steps');
+   await page.evaluate(()=>characterInspectMotion('walk',0));const loopStart=await page.evaluate(()=>characterPreviewProbe());
+   await page.evaluate(()=>characterInspectMotion('walk',.99999));const loopEnd=await page.evaluate(()=>characterPreviewProbe());
+   assert.ok(movement(loopStart.body,loopEnd.body)<.03,'Walk loop cannot kick at the seam');
    await page.locator('aside').evaluate(o=>o.scrollTop=0);
    for(const clip of ['idle','walk','wave','lookout','inspect']){await page.evaluate(n=>characterInspectMotion(n,.4),clip);await page.waitForTimeout(150);await page.screenshot({path:path.join(os.tmpdir(),`emc-xiaoshang-motion-${profile}-${width}-${clip}.png`)});}
    await page.getByRole('button',{name:'手部近景',exact:true}).click();await page.waitForTimeout(200);await page.screenshot({path:path.join(os.tmpdir(),`emc-xiaoshang-motion-${profile}-${width}-hand.png`)});await page.getByRole('button',{name:'全身动作',exact:true}).click();
