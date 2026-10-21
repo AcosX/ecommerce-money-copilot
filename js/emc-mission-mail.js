@@ -4,7 +4,7 @@
     const flight=document.getElementById('missionFlight'),mask=document.getElementById('missionBackdrop'),button=document.getElementById('continueButton');
     let epoch=0,opening=false,lastFocus=null;
     const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-    function cancel(){++epoch;opening=false;flight.getAnimations().forEach(a=>a.cancel());flight.hidden=true;flight.classList.remove('unsealing');mask.hidden=true;mask.classList.remove('paper-visible');button.disabled=false;o.hold(false);}
+    function cancel(){g.EmcLetterArt?.cancel();++epoch;opening=false;flight.getAnimations().forEach(a=>a.cancel());flight.hidden=true;flight.classList.remove('unsealing');mask.hidden=true;mask.classList.remove('paper-visible');button.disabled=false;o.hold(false);}
     async function open(show){
       if(opening)return;opening=true;const token=++epoch;lastFocus=document.activeElement;button.disabled=true;
       mask.hidden=false;flight.hidden=false;flight.classList.remove('unsealing');flight.style.opacity='1';

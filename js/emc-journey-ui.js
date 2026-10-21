@@ -15,7 +15,7 @@
     const profile=()=>demo.enabled()?{...demo.profile(),partner_name:options.partnerName()}:({...draft,platform:project?.platform||draft.platform,category:project?.category||draft.category,shop_name:project?.name||draft.shop_name});
     const progress=()=>demo.enabled()?demo.progress():J.progress(project,artifacts,verifications),task=()=>progress().levels.find(l=>l.id===(demo.enabled()?demo.summary().active:active))||progress().levels[0];
     const badge=l=>`<span class="j-status ${l.status}">${STATUS[l.status]}</span>`;
-    const button=(action,text,cls='')=>`<button type="button" class="j-button ${cls}" data-j-action="${action}" ${busy?'disabled':''}>${text}</button>`;
+    const button=(action,text,cls='')=>action==='deliver'?`<button type="button" class="mail-attachment primary" data-j-action="deliver" ${busy?'disabled':''}><i aria-hidden="true">▤</i><span><b>实践附件</b><small>${esc(task().deliverable)}</small><em>${text}</em></span></button>`:`<button type="button" class="j-button ${cls}" data-j-action="${action}" ${busy?'disabled':''}>${text}</button>`;
     function remember(){try{localStorage.setItem(KEY,JSON.stringify(draft));return true;}catch(_){error='浏览器暂时无法保存入场信息，请稍后重试。';return false;}}
     function clearFiles(){for(const file of Object.values(files).flat()){const url=blobURLs.get(file);if(url)URL.revokeObjectURL(url);blobURLs.delete(file);}deliveryDrafts.delete(active);files={};attempt=null;confirmed=false;}
     async function pages(path){let cursor=null,rows=[];do{const result=await Api.get(path+(path.includes('?')?'&':'?')+'limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));rows.push(...result.items);cursor=result.next_cursor;}while(cursor);return rows;}
@@ -63,14 +63,14 @@
     }
     function taskCard(){
       const l=task(),p=profile(),reward=J.rewards(l.id,p.platform);
-      return `<div class="j-card-top"><span class="j-label">${l.id} · ${l.topic}</span>${badge(l)}</div><div class="j-chapter-progress" aria-label="六关进度">${progress().levels.map(item=>`<button data-j-level="${item.id}" class="${item.status} ${item.id===active?'active':''}" aria-label="${item.id} ${item.topic} ${STATUS[item.status]}" ${item.id===active?'aria-current="step"':''}><span>${item.status==='approved'?'✓':item.id.slice(1)}</span><small>${item.topic}</small></button>`).join('')}</div><h3 class="j-task-title">${l.title}</h3><p class="j-description">${l.description}</p>
+      return `<article class="mail-letter-sheet"><header class="mail-correspondence"><span>寄自 · 浮岛邮局<b>致 ${esc(p.shop_name||'小店店主')}</b></span><span class="mail-postmark">FIRST ORDER<strong>${l.id}</strong>任务专递</span></header><p class="mail-salutation">店主，见信好。</p><div class="j-card-top"><span class="j-label">${l.id} · ${l.topic}</span>${badge(l)}</div><div class="j-chapter-progress" aria-label="六关进度">${progress().levels.map(item=>`<button data-j-level="${item.id}" class="${item.status} ${item.id===active?'active':''}" aria-label="${item.id} ${item.topic} ${STATUS[item.status]}" ${item.id===active?'aria-current="step"':''}><span>${item.status==='approved'?'✓':item.id.slice(1)}</span><small>${item.topic}</small></button>`).join('')}</div><h3 class="j-task-title">${l.title}</h3><p class="j-description">${l.description}</p>
       <div class="j-loop" aria-label="任务流程">${['领任务','去实践','交成果','等确认'].map((s,i)=>`<span class="${l.status==='approved'||i===(['pending','rejected'].includes(l.status)?3:view==='submit'?2:1)?'current':''}"><i>${l.status==='approved'?'✓':i+1}</i>${s}</span>`).join('')}</div>
       <section class="j-goal"><h4>这关要做到什么</h4><p>${esc(l.goal.replaceAll('伙伴',options.partnerName()))}</p><details class="j-criteria"><summary>验收清单 · ${l.checks.length} 项</summary><ul>${l.checks.map(x=>`<li><span aria-hidden="true">□</span>${x}</li>`).join('')}</ul></details></section>
-      ${kit(l)}
+      <footer class="mail-signature">陪你把小店一步步做起来的<b>${esc(options.partnerName())}</b></footer><h4 class="mail-enclosure-label">随信附上 · 本关附件</h4>${kit(l)}
       ${l.status==='pending'?`<section class="j-review-state"><span>◷</span><b>成果已交给${esc(options.partnerName())}</b><p>正在等待确认，暂时不会解锁下一关。<br>可以继续逛小岛，确认结果会同步到这里。</p>${receipt(l)}${button('refresh','查看最新进度','quiet')}</section>`:l.status==='rejected'?`<section class="j-return-state"><b>还需要补充一点材料</b><p>${esc(l.submission?.rejection_reason||'请补充与任务要求对应的清晰证据，再次提交。')}</p>${button('deliver','补充成果，再交一次','primary')}</section>`:l.status==='approved'?`<section class="j-review-state approved"><span>✦</span><b>这一步，做到了。</b><p>已获得 160 经验。成果确认后，下一步已经为你打开。</p>${button('next',l.id==='L6'?'看看最终试炼':'继续下一关 →','primary')}</section>`:l.status==='locked'?`<p class="j-muted">先完成前一关并获得确认，这张任务卡就会解锁。</p>`:`<div class="j-task-actions">${['L1','L6'].includes(l.id)?button('ask','找'+esc(options.partnerName())+(l.id==='L1'?'定方向':'做复盘'),'primary')+button('deliver','我来交成果 →','quiet'):button('deliver','我来交成果 →','primary')+button('copy','复制任务指令','quiet')}</div>`}
       ${reward.length?`<section class="j-drops"><h4>${l.status==='approved'?'本关掉落':'完成后掉落'} <span>✦</span></h4>${reward.map(r=>resource(r,l.status!=='approved')).join('')}</section>`:l.id==='L2'&&p.platform==='pinduoduo'?'<p class="j-muted">竞品分析锦囊：拼多多版本待补充，现有小红书技能包不会混作本平台奖励。</p>':''}
       <div class="j-inline-actions">${button('companion','打开'+esc(options.partnerName())+'的伙伴面板','quiet')}</div>
-      <div class="j-card-footer">${button('roadmap','闯关路线','quiet')}${button('supplies','我的锦囊','quiet')}${button('profile',esc(J.PLATFORMS[p.platform]?.name)+' · '+esc(p.category),'quiet')}</div>`;
+      <div class="j-card-footer">${button('roadmap','闯关路线','quiet')}${button('supplies','我的锦囊','quiet')}${button('profile',esc(J.PLATFORMS[p.platform]?.name)+' · '+esc(p.category),'quiet')}</div></article>`;
     }
     function receipt(l){
       if(!l.submission)return '';
@@ -97,7 +97,7 @@
       if(!options.isOpen())return;if(demo.enabled()){demo.render();return;}
       const p=profile();host.classList.add('journey-body');host.dataset.jView=view;
       const top=`<div class="j-project-line"><span class="j-platform-dot" style="--platform-color:${J.PLATFORMS[p.platform]?.color}">${J.PLATFORMS[p.platform]?.short||'店'}</span><span>${esc(p.shop_name||'我的小店')}<small>${esc(p.category||'等你定个方向')} · ${esc(p.agent)}</small></span><button class="j-sync" data-j-action="refresh" ${loading||busy?'disabled':''} aria-label="同步经营进度">${loading?'同步中':'↻'}</button></div>`;
-      host.innerHTML='<div class=demo-entry><span>想先走一遍完整玩法？</span><button class="j-button" data-demo="enter">试玩全部关卡 →</button></div>'+(view==='setup'?'':top)+(error?`<div class="j-message error" role="alert">${esc(error)}</div>`:'')+(notice?`<div class="j-message" role="status">${esc(notice)}</div>`:'')+(view==='setup'?setup():view==='roadmap'?roadmap():view==='submit'?delivery():view==='final'?finalTrial():view==='supplies'?supplies():view==='reward'?rewardCard():view==='certificate'?certificate():taskCard());
+      host.innerHTML='<div class=demo-entry><span>想先走一遍完整玩法？</span><button class="j-button" data-demo="enter">试玩全部关卡 →</button></div>'+(view==='setup'?'':top)+(error?`<div class="j-message error" role="alert">${esc(error)}</div>`:'')+(notice?`<div class="j-message" role="status">${esc(notice)}</div>`:'')+(view==='setup'?setup():view==='roadmap'?roadmap():view==='submit'?`<article class="mail-attachment-sheet"><header class="mail-attachment-heading"><span>随信附件 / ${task().id} 实践卡</span>${button('letter-back','← 放回信封','quiet')}</header>${delivery()}</article>`:view==='final'?finalTrial():view==='supplies'?supplies():view==='reward'?rewardCard():view==='certificate'?certificate():taskCard());global.EmcLetterArt?.decorate(host);
     }
     async function ensureProject(){
       if(project)return project;
@@ -129,14 +129,14 @@
       const level=e.target.closest('[data-j-level]'),remove=e.target.closest('[data-j-remove]'),b=e.target.closest('[data-j-action]');if(busy)return;
       if(level){celebration=null;selectLevel(level.dataset.jLevel);view='task';kitOpen=false;error='';notice='';render();host.scrollTop=0;return;}
       if(remove){const [slot,index]=remove.dataset.jRemove.split(':');const file=files[slot][Number(index)];if(blobURLs.has(file)){URL.revokeObjectURL(blobURLs.get(file));blobURLs.delete(file);}files[slot].splice(Number(index),1);attempt=null;confirmed=false;render();return;}
-      if(!b)return;error='';notice='';options.sound(b.dataset.jAction==='kit'?'kit':'click');
+      if(!b)return;if(b.dataset.jAction==='deliver')global.EmcLetterArt?.capture(host,b);else if(['back','letter-back'].includes(b.dataset.jAction))global.EmcLetterArt?.capture(host,b,true);error='';notice='';options.sound(b.dataset.jAction==='kit'?'kit':'click');
       if(b.dataset.jAction==='kit'){if(task().status==='locked')return;kitOpen=!kitOpen;}
       else if(b.dataset.jAction==='roadmap'){celebration=null;view='roadmap';}
       else if(b.dataset.jAction==='supplies'){celebration=null;view='supplies';}
       else if(b.dataset.jAction==='certificate')view='certificate';
       else if(b.dataset.jAction==='final')view='final';
       else if(b.dataset.jAction==='deliver'){if(task().status==='locked')return;view='submit';}
-      else if(b.dataset.jAction==='back')view='task';
+      else if(['back','letter-back'].includes(b.dataset.jAction))view='task';
       else if(b.dataset.jAction==='profile'){if(project){draft.platform=project.platform;draft.category=project.category;draft.shop_name=project.name;}view='setup';}
       else if(b.dataset.jAction==='next'){celebration=null;const index=J.LEVELS.findIndex(l=>l.id===active);if(index===5)view='final';else{selectLevel(J.LEVELS[index+1].id);view='task';kitOpen=false;}}
       else if(b.dataset.jAction==='refresh'){await refresh();return;}
