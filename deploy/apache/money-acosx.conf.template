@@ -86,7 +86,7 @@
 
     # ---- Compression (static only; API/auth responses are not compressed) ----
     SetEnvIf Request_URI "^/(api|auth|admin)/" no-gzip
-    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml model/gltf-binary
 
     # ---- Caching ----
     <LocationMatch "^/(index\.html)?$">
@@ -94,6 +94,11 @@
     </LocationMatch>
     <LocationMatch "^/(assets|css|js)/">
         Header set Cache-Control "public, max-age=3600"
+    </LocationMatch>
+    # Unversioned module graphs and the model index must revalidate together.
+    # Keep large model/image files cacheable, but don't mix an old app with new JS.
+    <LocationMatch "^/(css|js)/|^/assets/models/manifest\.json$">
+        Header set Cache-Control "no-cache"
     </LocationMatch>
 
     # ---- Security headers ----
