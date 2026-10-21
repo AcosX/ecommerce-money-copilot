@@ -24,7 +24,8 @@
       "sign": {
         "height_ratio": 0.5584,
         "width": 2.4,
-        "height": 0.3
+        "height": 0.3,
+        "paint_back_depth": -0.028
       }
     },
     "2": {
