@@ -1,7 +1,7 @@
 [
   {
     "model_url": "assets/models/characters/xiaoshang-expressive-v2-web.glb",
-    "bytes": 4888060,
+    "bytes": 4401508,
     "triangles": 54740,
     "morphs": 26,
     "face_vertices": 5863,
@@ -10,7 +10,7 @@
   },
   {
     "model_url": "assets/models/characters/xiaoshang-expressive-v2-lite.glb",
-    "bytes": 2896780,
+    "bytes": 2689124,
     "triangles": 32134,
     "morphs": 26,
     "face_vertices": 5863,

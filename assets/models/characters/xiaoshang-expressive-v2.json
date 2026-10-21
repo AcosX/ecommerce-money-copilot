@@ -143,5 +143,14 @@
     "rig_task": "f4d18664-a7ac-4eca-9b28-9ea894e1903a",
     "generator": "Tripo"
   },
-  "mouth_revision": "separate-lips-v3"
+  "mouth_revision": "separate-lips-v3",
+  "surface_revision": {
+    "metallic": 0,
+    "name": "matte-v1",
+    "body_roughness": 0.94,
+    "face_roughness": 0.88,
+    "body_normal_strength": 0.22,
+    "face_normal_strength": 0,
+    "note": "Material-only adjustment. Base color atlas, UVs, skinning and mouth morphs are preserved."
+  }
 }
