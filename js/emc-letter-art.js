@@ -29,7 +29,7 @@
         const practice=letter.querySelector('[data-j-action=deliver]'),kit=letter.querySelector('.j-kit');
         if(practice||kit){enclosures=document.createElement('section');enclosures.className='mail-enclosures';const grid=document.createElement('div');grid.className='mail-attachment-grid';if(practice)grid.append(practice);if(kit)grid.append(kit);enclosures.append(grid);letter.querySelector('.mail-enclosure-label')?.remove();}
       }
-      if(enclosures)stage.append(enclosures);
+      if(enclosures){enclosures.dataset.count=enclosures.querySelector('.mail-attachment-grid')?.children.length||0;stage.append(enclosures);}
       stage.append(image(sources[1],'mail-art-pocket'));
     }
     const sheet=host.querySelector('.mail-attachment-sheet');
