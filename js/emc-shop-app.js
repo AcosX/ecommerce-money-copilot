@@ -162,12 +162,22 @@
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
   }
+  function fitNpcCloud(){
+    const bubble=$('npcBubble');if(bubble.hidden)return;
+    $('npcScrollHint').hidden=$('npcSpeech').scrollHeight<=$('npcSpeech').clientHeight+1;
+    const width=bubble.offsetWidth,height=bubble.offsetHeight,key=width+':'+height;
+    if(bubble.dataset.cloudSize===key)return;bubble.dataset.cloudSize=key;
+    // 顶部与底部使用固定弧度，只延长云朵中段，长回复不会把云边拉入文字区。
+    const h=Math.max(180,height*300/width),svg=bubble.querySelector('.npc-cloud');
+    svg.setAttribute('viewBox',`0 0 300 ${h}`);
+    svg.querySelector('path').setAttribute('d',`M42 ${h-26}C17 ${h-25} 5 ${h-41} 10 ${h-57}C-1 ${h-74} 5 87 21 80C9 56 26 36 48 39C55 16 80 10 99 23C117 3 147 6 162 21C183 7 211 16 216 36C249 23 278 35 280 57C295 60 305 83 289 102C305 ${h-52} 286 ${h-29} 261 ${h-30}C251 ${h-9} 224 ${h-2} 205 ${h-14}C185 ${h+5} 155 ${h-2} 145 ${h-12}C128 ${h+2} 102 ${h-3} 92 ${h-16}C71 ${h-1} 46 ${h-5} 42 ${h-26}Z`);
+  }
   function updateNpcFrame(state){
     npcState=state;
     const available=npcAvailable(),anchor=$('npcAnchor');anchor.hidden=!available;
-    if(available){anchor.style.left=state.screen.x+'px';anchor.style.top=state.screen.y+'px';const width=$('npcBubble').offsetWidth||(innerWidth<=370?200:innerWidth<=700?230:270);const offset=Math.max(width/2+12,Math.min(innerWidth-width/2-12,state.screen.x))-state.screen.x;$('npcBubble').style.left=offset+'px';$('npcBubble').style.setProperty('--tail-x',Math.max(12,Math.min(width-22,width/2-offset-5))+'px');if(innerWidth<=700){const bubble=$('npcBubble'),speech=$('npcSpeech'),chrome=bubble.hidden?112:bubble.offsetHeight-speech.clientHeight,ceiling=document.querySelector('.player-card').getBoundingClientRect().bottom+10;const limit=Math.max(28,Math.min(135,Math.floor(state.screen.y-52-ceiling-chrome)));bubble.style.setProperty('--npc-text-max',limit+'px');}else $('npcBubble').style.removeProperty('--npc-text-max');}
+    if(available){anchor.style.left=state.screen.x+'px';anchor.style.top=state.screen.y+'px';const width=$('npcBubble').offsetWidth||(innerWidth<=370?200:innerWidth<=700?230:270);const offset=Math.max(width/2+12,Math.min(innerWidth-width/2-12,state.screen.x))-state.screen.x;$('npcBubble').style.left=offset+'px';$('npcBubble').style.setProperty('--tail-x',Math.max(12,Math.min(width-22,width/2-offset-5))+'px');if(innerWidth<=700){const bubble=$('npcBubble'),speech=$('npcSpeech'),chrome=bubble.hidden?138:bubble.offsetHeight-speech.clientHeight,ceiling=document.querySelector('.player-card').getBoundingClientRect().bottom+8;const limit=Math.max(40,Math.min(140,Math.floor((state.screen.y-40-ceiling-chrome)/20)*20));bubble.style.setProperty('--npc-text-max',limit+'px');}else $('npcBubble').style.removeProperty('--npc-text-max');}
     else if(conversation||!$('npcBubble').hidden){finishConversation();}
-    updateChatAvailability();
+    fitNpcCloud();updateChatAvailability();
   }
   function finishConversation(){
     speechEpoch++;conversation=false;homeScene?.guide?.setTalking(false);$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;
@@ -179,8 +189,8 @@
   function speak(text,kind='reply',source){
     if(!npcAvailable())return;
     bubbleKind=kind;bubbleUntil=performance.now()+(kind==='reminder'?6500:Math.max(12000,Math.min(24000,text.length*150)));
-    $('npcSpeech').textContent=text;$('npcReplySource').textContent=source||(typeof window.EmcCopilotTransport==='function'?'AI 副驾':'本地教学演示');$('npcBubble').hidden=false;
-    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';
+    $('npcSpeech').textContent=text;$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||(typeof window.EmcCopilotTransport==='function'?'AI 副驾':'本地教学演示');$('npcBubble').hidden=false;
+    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';fitNpcCloud();
   }
   function renderChatHistory(){
     const messages=game.npc_chat;
