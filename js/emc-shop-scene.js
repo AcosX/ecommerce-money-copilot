@@ -20,7 +20,7 @@ export class ShopScene{
     this.fill=new THREE.DirectionalLight('#a5c8ff',1);this.fill.position.set(7,4,-8);this.scene.add(this.fill);
     this.windowMaterial=new THREE.MeshStandardMaterial({color:'#779fa9',roughness:.4,metalness:.05});this.materials.push(this.windowMaterial);
     this.wallMaterial=new THREE.MeshStandardMaterial({color:this.draft.wall_color,roughness:1,flatShading:true});this.materials.push(this.wallMaterial);
-    this.paintUniforms={wall:{value:new THREE.Color(1,1,1)},sign:{value:new THREE.Color('#9c531e')},roof:{value:new THREE.Color('#bd3f23')},preview:{value:0},signStrength:{value:0},roofStrength:{value:0},signMatrix:{value:new THREE.Matrix4()},signSize:{value:new THREE.Vector2()},roofY:{value:100}};
+    this.paintUniforms={wall:{value:new THREE.Color(1,1,1)},sign:{value:new THREE.Color('#9c531e')},roof:{value:new THREE.Color('#bd3f23')},preview:{value:0},signStrength:{value:0},roofStrength:{value:0},signMatrix:{value:new THREE.Matrix4()},signSize:{value:new THREE.Vector2()},signBack:{value:-.06},roofY:{value:100}};
     this.source='procedural_base';this.canPaint=true;this.paintMaterials=[this.wallMaterial];
     this.buildBase();this.baseIslandObjects=[...this.root.children];const baseObjects=new Set(this.root.children);this.buildShop(options.stage);this.baseShopObjects=this.root.children.filter(obj=>!baseObjects.has(obj));this.decorRoot=new THREE.Group();this.root.add(this.decorRoot);
     this.selection=new THREE.BoxHelper(new THREE.Object3D(),0x51d9be);this.selection.visible=false;this.scene.add(this.selection);
@@ -58,7 +58,7 @@ export class ShopScene{
     this.signCanvas=document.createElement('canvas');this.signCanvas.width=2048;this.signCanvas.height=Math.round(2048*anchor.height/anchor.width);
     this.signTexture=new THREE.CanvasTexture(this.signCanvas);this.signTexture.colorSpace=THREE.SRGBColorSpace;this.signTexture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
     const material=new THREE.MeshBasicMaterial({map:this.signTexture,transparent:true,alphaTest:.02,depthWrite:false,toneMapped:false});this.materials.push(material);
-    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.45,this.signBoard?0:anchor.height*.72);this.drawShopName();
+    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.49,this.signBoard?0:anchor.height*1.16);this.drawShopName();
   }
   rebuildSign(spec,x,y){
     // 第四级生成牌面有歪斜，用独立的水平木牌覆盖；边框与店名共用一个基准。
@@ -70,6 +70,7 @@ export class ShopScene{
     const backing=this.box(board,[spec.width,spec.height,.12],[0,0,0],'#70472d');backing.userData.paintPart='sign';
     const face=this.box(board,[spec.width-.12,spec.height-.12,.04],[0,0,.075],this.signBoardMaterial);face.userData.paintPart='sign';
     const frame=this.mat('#915c32');
+    this.signBoardWood=[{material:backing.material,base:'#70472d',shade:.65},{material:this.signBoardMaterial,base:'#c18a46',shade:1},{material:frame,base:'#915c32',shade:.8}];
     for(const sy of [-1,1]){const rail=this.box(board,[spec.width,.065,.055],[0,sy*(spec.height-.065)/2,.085],frame);rail.userData.paintPart='sign';}
     for(const sx of [-1,1]){const rail=this.box(board,[.065,spec.height,.055],[sx*(spec.width-.065)/2,0,.085],frame);rail.userData.paintPart='sign';}
     const metal=this.mat('#625f55');
@@ -182,7 +183,7 @@ export class ShopScene{
   sync(){
     const c=new THREE.Color(this.draft.wall_color),base=new THREE.Color('#eee0c5');this.paintUniforms.wall.value.setRGB(c.r/base.r,c.g/base.g,c.b/base.b);
     this.paintUniforms.sign.value.set(this.draft.sign_color||'#9c531e');this.paintUniforms.roof.value.set(this.draft.roof_color||'#bd3f23');this.paintUniforms.signStrength.value=this.draft.sign_color&&this.draft.sign_color!=='#9c531e'?1:0;this.paintUniforms.roofStrength.value=this.draft.roof_color&&this.draft.roof_color!=='#bd3f23'?1:0;
-    this.wallMaterial.color.set(this.draft.wall_color);if(this.signBoardMaterial){this.signBoardMaterial.color.set(this.draft.sign_color&&this.draft.sign_color!=='#9c531e'?this.draft.sign_color:'#c18a46');if(this.previewPartName==='sign')this.signBoardMaterial.color.lerp(new THREE.Color('#38e77d'),.55);}
+    this.wallMaterial.color.set(this.draft.wall_color);for(const part of this.signBoardWood||[]){const tinted=this.paintUniforms.signStrength.value>0;part.material.color.set(tinted?this.draft.sign_color:part.base);if(tinted)part.material.color.multiplyScalar(part.shade);if(this.previewPartName==='sign')part.material.color.lerp(new THREE.Color('#38e77d'),.55);}
     for(const [id,obj] of this.items){if(!this.draft.placements.some(p=>p.id===id)){this.decorRoot.remove(obj);disposeGeometry(obj);this.items.delete(id);}}
     for(const p of this.draft.placements){let obj=this.items.get(p.id);if(!obj){obj=this.makeDecoration(p.id);this.items.set(p.id,obj);this.decorRoot.add(obj);}obj.position.set(p.x,p.y+(p.anchor==='roof'?this.roofHeight:this.surfaceHeight(p.x,p.z)),p.z);obj.rotation.y=p.rotation;}
     if(this.selected&&!this.items.has(this.selected))this.selected=null;
@@ -197,9 +198,8 @@ export class ShopScene{
     if(!pixels){const canvas=document.createElement('canvas');canvas.width=map.image.width;canvas.height=map.image.height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(map.image,0,0);pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width,height:canvas.height};this.texturePixels.set(map,pixels);}
     const uv=map.transformUv(hit.uv.clone()),i=(Math.min(pixels.height-1,Math.max(0,Math.floor(uv.y*pixels.height)))*pixels.width+Math.min(pixels.width-1,Math.max(0,Math.floor(uv.x*pixels.width))))*4;
     const r=pixels.data[i]/255,g=pixels.data[i+1]/255,b=pixels.data[i+2]/255,hi=Math.max(r,g,b),lo=Math.min(r,g,b),local=hit.point.clone().applyMatrix4(this.paintUniforms.signMatrix.value),size=this.paintUniforms.signSize.value;
-    // 朝向也必须匹配牌面，避免招牌旁的红瓦落进同一空间遮罩。
-    const surfaceNormal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld).transformDirection(this.paintUniforms.signMatrix.value);
-    if(surfaceNormal.z>.82&&Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&Math.abs(local.z)<.08&&r>g*1.15&&g>b*1.3)return 'sign';
+    // 整块牌面与边框共用紧贴正面的空间范围，避开后方屋檐。
+    if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
     if(hit.point.y>this.paintUniforms.roofY.value&&r>Math.max(g,b)*1.35)return 'roof';
     if((hi-lo)/Math.max(hi,.001)<.58&&hi>.25&&r>=b*.85)return 'wall';
     return null;
@@ -297,17 +297,16 @@ function trimMaterial(scene){return scene.mat('#e4d8bd');}
 // 单张生成贴图按原始色相和空间边界着色，保留纹理；预览只覆盖对应部位。
 function installPartTint(material,u){
   material.onBeforeCompile=shader=>{
-    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcRoofY:u.roofY});
-    shader.vertexShader='varying vec3 emcWorld,emcSurfaceNormal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;emcSurfaceNormal=normalize(mat3(modelMatrix)*objectNormal);');
-    shader.fragmentShader='varying vec3 emcWorld,emcSurfaceNormal; uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY});
+    shader.vertexShader='varying vec3 emcWorld;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    shader.fragmentShader='varying vec3 emcWorld; uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
       vec3 original=diffuseColor.rgb;
       // 判定使用 sRGB，和射线取样一致；颜色计算保留在线性空间。
       vec3 sampleColor=sRGBTransferOETF(vec4(original,1.0)).rgb;
       float hi=max(sampleColor.r,max(sampleColor.g,sampleColor.b));
       float lo=min(sampleColor.r,min(sampleColor.g,sampleColor.b));
       vec3 signPos=(emcSignMatrix*vec4(emcWorld,1.0)).xyz;
-      vec3 signNormal=normalize(mat3(emcSignMatrix)*emcSurfaceNormal);
-      float signMask=step(0.82,signNormal.z)*step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(abs(signPos.z),0.08)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
+      float signMask=step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
       float roofMask=step(emcRoofY,emcWorld.y)*step(max(sampleColor.g,sampleColor.b)*1.35,sampleColor.r)*(1.0-signMask);
       float wallMask=(1.0-smoothstep(0.42,0.60,(hi-lo)/max(hi,0.001)))*smoothstep(0.20,0.25,hi)*step(sampleColor.b*0.85,sampleColor.r)*(1.0-signMask)*(1.0-roofMask);
       diffuseColor.rgb=mix(original,original*emcWall,wallMask);
@@ -317,5 +316,5 @@ function installPartTint(material,u){
       if(emcPreview>0.5)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.08,0.85,0.28),previewMask*0.55);
     `);
   };
-  material.customProgramCacheKey=()=> 'emc-part-tint-v3';
+  material.customProgramCacheKey=()=> 'emc-part-tint-v4';
 }
