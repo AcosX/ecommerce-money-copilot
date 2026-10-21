@@ -106,6 +106,7 @@
     }catch(error){if(token!==homeToken)return;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed(/^[\u4e00-\u9fff]/.test(error.message)?error.message:'场景资源加载失败，请检查网络后重试。');}finally{clearTimeout(deadline);}
   }
   function openPanel(name,sound='open'){
+    document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');
     audio.play(sound);
     cancelPaint();finishConversation();
     window.EmcRoute?.onView(name);
@@ -326,7 +327,9 @@
   $('npcBubble').addEventListener('pointerenter',()=>{if(bubbleKind==='reminder'&&npcAvailable())homeScene.guide.setTalking(true);});
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
-  $('copilotHistory').onclick=()=>{if(panel==='history')closePanel();else openPanel('history');};
+  $('closeMobileChat').onclick=()=>{document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','false');};
+  $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
+  $('copilotHistory').onclick=()=>{if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
   $('copilotForm').addEventListener('submit',async e=>{
     e.preventDefault();const message=$('copilotInput').value.trim().slice(0,240);
     if(sending||!message||paintDrag?.active)return;
@@ -431,7 +434,7 @@
   };
   document.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&e.target.id==='partnerNameInput'){e.preventDefault();savePartnerName(panel==='partner');return;}
-    if(e.key==='Escape'){if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
+    if(e.key==='Escape'){if(document.querySelector('.mobile-chat-open')){$('closeMobileChat').click();return;}if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
     if(selected&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA'].includes(e.target.tagName)){
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
     }
