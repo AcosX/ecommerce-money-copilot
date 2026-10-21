@@ -48,7 +48,19 @@
     }
   }
 
-  const effects={start:[[72,0,.08,.15],[79,.06,.08,.16],[84,.12,.16,.16]],submit:[[67,0,.07,.15],[74,.06,.08,.16],[79,.12,.12,.16]],kit:[[79,0,.07,.13],[84,.055,.08,.14],[88,.11,.15,.13]],click:[[79,0,.055,.15]],open:[[72,0,.09,.17],[79,.055,.12,.13]],close:[[76,0,.08,.13],[69,.045,.1,.12]],pick:[[84,0,.09,.15],[88,.06,.1,.1]],place:[[72,0,.1,.2],[76,.065,.12,.17],[79,.13,.18,.14]],cancel:[[72,0,.08,.12],[67,.055,.1,.1]],wrong:[[60,0,.12,.13],[59,.12,.15,.1]],reward:[[72,0,.13,.2],[76,.09,.13,.19],[79,.18,.13,.18],[84,.3,.33,.17]],upgrade:[[72,0,.15,.19],[76,.12,.15,.18],[79,.24,.15,.18],[84,.36,.2,.18],[88,.5,.2,.17],[91,.65,.45,.15]],message:[[79,0,.1,.13],[84,.07,.16,.11]]};
+  // 普通交互用木鼓块的短促共鸣，不再播放有旋律的方波提示音。
+  const drums={click:[185,1,.12],open:[160,1,.15],close:[135,.8,.10],start:[175,1.12,.16],submit:[155,1.1,.16],kit:[215,.9,.11],pick:[205,.8,.10],place:[145,1.15,.16],cancel:[125,.7,.09],wrong:[110,.8,.13],message:[220,.55,.10]};
+  function drum(ctx,bus,time,[pitch,weight,duration]){
+    // 低频鼓身 + 非整数倍木腔共鸣；各模态独立衰减，避免电子滑音。
+    for(const [ratio,level,decay] of [[1,.56,1],[.53,.24,.85],[2.31,.19,.48],[3.77,.07,.22]]){
+      const osc=ctx.createOscillator(),gain=ctx.createGain(),end=time+duration*decay;
+      osc.type='sine';osc.frequency.setValueAtTime(pitch*ratio,time);
+      gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(level*weight,time+.002);gain.gain.exponentialRampToValueAtTime(.0001,end);
+      osc.connect(gain);gain.connect(bus);osc.start(time);osc.stop(end+.01);osc.onended=()=>{osc.disconnect();gain.disconnect();};
+    }
+  }
+  const effects={reward:[[72,0,.13,.2],[76,.09,.13,.19],[79,.18,.13,.18],[84,.3,.33,.17]],upgrade:[[72,0,.15,.19],[76,.12,.15,.18],[79,.24,.15,.18],[84,.36,.2,.18],[88,.5,.2,.17],[91,.65,.45,.15]]};
+  function effect(ctx,bus,name,time){if(drums[name])drum(ctx,bus,time,drums[name]);else effects[name]?.forEach(([n,offset,duration,volume])=>tone(ctx,bus,n,time+offset,duration,volume,'square'));}
   function create(){
     let preferences={music:true,sfx:true,musicVolume:.45,sfxVolume:.6};try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p==='object')for(const k of Object.keys(preferences)){if(typeof p[k]===typeof preferences[k])preferences[k]=typeof p[k]==='number'&&Number.isFinite(p[k])?Math.max(0,Math.min(1,p[k])):typeof p[k]==='boolean'?p[k]:preferences[k];}}catch(_){}
     let ctx,music,sfx,master,timer=null,next=0,index=0,unlocked=false,disposed=false,lastEffect=null,effectCount=0;
@@ -64,7 +76,7 @@
         if(ctx.state==='suspended')await ctx.resume();unlocked=ctx.state==='running';if(unlocked&&timer===null)start();
       }catch(_){} // 音频不可用时仍可完整游玩。
     }
-    function play(name){if(!ctx||ctx.state!=='running'||document.hidden||!preferences.sfx||!effects[name])return;lastEffect=name;effectCount++;effects[name].forEach(([n,offset,duration,volume])=>tone(ctx,sfx,n,ctx.currentTime+.005+offset,duration,volume,'square'));}
+    function play(name){if(!ctx||ctx.state!=='running'||document.hidden||!preferences.sfx||(!effects[name]&&!drums[name]))return;lastEffect=name;effectCount++;effect(ctx,sfx,name,ctx.currentTime+.005);}
     function set(key,value){if(!(key in preferences))return;preferences[key]=typeof preferences[key]==='boolean'?!!value:Math.max(0,Math.min(1,Number(value)||0));try{localStorage.setItem(KEY,JSON.stringify(preferences));}catch(_){}gains();if(key==='music'){if(preferences.music)start();else stop();}}
     function gesture(e){if(e.isTrusted&&(e.type!=='keydown'||!e.repeat))void unlock();}
     function visibility(){if(!ctx)return;if(document.hidden){stop();void ctx.suspend().catch(()=>{});}else if(unlocked)void unlock();}
@@ -74,5 +86,11 @@
   }
   // 与实时播放共用谱面，可导出试听及检查波形，不依赖外部音乐资源。
   async function preview(){const rate=22050,length=STEP*128,ctx=new OfflineAudioContext(1,Math.ceil((length+.5)*rate),rate),bus=ctx.createGain();bus.gain.value=.45*.65;bus.connect(ctx.destination);for(let i=0;i<128;i++)step(ctx,bus,i,i*STEP);return ctx.startRendering();}
-  window.EmcAudio={create,preview};
+  async function previewEffect(name='click'){
+    if(!drums[name]&&!effects[name])throw new Error('Unknown audio effect');
+    const rate=22050,ctx=new OfflineAudioContext(1,rate*2,rate),bus=ctx.createGain();bus.gain.value=.6*.6;bus.connect(ctx.destination);
+    for(const time of [.1,.6,1.1])effect(ctx,bus,name,time);
+    return ctx.startRendering();
+  }
+  window.EmcAudio={create,preview,previewEffect};
 })();
