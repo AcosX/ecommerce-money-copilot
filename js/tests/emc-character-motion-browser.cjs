@@ -36,6 +36,7 @@ const movement=(a,b)=>Math.max(...a.map((p,i)=>Math.hypot(...p.map((v,j)=>v-b[i]
    assert.ok(movement(loopStart.body,loopEnd.body)<.03,'Walk loop cannot kick at the seam');
    await page.evaluate(()=>characterInspectMotion('letter',.45));assert.equal((await page.evaluate(()=>characterPreviewState())).props.envelopeVisible,true,'Envelope is present while held');
    await page.evaluate(()=>characterInspectMotion('idle',.45));assert.equal((await page.evaluate(()=>characterPreviewState())).props.envelopeVisible,false,'No envelope left floating after action');
+   const contacts=await page.evaluate(()=>[.35,.45,.55,.65].map(t=>{characterInspectMotion('sit_cliff',t);return characterSeatProbe();}));for(const frame of contacts)for(const hit of frame)assert.ok(hit&&hit.gap>-.012&&hit.gap<.012,'The rendered trouser underside must reach the seat surface: '+JSON.stringify(frame));
    const seated=await page.evaluate(()=>[.35,.45,.55,.65].map(t=>{characterInspectMotion('sit_cliff',t);return characterJointProbe();}));
    for(const wrist of ['0_Right_Limb_2','1_Left_Limb_2']){const points=seated.map(f=>joint(f,wrist));assert.ok(points.every(p=>p[1]<.05&&p[0]<-.20),'Palms must reach the supporting surface behind the body');assert.ok(Math.max(...points.map(p=>Math.hypot(...p.map((v,i)=>v-points[0][i]))))<.012,'Supporting hands stay planted');}
    const legs=seated.map(f=>joint(f,'0_Left_Limb_2'));assert.ok(range(legs.map(p=>p[0]))>.02,'Cliff shins actually swing');
