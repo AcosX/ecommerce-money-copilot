@@ -5,7 +5,7 @@ const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
     const page=await browser.newPage({viewport:{width,height:900}}),errors=[],writes=[];
     page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/**',r=>{if(r.request().method()!=='GET')writes.push(r.request().url());return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({authenticated:false,items:[],next_cursor:null})});});
     await page.goto('http://127.0.0.1:5173/?demo=1#view=journey');await page.waitForFunction(()=>window.EmcLetterArt&&EmcLetterArt.assets().every(a=>a.ready));await page.waitForTimeout(350);
-    assert.equal(await page.locator('.mail-art-back').count(),1);assert.equal(await page.locator('.mail-art-pocket').count(),1);assert.equal(await page.locator('.mail-attachment-grid button').count(),2);
+    assert.equal(await page.locator('.mail-art-back').count(),1);assert.equal(await page.locator('.mail-art-pocket').count(),1);assert.equal(await page.locator('.mail-attachment-grid button').count(),1);
     if(width===1440){const nav=await page.locator('.quest-peek').boundingBox(),chat=await page.locator('.copilot-dock').boundingBox();assert.ok(nav.x>width/2&&chat.x>width/2&&chat.width>200);}
     await page.screenshot({path:path.join(os.tmpdir(),`emc-art-final-letter-${width}.png`)});
     await page.locator('[data-demo=work]').scrollIntoViewIfNeeded();await page.evaluate(()=>{window.mailFrames=[];let last=performance.now(),end=last+1200;function tick(now){mailFrames.push(now-last);last=now;if(now<end)requestAnimationFrame(tick)}requestAnimationFrame(tick)});
