@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "source": "Tripo H-series v3.1 Ultra, detailed textures",
+  "shops": {
+    "1": {
+      "model_url": "assets/models/shop-1-detail.glb",
+      "wall_materials": [],
+      "rotation_y": -1.5707963267948966,
+      "wall_mask": "cream",
+      "roof_ratio": 0.85,
+      "generation": {
+        "provider": "Tripo",
+        "model": "v3.1-20260211",
+        "task_id": "51251bb7-02aa-4b56-8b38-85046b758c67",
+        "source_image": "assets/game/shop-1.png",
+        "credits_consumed": 60,
+        "geometry_quality": "detailed",
+        "texture_quality": "detailed",
+        "texture_version": "v3.5-20260815",
+        "triangles": 45691,
+        "bytes": 8538124
+      },
+      "preview_url": "assets/models/previews/shop-1-detail.webp",
+      "sign": {
+        "height_ratio": 0.5584,
+        "width": 2.4,
+        "height": 0.3
+      }
+    },
+    "2": {
+      "model_url": "assets/models/shop-2-detail.glb",
+      "wall_materials": [],
+      "rotation_y": -1.5707963267948966,
+      "wall_mask": "cream",
+      "roof_ratio": 0.87,
+      "generation": {
+        "provider": "Tripo",
+        "model": "v3.1-20260211",
+        "task_id": "212af9c6-eddc-4296-b2ce-f23aed6f1dda",
+        "source_image": "assets/game/shop-2.png",
+        "credits_consumed": 60,
+        "geometry_quality": "detailed",
+        "texture_quality": "detailed",
+        "texture_version": "v3.5-20260815",
+        "triangles": 40318,
+        "bytes": 9058684
+      },
+      "preview_url": "assets/models/previews/shop-2-detail.webp",
+      "sign": {
+        "height_ratio": 0.4096,
+        "width": 2.55,
+        "height": 0.24
+      }
+    },
+    "3": {
+      "model_url": "assets/models/shop-3-detail.glb",
+      "wall_materials": [],
+      "rotation_y": 0,
+      "wall_mask": "cream",
+      "roof_ratio": 0.91,
+      "generation": {
+        "provider": "Tripo",
+        "model": "v3.1-20260211",
+        "task_id": "bcdbb44b-40af-4833-83d1-edb53f8b43d0",
+        "source_image": "assets/game/shop-3.png",
+        "credits_consumed": 60,
+        "geometry_quality": "detailed",
+        "texture_quality": "detailed",
+        "texture_version": "v3.5-20260815",
+        "triangles": 45148,
+        "bytes": 10917460
+      },
+      "preview_url": "assets/models/previews/shop-3-detail.webp",
+      "sign": {
+        "height_ratio": 0.2894,
+        "width": 2.2,
+        "height": 0.24,
+        "depth_offset": 0.018,
+        "x": 0.25
+      }
+    },
+    "4": {
+      "model_url": "assets/models/shop-4-detail.glb",
+      "wall_materials": [],
+      "rotation_y": 0,
+      "wall_mask": "cream",
+      "roof_ratio": 0.95,
+      "generation": {
+        "provider": "Tripo",
+        "model": "v3.1-20260211",
+        "task_id": "a026ecae-ddbc-4c12-92a4-12afba4ccc64",
+        "source_image": "assets/game/shop-4.png",
+        "credits_consumed": 60,
+        "geometry_quality": "detailed",
+        "texture_quality": "detailed",
+        "texture_version": "v3.5-20260815",
+        "triangles": 40491,
+        "bytes": 11543020
+      },
+      "preview_url": "assets/models/previews/shop-4-detail.webp",
+      "sign": {
+        "height_ratio": 0.296,
+        "width": 1.85,
+        "height": 0.3,
+        "depth_offset": 0.018,
+        "x": 0.2,
+        "rebuild": {
+          "width": 2.18,
+          "height": 0.64,
+          "depth": 1.7
+        }
+      }
+    },
+    "5": {
+      "model_url": "assets/models/shop-5-detail.glb",
+      "wall_materials": [],
+      "rotation_y": -1.5707963267948966,
+      "wall_mask": "cream",
+      "roof_ratio": 0.96,
+      "generation": {
+        "provider": "Tripo",
+        "model": "v3.1-20260211",
+        "task_id": "0e4e161a-4f3e-40a9-9f4f-664119120ae3",
+        "source_image": "assets/game/shop-5.png",
+        "credits_consumed": 60,
+        "geometry_quality": "detailed",
+        "texture_quality": "detailed",
+        "texture_version": "v3.5-20260815",
+        "triangles": 39644,
+        "bytes": 11792972
+      },
+      "preview_url": "assets/models/previews/shop-5-detail.webp",
+      "sign": {
+        "height_ratio": 0.2222,
+        "width": 2.3,
+        "height": 0.3
+      }
+    }
+  },
+  "island": {
+    "model_url": "assets/models/island-detail.glb",
+    "rotation_y": -1.5707963267948966,
+    "surface_ratio": 0.9,
+    "generation": {
+      "provider": "Tripo",
+      "model": "v3.1-20260211",
+      "task_id": "a02264bc-14dd-4587-8488-bdd92dcfaa37",
+      "source_image": "assets/game/island.png",
+      "credits_consumed": 60,
+      "geometry_quality": "detailed",
+      "texture_quality": "detailed",
+      "texture_version": "v3.5-20260815",
+      "triangles": 46958,
+      "bytes": 9958316
+    },
+    "preview_url": "assets/models/previews/island-detail.webp"
+  }
+}
