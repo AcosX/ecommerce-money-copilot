@@ -18,11 +18,14 @@ const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
    if(hit.point.y>s.paintUniforms.roofY.value&&normal.y>.3&&!(Math.abs(local.x)<1.2&&Math.abs(local.y)<.3&&Math.abs(local.z)<.12)){roofSamples++;roofPixels.push(i);if(changed)roofChanges++;if(Math.abs(local.x)<2.4*.54&&Math.abs(local.y)<.3*.72&&Math.abs(local.z)<.18)oldSpillSamples++;}
    if(s.paintHit({clientX:x,clientY:y})==='sign'&&changed)signChanges++;
   }
+  // Both horizontal timber rails belong to the sign; nearby fascia belongs to the roof.
+  const railPixels=[[500,614],[500,702]].map(([x,y])=>{const i=(y*1200+x)*4;return Array.from(painted.slice(i,i+3));});
+  for(const [x,y] of [[685,662],[300,624]]){const i=(y*1200+x)*4;roofPixels.push(i);if(Math.max(...[0,1,2].map(k=>Math.abs(original[i+k]-painted[i+k])))>3)roofChanges++;}
   // Green drag previews must obey the same roof exclusion as the final finish.
   s.previewPart('sign');s.render();const preview=capture();let previewRoofChanges=0;
   for(const i of roofPixels)if(Math.max(...[0,1,2].map(k=>Math.abs(original[i+k]-preview[i+k])))>3)previewRoofChanges++;
-  s.previewPart(null);s.render();window.proofScene=s;return {roofSamples,roofChanges,signChanges,oldSpillSamples,previewRoofChanges};
+  s.previewPart(null);s.render();window.proofScene=s;return {railPixels,roofSamples,roofChanges,signChanges,oldSpillSamples,previewRoofChanges};
  });
- assert.ok(result.roofSamples>100);assert.ok(result.oldSpillSamples>0,'Must exercise roof within the previous oversized sign mask');assert.ok(result.signChanges>10,'The board must still change colour');assert.equal(result.roofChanges,0,'Sign paint must leave roof pixels unchanged');assert.equal(result.previewRoofChanges,0,'Preview must leave roof pixels unchanged');assert.deepEqual(errors,[]);
+ for(const rgb of result.railPixels)assert.ok(rgb[1]>rgb[0],'Both wooden rails must receive the green sign finish');assert.ok(result.roofSamples>100);assert.ok(result.oldSpillSamples>0,'Must exercise roof within the previous oversized sign mask');assert.ok(result.signChanges>10,'The board must still change colour');assert.equal(result.roofChanges,0,'Sign paint must leave roof pixels unchanged');assert.equal(result.previewRoofChanges,0,'Preview must leave roof pixels unchanged');assert.deepEqual(errors,[]);
  await p.screenshot({path:path.join(os.tmpdir(),'emc-sign-mask-verified.png')});console.log('PASS sign finish / green preview do not recolour roof:',result);
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

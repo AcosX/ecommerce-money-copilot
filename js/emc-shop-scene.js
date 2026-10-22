@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {createDecoration} from './emc-decorations.js';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -20,31 +21,37 @@ export class ShopScene{
     this.fill=new THREE.DirectionalLight('#a5c8ff',1);this.fill.position.set(7,4,-8);this.scene.add(this.fill);
     this.windowMaterial=new THREE.MeshStandardMaterial({color:'#779fa9',roughness:.4,metalness:.05});this.materials.push(this.windowMaterial);
     this.wallMaterial=new THREE.MeshStandardMaterial({color:this.draft.wall_color,roughness:1,flatShading:true});this.materials.push(this.wallMaterial);
-    this.paintUniforms={wall:{value:new THREE.Color(1,1,1)},sign:{value:new THREE.Color('#9c531e')},roof:{value:new THREE.Color('#bd3f23')},preview:{value:0},signStrength:{value:0},roofStrength:{value:0},signMatrix:{value:new THREE.Matrix4()},signSize:{value:new THREE.Vector2()},roofY:{value:100}};
-    this.source='procedural_base';this.canPaint=true;this.paintMaterials=[this.wallMaterial];
+    this.paintUniforms={wall:{value:new THREE.Color(1,1,1)},sign:{value:new THREE.Color('#9c531e')},roof:{value:new THREE.Color('#bd3f23')},preview:{value:0},signStrength:{value:0},roofStrength:{value:0},signMatrix:{value:new THREE.Matrix4()},signSize:{value:new THREE.Vector2()},signBack:{value:-.06},roofY:{value:100}};
+    this.textureStatus={shop:0,island:0};this.loadController=new AbortController();this.source='procedural_base';this.canPaint=true;this.paintMaterials=[this.wallMaterial];
     this.buildBase();this.baseIslandObjects=[...this.root.children];const baseObjects=new Set(this.root.children);this.buildShop(options.stage);this.baseShopObjects=this.root.children.filter(obj=>!baseObjects.has(obj));this.decorRoot=new THREE.Group();this.root.add(this.decorRoot);
     this.selection=new THREE.BoxHelper(new THREE.Object3D(),0x51d9be);this.selection.visible=false;this.scene.add(this.selection);
     this.ray=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);this.hit=new THREE.Vector3();
     this.boundDown=e=>this.down(e);this.boundMove=e=>this.move(e);this.boundUp=e=>this.up(e);
-    const canvas=this.renderer.domElement;if(!options.readOnly){canvas.addEventListener('pointerdown',this.boundDown,true);canvas.addEventListener('pointermove',this.boundMove,true);canvas.addEventListener('pointerup',this.boundUp,true);canvas.addEventListener('pointercancel',this.boundUp,true);}
+    const canvas=this.renderer.domElement;canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!this.disposed)this.options.onContextLost?.();});if(!options.readOnly){canvas.addEventListener('pointerdown',this.boundDown,true);canvas.addEventListener('pointermove',this.boundMove,true);canvas.addEventListener('pointerup',this.boundUp,true);canvas.addEventListener('pointercancel',this.boundUp,true);}
     this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);if(options.framingElement)this.resizeObserver.observe(options.framingElement);
     this.sync();this.setNight(options.night);if(options.atmosphere)this.setAtmosphere(options.atmosphere);this.resize();this.loop();this.ready=this.loadReviewedModel(options.stage);
   }
   async loadReviewedModel(stage){
+    let pendingShop=null,pendingIsland=null;
     try{
-      const response=await fetch('assets/models/manifest.json');if(!response.ok)return;
-      const manifest=await response.json(),entry=manifest.shops?.[String(stage)];if(!entry?.model_url||this.disposed)return;
-      const model=await new GLTFLoader().loadAsync(entry.model_url);if(this.disposed){disposeAsset(model.scene);return;}
+      this.options.onLoadProgress?.({phase:'manifest'});
+      const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.shops?.[String(stage)];if(this.disposed)return;if(!entry?.model_url||!manifest.island?.model_url)throw new Error('当前等级的模型清单不完整');
+      const assets=await Promise.allSettled([loadTexturedModel(entry.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(manifest.island.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
+      const failed=assets.find(result=>result.status==='rejected');
+      if(this.disposed||failed){assets.forEach(result=>{if(result.status==='fulfilled')disposeAsset(result.value.scene);});if(failed)throw failed.reason;return;}
+      const model=pendingShop=assets[0].value,island=pendingIsland=assets[1].value;
       const box=new THREE.Box3().setFromObject(model.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
       const scale=4.4/Math.max(size.x,size.z);model.scene.position.set(-center.x,-box.min.y,-center.z);const group=new THREE.Group();group.add(model.scene);group.scale.setScalar(scale);group.rotation.y=entry.rotation_y||0;
+      this.textureStatus.shop=countTexturedMeshes(model.scene);
       this.paintMaterials=[];model.scene.traverse(obj=>{if(!obj.isMesh)return;obj.castShadow=true;obj.receiveShadow=true;const list=Array.isArray(obj.material)?obj.material:[obj.material];list.forEach(mat=>{this.materials.push(mat);if(entry.wall_mask==='cream'){installPartTint(mat,this.paintUniforms);this.paintMaterials.push(mat);}else if(entry.wall_materials?.includes(mat.name))this.paintMaterials.push(mat);});});
       if(manifest.island?.model_url){
-        const island=await new GLTFLoader().loadAsync(manifest.island.model_url);if(this.disposed){disposeAsset(model.scene);disposeAsset(island.scene);return;}
+
+        this.textureStatus.island=countTexturedMeshes(island.scene);
         const bounds=new THREE.Box3().setFromObject(island.scene),dimensions=bounds.getSize(new THREE.Vector3()),mid=bounds.getCenter(new THREE.Vector3()),islandScale=11.4/Math.max(dimensions.x,dimensions.z);
-        island.scene.position.set(-mid.x,-(bounds.min.y+dimensions.y*(manifest.island.surface_ratio??.9)),-mid.z);const islandGroup=new THREE.Group();islandGroup.add(island.scene);islandGroup.scale.setScalar(islandScale);islandGroup.rotation.y=manifest.island.rotation_y||0;this.root.add(islandGroup);this.terrain=islandGroup;this.baseIslandObjects.forEach(obj=>{obj.visible=false;});island.scene.traverse(obj=>{if(obj.isMesh){obj.receiveShadow=true;obj.castShadow=true;(Array.isArray(obj.material)?obj.material:[obj.material]).forEach(mat=>this.materials.push(mat));}});
+        island.scene.position.set(-mid.x,-(bounds.min.y+dimensions.y*(manifest.island.surface_ratio??.9)),-mid.z);const islandGroup=new THREE.Group();islandGroup.add(island.scene);islandGroup.scale.setScalar(islandScale);islandGroup.rotation.y=manifest.island.rotation_y||0;this.root.add(islandGroup);pendingIsland=null;this.terrain=islandGroup;this.baseIslandObjects.forEach(obj=>{obj.visible=false;});island.scene.traverse(obj=>{if(obj.isMesh){obj.receiveShadow=true;obj.castShadow=true;(Array.isArray(obj.material)?obj.material:[obj.material]).forEach(mat=>this.materials.push(mat));}});
       }
-      this.baseShopObjects.forEach(obj=>{obj.visible=false;});this.root.add(group);this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);this.canPaint=this.paintMaterials.length>0;this.sync();this.options.onModelLoaded?.(this.canPaint);
-    }catch(error){if(!this.disposed)this.options.onModelError?.();}
+      this.baseShopObjects.forEach(obj=>{obj.visible=false;});this.root.add(group);pendingShop=null;this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);this.canPaint=this.paintMaterials.length>0;this.sync();this.options.onModelLoaded?.(this.canPaint);
+    }catch(error){if(pendingIsland)disposeAsset(pendingIsland.scene);if(pendingShop)disposeAsset(pendingShop.scene);if(!this.disposed){this.options.onModelError?.(error);throw error;}}
   }
   createShopSign(shop,anchor,height){
     if(!anchor)return;
@@ -58,7 +65,7 @@ export class ShopScene{
     this.signCanvas=document.createElement('canvas');this.signCanvas.width=2048;this.signCanvas.height=Math.round(2048*anchor.height/anchor.width);
     this.signTexture=new THREE.CanvasTexture(this.signCanvas);this.signTexture.colorSpace=THREE.SRGBColorSpace;this.signTexture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
     const material=new THREE.MeshBasicMaterial({map:this.signTexture,transparent:true,alphaTest:.02,depthWrite:false,toneMapped:false});this.materials.push(material);
-    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.45,this.signBoard?0:anchor.height*.72);this.drawShopName();
+    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.49,this.signBoard?0:anchor.height*1.16);this.drawShopName();
   }
   rebuildSign(spec,x,y){
     // 第四级生成牌面有歪斜，用独立的水平木牌覆盖；边框与店名共用一个基准。
@@ -70,6 +77,7 @@ export class ShopScene{
     const backing=this.box(board,[spec.width,spec.height,.12],[0,0,0],'#70472d');backing.userData.paintPart='sign';
     const face=this.box(board,[spec.width-.12,spec.height-.12,.04],[0,0,.075],this.signBoardMaterial);face.userData.paintPart='sign';
     const frame=this.mat('#915c32');
+    this.signBoardWood=[{material:backing.material,base:'#70472d',shade:.65},{material:this.signBoardMaterial,base:'#c18a46',shade:1},{material:frame,base:'#915c32',shade:.8}];
     for(const sy of [-1,1]){const rail=this.box(board,[spec.width,.065,.055],[0,sy*(spec.height-.065)/2,.085],frame);rail.userData.paintPart='sign';}
     for(const sx of [-1,1]){const rail=this.box(board,[.065,spec.height,.055],[sx*(spec.width-.065)/2,0,.085],frame);rail.userData.paintPart='sign';}
     const metal=this.mat('#625f55');
@@ -158,31 +166,11 @@ export class ShopScene{
     // 门前灯和暖光窗户随日夜切换，使用同一套几何。
     const lamp=new THREE.PointLight('#ffcd79',0,9,2);lamp.position.set(0,1.5,3);this.scene.add(lamp);this.lamp=lamp;
   }
-  makeDecoration(id){
-    const group=new THREE.Group(),metal=this.mat('#929ba7'),wood=this.mat('#956842'),gold=this.mat('#dfb657'),green=this.mat('#648a65');
-    if(id==='ufo'){
-      this.cylinder(group,.65,.45,.18,12,[0,.2,0],metal);const dome=new THREE.Mesh(new THREE.SphereGeometry(.35,12,6,0,Math.PI*2,0,Math.PI/2),this.mat('#5bbdb7'));dome.position.y=.3;group.add(dome);
-      for(let i=0;i<6;i++){const a=i*Math.PI/3;this.box(group,[.1,.08,.1],[Math.cos(a)*.5,.25,Math.sin(a)*.5],gold);}
-    }else if(id==='ramen'){
-      this.box(group,[.8,.9,.14],[0,.45,0],wood);this.cylinder(group,.26,.12,.18,10,[0,.4,.11],this.mat('#f58e69'));
-      this.box(group,[.48,.04,.06],[0,.65,.12],gold);
-    }else if(id==='flowers'){
-      this.box(group,[1,.35,.5],[0,.17,0],wood);for(let i=0;i<3;i++){this.box(group,[.07,.4,.07],[-.3+i*.3,.46,0],green);this.box(group,[.22,.16,.22],[-.3+i*.3,.68,0],gold);}
-    }else if(id==='telescope'){
-      this.cylinder(group,.04,.04,.8,6,[0,.4,0],wood);const tube=this.cylinder(group,.13,.17,.8,8,[.18,.85,0],metal);tube.rotation.z=-.9;
-      for(let i=0;i<3;i++){const a=i*Math.PI*2/3;const leg=this.box(group,[.06,.6,.06],[Math.cos(a)*.2,.22,Math.sin(a)*.2],wood);leg.rotation.z=Math.cos(a)*.45;}
-    }else if(id==='windmill'){
-      this.cylinder(group,.2,.4,.85,6,[0,.4,0],trimMaterial(this));
-      this.box(group,[1.2,.13,.09],[0,.85,.3],wood);this.box(group,[.13,1.2,.09],[0,.85,.3],wood);
-    }else{
-      const cat=this.mat('#d69c61');this.box(group,[.8,.16,.6],[0,.08,0],this.mat('#6889b5'));const body=new THREE.Mesh(new THREE.SphereGeometry(.28,10,6),cat);body.scale.set(1.25,.65,1);body.position.y=.29;group.add(body);this.box(group,[.3,.25,.3],[.3,.28,.08],cat);
-    }
-    group.userData.decorationId=id;return group;
-  }
+  makeDecoration(id){return createDecoration(this,id);}
   sync(){
     const c=new THREE.Color(this.draft.wall_color),base=new THREE.Color('#eee0c5');this.paintUniforms.wall.value.setRGB(c.r/base.r,c.g/base.g,c.b/base.b);
     this.paintUniforms.sign.value.set(this.draft.sign_color||'#9c531e');this.paintUniforms.roof.value.set(this.draft.roof_color||'#bd3f23');this.paintUniforms.signStrength.value=this.draft.sign_color&&this.draft.sign_color!=='#9c531e'?1:0;this.paintUniforms.roofStrength.value=this.draft.roof_color&&this.draft.roof_color!=='#bd3f23'?1:0;
-    this.wallMaterial.color.set(this.draft.wall_color);if(this.signBoardMaterial){this.signBoardMaterial.color.set(this.draft.sign_color&&this.draft.sign_color!=='#9c531e'?this.draft.sign_color:'#c18a46');if(this.previewPartName==='sign')this.signBoardMaterial.color.lerp(new THREE.Color('#38e77d'),.55);}
+    this.wallMaterial.color.set(this.draft.wall_color);for(const part of this.signBoardWood||[]){const tinted=this.paintUniforms.signStrength.value>0;part.material.color.set(tinted?this.draft.sign_color:part.base);if(tinted)part.material.color.multiplyScalar(part.shade);if(this.previewPartName==='sign')part.material.color.lerp(new THREE.Color('#38e77d'),.55);}
     for(const [id,obj] of this.items){if(!this.draft.placements.some(p=>p.id===id)){this.decorRoot.remove(obj);disposeGeometry(obj);this.items.delete(id);}}
     for(const p of this.draft.placements){let obj=this.items.get(p.id);if(!obj){obj=this.makeDecoration(p.id);this.items.set(p.id,obj);this.decorRoot.add(obj);}obj.position.set(p.x,p.y+(p.anchor==='roof'?this.roofHeight:this.surfaceHeight(p.x,p.z)),p.z);obj.rotation.y=p.rotation;}
     if(this.selected&&!this.items.has(this.selected))this.selected=null;
@@ -197,9 +185,8 @@ export class ShopScene{
     if(!pixels){const canvas=document.createElement('canvas');canvas.width=map.image.width;canvas.height=map.image.height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(map.image,0,0);pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width,height:canvas.height};this.texturePixels.set(map,pixels);}
     const uv=map.transformUv(hit.uv.clone()),i=(Math.min(pixels.height-1,Math.max(0,Math.floor(uv.y*pixels.height)))*pixels.width+Math.min(pixels.width-1,Math.max(0,Math.floor(uv.x*pixels.width))))*4;
     const r=pixels.data[i]/255,g=pixels.data[i+1]/255,b=pixels.data[i+2]/255,hi=Math.max(r,g,b),lo=Math.min(r,g,b),local=hit.point.clone().applyMatrix4(this.paintUniforms.signMatrix.value),size=this.paintUniforms.signSize.value;
-    // 朝向也必须匹配牌面，避免招牌旁的红瓦落进同一空间遮罩。
-    const surfaceNormal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld).transformDirection(this.paintUniforms.signMatrix.value);
-    if(surfaceNormal.z>.82&&Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&Math.abs(local.z)<.08&&r>g*1.15&&g>b*1.3)return 'sign';
+    // 整块牌面与边框共用紧贴正面的空间范围，避开后方屋檐。
+    if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
     if(hit.point.y>this.paintUniforms.roofY.value&&r>Math.max(g,b)*1.35)return 'roof';
     if((hi-lo)/Math.max(hi,.001)<.58&&hi>.25&&r>=b*.85)return 'wall';
     return null;
@@ -236,7 +223,7 @@ export class ShopScene{
     this.root.remove(this.decorPreview,this.decorPreviewBox);disposeGeometry(this.decorPreview);this.decorPreviewBox.geometry.dispose();this.decorPreviewBox.material.dispose();
     this.decorPreviewMaterials.forEach(mat=>{disposeMaterial(mat);const index=this.materials.indexOf(mat);if(index>=0)this.materials.splice(index,1);});this.decorPreview=null;this.decorPreviewBox=null;this.render();
   }
-  select(id){this.selected=this.items.has(id)?id:null;this.selection.visible=!!this.selected;if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.render();}
+  select(id){const next=this.items.has(id)?id:null,changed=next!==this.selected;this.selected=next;if(changed)this.options.onSelect?.(next);this.selection.visible=!!this.selected;if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.render();}
   screenTargets(){const rect=this.renderer.domElement.getBoundingClientRect();return [...this.items].map(([id,obj])=>{const p=new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()).project(this.camera);return {id,x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2};});}
   setNight(night){this.ambient.intensity=night?1.3:2.6;this.sun.intensity=night?.65:3.5;this.fill.intensity=night?1.4:1;this.windowMaterial.color.set(night?'#f6cc83':'#779fa9');this.windowMaterial.emissive.set(night?'#b47735':'#000000');this.windowMaterial.emissiveIntensity=night?.45:0;this.lamp.intensity=night?7:0;this.render();}
   setAtmosphere(light){
@@ -251,16 +238,18 @@ export class ShopScene{
   down(e){
     if(e.button!==0)return;
     if(this.pendingDrag||this.drag){clearTimeout(this.pendingDrag?.timer);this.pendingDrag=null;return;}
-    this.rayAt(e);const hit=this.ray.intersectObjects([...this.items.values()],true)[0];if(!hit)return;
-    let obj=hit.object;while(obj&&!obj.userData.decorationId)obj=obj.parent;const id=obj?.userData.decorationId;if(!id)return;
+    this.rayAt(e);const hit=this.ray.intersectObjects([...this.items.values(),this.shopModel,this.terrain].filter(Boolean),true)[0];
+    let obj=hit?.object;while(obj&&!obj.userData.decorationId)obj=obj.parent;const id=obj?.userData.decorationId||null;
+    this.tapGesture={pointerId:e.pointerId,x:e.clientX,y:e.clientY,id,moved:false};if(!id)return;
     const pending=this.pendingDrag={pointerId:e.pointerId,x:e.clientX,y:e.clientY};
     pending.timer=setTimeout(()=>{
       if(this.pendingDrag!==pending||this.disposed)return;this.pendingDrag=null;
-      this.options.onBeforeChange?.();this.select(id);this.options.onSelect?.(id);this.dragPlane.constant=-obj.position.y;this.rayAt(e);if(!this.ray.ray.intersectPlane(this.dragPlane,this.hit))return;
+      this.options.onBeforeChange?.();this.select(id);this.dragPlane.constant=-obj.position.y;this.rayAt(e);if(!this.ray.ray.intersectPlane(this.dragPlane,this.hit))return;
       const p=this.draft.placements.find(p=>p.id===id);this.drag={id,pointerId:e.pointerId,offset:this.hit.clone().sub(obj.position),original:{x:p.x,z:p.z},returning:false};this.controls.enabled=false;this.renderer.domElement.setPointerCapture(e.pointerId);
     },280);
   }
   move(e){
+    if(this.tapGesture?.pointerId===e.pointerId&&Math.hypot(e.clientX-this.tapGesture.x,e.clientY-this.tapGesture.y)>8)this.tapGesture.moved=true;
     if(this.pendingDrag&&Math.hypot(e.clientX-this.pendingDrag.x,e.clientY-this.pendingDrag.y)>8){clearTimeout(this.pendingDrag.timer);this.pendingDrag=null;}
     if(!this.drag||e.pointerId!==this.drag.pointerId)return;
     this.drag.returning=!!this.options.isInventoryPoint?.(e);this.items.get(this.drag.id).visible=!this.drag.returning;this.selection.visible=!this.drag.returning;if(this.drag.returning){e.stopImmediatePropagation();return;}
@@ -268,7 +257,8 @@ export class ShopScene{
   }
   up(e){
     clearTimeout(this.pendingDrag?.timer);this.pendingDrag=null;
-    if(!this.drag||e.pointerId!==this.drag.pointerId)return;
+    const tap=this.tapGesture;this.tapGesture=null;
+    if(!this.drag||e.pointerId!==this.drag.pointerId){if(e.type==='pointerup'&&tap?.pointerId===e.pointerId&&!tap.moved)this.select(tap.id);return;}
     const drag=this.drag;this.drag=null;this.controls.enabled=true;this.items.get(drag.id).visible=true;
     if(e.type==='pointercancel'){Object.assign(this.draft.placements.find(p=>p.id===drag.id),drag.original);this.sync();}
     else if(drag.returning)this.options.onReturnDecoration?.(drag.id);
@@ -285,29 +275,27 @@ export class ShopScene{
     else{this.camera.clearViewOffset();this.camera.aspect=w/h;}
     this.camera.updateProjectionMatrix();this.render();
   }
-  async prepareFrame(){this.resize();await this.renderer.compileAsync(this.scene,this.camera);if(this.disposed)return;this.render();await new Promise(resolve=>requestAnimationFrame(resolve));if(!this.disposed)this.presentable=true;}
+  async prepareFrame(){this.resize();this.options.onLoadProgress?.({phase:'compile'});let timer;try{await Promise.race([this.renderer.compileAsync(this.scene,this.camera),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('显卡准备场景超时，请重试')),15000);})]);}finally{clearTimeout(timer);}if(this.disposed)return;this.render();await new Promise(resolve=>requestAnimationFrame(resolve));if(!this.disposed)this.presentable=true;}
   render(){if(!this.disposed){if(this.selected)this.selection.setFromObject(this.items.get(this.selected));this.renderer.render(this.scene,this.camera);}}
   loop(){if(this.disposed)return;this.frame=requestAnimationFrame(()=>this.loop());if(this.container.hidden)return;if(!this.options.readOnly)this.controls.update();const now=performance.now(),dt=Math.min(.05,(now-(this.lastFrame||now))/1000);this.lastFrame=now;if(!document.hidden)this.guide?.update(dt);this.render();}
-  dispose(){clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.renderer.dispose();this.renderer.domElement.remove();}
+  dispose(){this.loadController.abort(new Error('场景已关闭'));clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.renderer.dispose();this.renderer.domElement.remove();}
 }
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
 function disposeAsset(obj){obj.traverse(child=>{child.geometry?.dispose();if(child.material)(Array.isArray(child.material)?child.material:[child.material]).forEach(disposeMaterial);});}
-function trimMaterial(scene){return scene.mat('#e4d8bd');}
 // 单张生成贴图按原始色相和空间边界着色，保留纹理；预览只覆盖对应部位。
 function installPartTint(material,u){
   material.onBeforeCompile=shader=>{
-    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcRoofY:u.roofY});
-    shader.vertexShader='varying vec3 emcWorld,emcSurfaceNormal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;emcSurfaceNormal=normalize(mat3(modelMatrix)*objectNormal);');
-    shader.fragmentShader='varying vec3 emcWorld,emcSurfaceNormal; uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY});
+    shader.vertexShader='varying vec3 emcWorld;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    shader.fragmentShader='varying vec3 emcWorld; uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
       vec3 original=diffuseColor.rgb;
       // 判定使用 sRGB，和射线取样一致；颜色计算保留在线性空间。
       vec3 sampleColor=sRGBTransferOETF(vec4(original,1.0)).rgb;
       float hi=max(sampleColor.r,max(sampleColor.g,sampleColor.b));
       float lo=min(sampleColor.r,min(sampleColor.g,sampleColor.b));
       vec3 signPos=(emcSignMatrix*vec4(emcWorld,1.0)).xyz;
-      vec3 signNormal=normalize(mat3(emcSignMatrix)*emcSurfaceNormal);
-      float signMask=step(0.82,signNormal.z)*step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(abs(signPos.z),0.08)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
+      float signMask=step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
       float roofMask=step(emcRoofY,emcWorld.y)*step(max(sampleColor.g,sampleColor.b)*1.35,sampleColor.r)*(1.0-signMask);
       float wallMask=(1.0-smoothstep(0.42,0.60,(hi-lo)/max(hi,0.001)))*smoothstep(0.20,0.25,hi)*step(sampleColor.b*0.85,sampleColor.r)*(1.0-signMask)*(1.0-roofMask);
       diffuseColor.rgb=mix(original,original*emcWall,wallMask);
@@ -317,5 +305,7 @@ function installPartTint(material,u){
       if(emcPreview>0.5)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.08,0.85,0.28),previewMask*0.55);
     `);
   };
-  material.customProgramCacheKey=()=> 'emc-part-tint-v3';
+  material.customProgramCacheKey=()=> 'emc-part-tint-v4';
 }
+
+function countTexturedMeshes(root){let count=0;root.traverse(obj=>{if(obj.isMesh&&(Array.isArray(obj.material)?obj.material:[obj.material]).some(mat=>mat?.map?.image))count++;});return count;}
