@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Matches the constant-speed support phase baked by contact_legs in
 // tools/build-character-actions.py: .19 model units over 58% of one cycle.
-export const WALK_GAIT={supportDistance:.19,supportFraction:.58};
+export const WALK_GAIT={supportDistance:.19,supportFraction:.58,armPhaseAdvance:.32};
 export const CHARACTER_MOTIONS={
  idle:{label:'自然待机',loop:true},walk:{label:'走路',loop:true},
  wave:{label:'招手',loop:false},talk:{label:'说话手势',loop:true},
@@ -20,6 +20,20 @@ export function createCharacterMotion(root,clips){
  for(const clip of clips){
   if(!CHARACTER_MOTIONS[clip.name])continue;
   const body=clip.clone();body.tracks=body.tracks.filter(t=>!t.name.includes('morphTargetInfluences'));
+  if(clip.name==='walk'){
+   // This GLB combines retargeted arms with separately authored foot contacts.
+   // Match physical sides, not bone labels: the arm/leg L/R names are reversed.
+   // Shift only arm-chain samples; preserve the stance trajectory and root pace.
+   for(const track of body.tracks){
+    if(!/tripo(?:::)?(?:0_Right|1_Left)_Limb_\d+/.test(track.name))continue;
+    const size=track.getValueSize(),interpolant=track.createInterpolant(new Float32Array(size)),values=new Float32Array(track.values.length);
+    for(let i=0;i<track.times.length;i++){
+     const time=(track.times[i]+clip.duration*WALK_GAIT.armPhaseAdvance)%clip.duration;
+     values.set(interpolant.evaluate(time),i*size);
+    }
+    track.values=values;
+   }
+  }
   actions.set(clip.name,mixer.clipAction(body));
  }
  for(const name of Object.keys(CHARACTER_MOTIONS))if(!actions.has(name))throw new Error('Missing NPC motion: '+name);
