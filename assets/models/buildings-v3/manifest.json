@@ -1,0 +1,293 @@
+{
+  "version": 3,
+  "source": "Blender hard-surface modules with generated material textures",
+  "integration_status": "preview_only_not_connected_to_game",
+  "buildings": [
+    {
+      "level": 3,
+      "modules": [
+        {
+          "name": "foundation",
+          "file": "level-3/foundation.glb",
+          "triangles": 188,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "plinth"
+          ]
+        },
+        {
+          "name": "body",
+          "file": "level-3/body.glb",
+          "triangles": 25004,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "brick",
+            "frame",
+            "retail",
+            "glass"
+          ]
+        },
+        {
+          "name": "floors",
+          "file": "level-3/floors.glb",
+          "triangles": 1316,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "silver",
+            "frame"
+          ]
+        },
+        {
+          "name": "roof",
+          "file": "level-3/roof.glb",
+          "triangles": 6436,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "roof",
+            "glass",
+            "silver",
+            "brick"
+          ]
+        },
+        {
+          "name": "entrance",
+          "file": "level-3/entrance.glb",
+          "triangles": 3948,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "plinth",
+            "yellow",
+            "gold",
+            "glass"
+          ]
+        },
+        {
+          "name": "sign",
+          "file": "level-3/sign.glb",
+          "triangles": 376,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "gold",
+            "sign"
+          ]
+        }
+      ],
+      "triangles": 37268,
+      "bytes": 2436576,
+      "model_url": "assets/models/buildings-v3/level-3-web.glb",
+      "separate_editable_modules": true,
+      "status": "modular_candidate_for_visual_review"
+    },
+    {
+      "level": 4,
+      "modules": [
+        {
+          "name": "foundation",
+          "file": "level-4/foundation.glb",
+          "triangles": 572,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "plinth"
+          ]
+        },
+        {
+          "name": "body",
+          "file": "level-4/body.glb",
+          "triangles": 42256,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "white",
+            "retail",
+            "frame",
+            "glass"
+          ]
+        },
+        {
+          "name": "floors",
+          "file": "level-4/floors.glb",
+          "triangles": 10296,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "white",
+            "silver"
+          ]
+        },
+        {
+          "name": "roof",
+          "file": "level-4/roof.glb",
+          "triangles": 5492,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "white",
+            "glass",
+            "frame"
+          ]
+        },
+        {
+          "name": "bridge",
+          "file": "level-4/bridge.glb",
+          "triangles": 3196,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "silver",
+            "white",
+            "glass",
+            "frame",
+            "cyan"
+          ]
+        },
+        {
+          "name": "details",
+          "file": "level-4/details.glb",
+          "triangles": 2664,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "frame",
+            "cyan",
+            "stone",
+            "green"
+          ]
+        },
+        {
+          "name": "entrance",
+          "file": "level-4/entrance.glb",
+          "triangles": 3784,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "orange",
+            "silver",
+            "warm",
+            "frame",
+            "gold",
+            "glass",
+            "plinth"
+          ]
+        },
+        {
+          "name": "sign",
+          "file": "level-4/sign.glb",
+          "triangles": 376,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "gold",
+            "sign"
+          ]
+        }
+      ],
+      "triangles": 68636,
+      "bytes": 3211164,
+      "model_url": "assets/models/buildings-v3/level-4-web.glb",
+      "separate_editable_modules": true,
+      "status": "modular_candidate_for_visual_review"
+    },
+    {
+      "level": 5,
+      "modules": [
+        {
+          "name": "foundation",
+          "file": "level-5/foundation.glb",
+          "triangles": 572,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "plinth"
+          ]
+        },
+        {
+          "name": "body",
+          "file": "level-5/body.glb",
+          "triangles": 49360,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "stone",
+            "retail",
+            "frame",
+            "glass",
+            "gold"
+          ]
+        },
+        {
+          "name": "floors",
+          "file": "level-5/floors.glb",
+          "triangles": 10296,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "stone",
+            "gold",
+            "frame"
+          ]
+        },
+        {
+          "name": "details",
+          "file": "level-5/details.glb",
+          "triangles": 12456,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "warm",
+            "stone",
+            "green",
+            "frame"
+          ]
+        },
+        {
+          "name": "roof",
+          "file": "level-5/roof.glb",
+          "triangles": 948,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "stone",
+            "gold"
+          ]
+        },
+        {
+          "name": "entrance",
+          "file": "level-5/entrance.glb",
+          "triangles": 5492,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "stone",
+            "gold",
+            "warm",
+            "glass",
+            "plinth"
+          ]
+        },
+        {
+          "name": "sign",
+          "file": "level-5/sign.glb",
+          "triangles": 376,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "gold",
+            "sign"
+          ]
+        }
+      ],
+      "triangles": 79500,
+      "bytes": 3529748,
+      "model_url": "assets/models/buildings-v3/level-5-web.glb",
+      "separate_editable_modules": true,
+      "status": "modular_candidate_for_visual_review"
+    }
+  ]
+}

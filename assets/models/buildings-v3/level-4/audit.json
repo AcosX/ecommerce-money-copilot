@@ -1,0 +1,107 @@
+{
+  "level": 4,
+  "modules": [
+    {
+      "name": "foundation",
+      "file": "level-4/foundation.glb",
+      "triangles": 572,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "plinth"
+      ]
+    },
+    {
+      "name": "body",
+      "file": "level-4/body.glb",
+      "triangles": 42256,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "white",
+        "retail",
+        "frame",
+        "glass"
+      ]
+    },
+    {
+      "name": "floors",
+      "file": "level-4/floors.glb",
+      "triangles": 10296,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "white",
+        "silver"
+      ]
+    },
+    {
+      "name": "roof",
+      "file": "level-4/roof.glb",
+      "triangles": 5492,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "white",
+        "glass",
+        "frame"
+      ]
+    },
+    {
+      "name": "bridge",
+      "file": "level-4/bridge.glb",
+      "triangles": 3196,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "silver",
+        "white",
+        "glass",
+        "frame",
+        "cyan"
+      ]
+    },
+    {
+      "name": "details",
+      "file": "level-4/details.glb",
+      "triangles": 2664,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "frame",
+        "cyan",
+        "stone",
+        "green"
+      ]
+    },
+    {
+      "name": "entrance",
+      "file": "level-4/entrance.glb",
+      "triangles": 3784,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "orange",
+        "silver",
+        "warm",
+        "frame",
+        "gold",
+        "glass",
+        "plinth"
+      ]
+    },
+    {
+      "name": "sign",
+      "file": "level-4/sign.glb",
+      "triangles": 376,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "gold",
+        "sign"
+      ]
+    }
+  ],
+  "triangles": 68636,
+  "bytes": 3211164
+}
