@@ -803,7 +803,8 @@
     var hasTools = toolList.length > 0;
     var hasRoi = resp.roi_calculation && typeof resp.roi_calculation === 'object';
     var hasArtifact = resp.saved_artifact && resp.saved_artifact.id;
-    if (!hasTools && !hasRoi && !hasArtifact) {
+    var hasCitations = Array.isArray(resp.knowledge_citations) && resp.knowledge_citations.length > 0;
+    if (!hasTools && !hasRoi && !hasArtifact && !hasCitations) {
       body.scrollTop = body.scrollHeight;
       return;
     }
@@ -825,6 +826,16 @@
         toolsBox.appendChild(chip);
       });
       card.appendChild(toolsBox);
+    }
+
+    if (hasCitations) {
+      var kbBox = make('div', 'emc-agent-roi');
+      kbBox.setAttribute('data-emc-kb-citations', '');
+      var citeTitles = resp.knowledge_citations.slice(0, 2).map(function (c) {
+        return '《' + c.title + '》(' + (c.platform || '通用') + '·' + (c.category || '实操') + ')';
+      }).join(' / ');
+      kbBox.textContent = '📚 知识库课程：' + citeTitles;
+      card.appendChild(kbBox);
     }
 
     if (hasRoi) {
