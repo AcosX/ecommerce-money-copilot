@@ -70,6 +70,7 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    assert.equal(await page.locator('#socialAffinity').innerText(),'50/100');assert.equal(await page.locator('#socialPatience').innerText(),'88/100');
    assert.equal(await page.locator('#cpFab,#emcAvatarCanvas,[data-avatar-pose-btn]').count(),0);
    if(width>700){await page.locator('#expandCompanionChat').click();assert.equal(await page.locator('#expandCompanionChat').getAttribute('aria-expanded'),'true');if(width>700)assert.ok((await page.locator('.copilot-dock').boundingBox()).width>=700);await page.locator('#expandCompanionChat').click();}
+   if(width<=700)assert.equal(await page.locator('#expandCompanionChat').isVisible(),false);
    const dock=await page.locator('.copilot-dock').boundingBox();assert.ok(dock.width>=(width>700?400:width-20));assert.ok(dock.x>=0&&dock.x+dock.width<=width+1);
    assert.ok(await page.locator('#socialMessages').evaluate(el=>el.clientHeight>=140));
    await page.locator('#socialMessages').evaluate(el=>el.scrollTop=el.scrollHeight);await page.screenshot({path:path.join(output,`chat-long-${width}.png`)});
