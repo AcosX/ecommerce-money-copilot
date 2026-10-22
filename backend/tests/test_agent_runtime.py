@@ -467,3 +467,32 @@ def test_project_history_is_filtered_before_recent_limit(client, make_player, lo
         ]
         == []
     )
+
+
+def test_restored_history_projects_only_provider_metadata(
+    client, make_player, login_as, db_session
+):
+    from emc_api.services.audit import record_audit
+
+    owner = make_player()
+    login_as(owner)
+    providers = ["ai_gateway_live", "local_copilot_fallback", None]
+    for provider in providers:
+        details = {"user_message": "问题", "reply": "回答"}
+        if provider:
+            details["llm_meta"] = {"provider": provider, "internal_only": "not-for-clients"}
+        record_audit(
+            db_session,
+            "agent.chat.turn",
+            actor_player_id=owner.id,
+            target_type="agent_session",
+            target_id="source-test",
+            details=details,
+        )
+    db_session.commit()
+    response = client.get("/api/agent/memory", params={"session_id": "source-test"})
+    assert response.status_code == 200
+    turns = response.json()["recent_conversation"]
+    assert [turn["provider"] for turn in turns] == providers
+    assert "internal_only" not in response.text
+    assert all("llm_meta" not in turn for turn in turns)

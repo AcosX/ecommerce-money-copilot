@@ -753,6 +753,11 @@ def get_recent_conversation(
                     "session_id": row.target_id,
                     "user_message": row.details.get("user_message", ""),
                     "reply": row.details.get("reply", ""),
+                    "provider": (
+                        row.details["llm_meta"].get("provider")
+                        if isinstance(row.details.get("llm_meta"), dict)
+                        else None
+                    ),
                     "emotion": row.details.get("emotion", "encouraging"),
                     "occurred_at": isoformat_utc(row.occurred_at),
                 }
