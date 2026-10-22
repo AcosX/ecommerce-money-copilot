@@ -52,3 +52,7 @@
 @media(min-width:701px){.mail-art-content .mail-envelope-stage{padding-left:30px;padding-right:30px}.mail-art-content .mail-letter-sheet{padding-top:28px;padding-bottom:22px}.mail-art-content .mail-story-copy p{margin:6px 0}.mail-art-content .mail-learning{margin:9px 0}.mail-art-content .mail-letter-sheet .j-task-title{margin:8px 0 10px}}
 
 @media(min-width:701px){.mail-art-content .mail-correspondence{min-height:24px}.mail-art-content .mail-learning{margin:6px 0}.mail-art-content .mail-story-quote{margin:8px 0}.mail-art-content .mail-story-copy p{margin:4px 0}.mail-art-content .mail-letter-sheet .j-goal{margin:9px 0}.mail-art-content .mail-signature{margin-top:6px}}
+
+/* 阅读层保持平面文字栅格；景深只留给信封背板和附件。 */
+.mail-art-content .mail-envelope-stage{perspective:none}
+.mail-art-content .mail-letter-sheet{transform:none;filter:none;will-change:auto;box-shadow:2px 3px 0 #fff5dc,6px 9px 0 #1b385028,12px 17px 18px -6px #10253b35}
