@@ -610,6 +610,7 @@ def get_player_memory(db: Session, player_id: str) -> dict[str, Any]:
     base = {
         "player_id": player_id,
         "intimacy_score": 25,
+        "patience_score": 80,
         "intimacy_stage": "熟络搭档",
         "interactions_count": 0,
         "mood": "encouraging",
@@ -622,6 +623,7 @@ def get_player_memory(db: Session, player_id: str) -> dict[str, Any]:
     if row and isinstance(row.details, dict):
         for k in (
             "intimacy_score",
+            "patience_score",
             "intimacy_stage",
             "interactions_count",
             "mood",
@@ -706,6 +708,10 @@ def update_player_memory(
     updated = {
         "player_id": player_id,
         "intimacy_score": new_score,
+        "patience_score": min(
+            100,
+            int(current.get("patience_score", 80)) + (2 if len(user_message.strip()) >= 20 else 1),
+        ),
         "intimacy_stage": _intimacy_stage(new_score),
         "interactions_count": new_count,
         "mood": mood or current.get("mood") or "encouraging",
@@ -1981,11 +1987,26 @@ def run_companion_chat(
         if player_id
         else {
             "intimacy_score": 25,
+            "patience_score": 80,
             "intimacy_stage": "体验访客",
             "interactions_count": 1,
             "mood": "encouraging",
         }
     )
+
+    if not player_id:
+        prior = (client_context or {}).get("companion_state") or {}
+        if not isinstance(prior, dict):
+            prior = {}
+
+        def guest_score(name: str, default: int, delta: int) -> int:
+            try:
+                return min(100, max(0, int(prior.get(name, default))) + delta)
+            except (TypeError, ValueError, OverflowError):
+                return default + delta
+
+        memory["intimacy_score"] = guest_score("affinity", 25, 3)
+        memory["patience_score"] = guest_score("patience", 80, 2 if len(clean_msg) >= 20 else 1)
 
     # 3. 调用大模型网关（若上游限流 429/503 自动切换本地参谋推理）
     adapter = AgentProviderAdapter(settings)
@@ -2013,9 +2034,29 @@ def run_companion_chat(
         "回答要求：口语化、接地气、条理清晰，控制在 180 字以内，"
         "明确引用命中的课程名称（如《...》），先给核心结论与数字公式，再给 2 条立刻能做的行动建议。"
     )
+    conversation = (client_context or {}).get("conversation") or []
+    if not isinstance(conversation, list):
+        conversation = []
+    recent = [
+        {"role": turn.get("role"), "text": str(turn.get("text", ""))[:4000]}
+        for turn in conversation[-12:]
+        if isinstance(turn, dict) and turn.get("role") in ("user", "assistant")
+    ]
+    if target_level == "L1":
+        sys_prompt += (
+            "\nL1 可以通过对话完成生意规划，不要求上传文件。"
+            "结合店主预算、货源和时间，逐步明确平台、类目、目标顾客、竞争与切入机会、"
+            "资源优势及下一步验证办法。不确定的信息标为待验证。"
+            "信息足够或店主要求整理时，用 Markdown 输出完整《生意规划报告》，报告不受 180 字限制。"
+            "可以引导店主点击‘整理对话成果’，检查后提交；不声称已审核通过。"
+        )
     llm_reply, llm_meta = adapter.complete_json_or_text(
         system_prompt=sys_prompt,
-        user_prompt=clean_msg,
+        user_prompt=json.dumps(
+            {"recent_conversation": recent, "message": clean_msg}, ensure_ascii=False
+        )
+        if recent
+        else clean_msg,
     )
 
     emotion = "encouraging"
@@ -2432,6 +2473,12 @@ def run_ai_deliverable_review(
     level_id = ARTIFACT_TYPE_TO_LEVEL.get(artifact_type, "L1")
 
     ev_inspected, ev_passed, ev_issues = _inspect_evidence_files(settings, evidence_rows)
+    if level_id == "L1" and not evidence_rows:
+        content = snapshot.get("content") or {}
+        report = content.get("planning_report") or content.get("summary") or ""
+        if isinstance(report, str) and len(report.strip()) >= 40:
+            ev_issues = []
+            ev_passed = ["已冻结生意规划文本成果；L1 无需上传文件"]
     (
         base_score,
         passed_checks,

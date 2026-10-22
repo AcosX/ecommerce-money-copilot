@@ -60,10 +60,11 @@ test('registered chat uses #62 /api/agent/chat, never forwards a forged prompt o
   assert.equal(post.body.session_id, 'proj_1');
   assert.equal(post.body.client_context.platform, 'pinduoduo');
   assert.equal(post.body.system_prompt, undefined);
+  assert.equal(post.body.client_context.conversation.length, 0);
   assert.equal(post.body.history, undefined);
   assert.equal(post.body.companion, undefined);
   assert.equal(post.body.client_context.player_id, undefined);
-  assert.equal(t.client.snapshot('proj_1').affinity, 30);
+  assert.equal(t.client.snapshot('proj_1').affinity, 27);
   t.setUser('bob');
   assert.equal(t.client.snapshot('proj_1'), null);
 });

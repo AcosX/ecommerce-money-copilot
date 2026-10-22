@@ -181,7 +181,7 @@ uv run pytest
 - 项目创建：`{"name": "1–80 字", "platform": "可选", "category": "可选", "description": "≤ 2000 字，可选"}`；项目字段另有 `status`（`active` / `archived`）、`version`、`created_at`、`updated_at`。
 - 成果创建：`{"project_id", "artifact_type", "schema_version", "title", "content", "origin": "formal|tutorial_copy", "source_level_id"}`。
 - 成果修改：`{"version", "title"?, "content"?}`；内容变化生成新 revision，`version` 加 1。
-- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
+- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。L1 `business_plan` 可不附文件，但冻结的 `content.planning_report`（兼容 `summary`）须至少 40 字；可附 `conversation` 对话记录。其他类型仍须证据附件。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
 - 审核：`{"decision": "approved|rejected", "reason": "驳回必填，1–2000 字"}`；申请非 pending 返回 409 `invalid_state`；审核员不能审核本人申请（403）。
 
 ## 10. 数据表（初始迁移）
@@ -197,3 +197,11 @@ uv run pytest
 - `audit_events`：自增 `id`、`occurred_at`、`actor_player_id`、`action`、`target_type`、`target_id`、`request_id`、`details`（JSON）；只追加。
 - `idempotency_records`：`player_id` + `endpoint` + `key`（唯一）、`request_hash`、`response_status`、`response_body`、`created_at`、`expires_at`。
 - 教学进度相关表由 Phase 2 负责人以独立迁移添加。
+
+
+### 2026-10-23 小商对话与数字人
+
+- `/api/agent/chat` 的 `memory.intimacy_score`、`memory.patience_score` 是前端好感、耐心的数值来源。登录用户从服务器记忆更新，不采信客户端传入的分数；游客仅在本次浏览器会话延续显示，不产生经营奖励。
+- 聊天 `client_context.conversation` 可传最近的 user/assistant 对话作为参考，不作为身份、进度或工具权限。L1 可在对话里生成完整规划，前端检查后仍走现有成果及认证接口，冻结文本，不因省略附件自动认证。
+- 数字人使用仓库内 XmovAvatar SDK，经同源 `/api/agent/xingyun/session` 由服务器签名。首次发送消息自动尝试连接一次，失败仍可文字对话，支持重试、暂停与断开。前端不接触服务端 AppSecret。
+- Markdown 使用本地 vendored marked 15.0.12 / DOMPurify 3.3.3。只渲染回复，过滤脚本、事件、图片与危险链接；用户消息作为文本显示。
