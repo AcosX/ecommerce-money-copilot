@@ -28,10 +28,7 @@ def test_agent_config_anonymous_and_authenticated(
     resp = client.get("/api/agent/config")
     assert resp.status_code == 200
     data = resp.json()
-    assert (
-        data["architecture"]["selected_scheme"]
-        == "scheme_3_xingyun_sdk_plus_fastapi_runtime"
-    )
+    assert data["architecture"]["selected_scheme"] == "scheme_3_xingyun_sdk_plus_fastapi_runtime"
     assert data["authenticated"] is False
     assert data["xingyun"]["gateway_server"] == "/api/agent/xingyun/session"
     preset_ids = {p["preset_id"] for p in data["xingyun"]["presets"]}
@@ -411,4 +408,3 @@ def test_knowledge_base_courses_retrieval_and_companion_citation(
     assert len(pdd_data["knowledge_citations"]) >= 1
     assert any("电子面单" in c["title"] for c in pdd_data["knowledge_citations"])
     assert "电子面单" in pdd_data["reply"]
-

@@ -592,7 +592,9 @@ def extract_bullet_points(raw_text: str, fallback_summary: str) -> list[str]:
         s = line.strip()
         s = re.sub(r"^[#*>\-●•\d.、()（）]+", "", s).strip()
         s = re.sub(r"[*`🔗]+", "", s).strip()
-        if 12 <= len(s) <= 95 and not s.startswith(("来源：", "课程ID", "时长：", "编号：", "原文链接")):
+        if 12 <= len(s) <= 95 and not s.startswith(
+            ("来源：", "课程ID", "时长：", "编号：", "原文链接")
+        ):
             if any(
                 k in s
                 for k in (
@@ -618,7 +620,9 @@ def extract_bullet_points(raw_text: str, fallback_summary: str) -> list[str]:
         if len(points) >= 4:
             break
     if not points and fallback_summary:
-        parts = [p.strip() for p in re.split(r"[；;。！!]", fallback_summary) if len(p.strip()) >= 10]
+        parts = [
+            p.strip() for p in re.split(r"[；;。！!]", fallback_summary) if len(p.strip()) >= 10
+        ]
         points = parts[:3]
     return points[:4]
 
@@ -819,7 +823,19 @@ def build_xhs_items() -> list[dict[str, Any]]:
                 s = ln.strip()
                 if not s:
                     continue
-                if s.startswith(("来源：", "课程：", "编号：", "内容类型：", "课程ID：", "时长：", "讲师：", "共", "---")):
+                if s.startswith(
+                    (
+                        "来源：",
+                        "课程：",
+                        "编号：",
+                        "内容类型：",
+                        "课程ID：",
+                        "时长：",
+                        "讲师：",
+                        "共",
+                        "---",
+                    )
+                ):
                     continue
                 if re.match(r"^={5,}$", s):
                     continue
@@ -884,7 +900,9 @@ def build_xhs_items() -> list[dict[str, Any]]:
 
             lvl = infer_level_id(q_line, section_cat, ans_text)
             summary = ans_text[:300] + ("…" if len(ans_text) > 300 else "")
-            kws = extract_keywords(q_line, "新商百问百答", "小红书", [section_cat, "百问百答", "FAQ"], summary)
+            kws = extract_keywords(
+                q_line, "新商百问百答", "小红书", [section_cat, "百问百答", "FAQ"], summary
+            )
             items.append(
                 {
                     "id": f"xhs_faq_{q_idx:02d}",
@@ -937,9 +955,7 @@ def build_pdd_items() -> list[dict[str, Any]]:
 
         category = md_file.parent.name
         title = (
-            raw_obj.get("courseName")
-            or m_obj.get("title")
-            or md_file.stem.split("_", 1)[-1]
+            raw_obj.get("courseName") or m_obj.get("title") or md_file.stem.split("_", 1)[-1]
         ).strip()
         desc = (raw_obj.get("description") or "").strip()
         learners = str(raw_obj.get("readCountStr") or m_obj.get("learners") or "").strip()
@@ -957,7 +973,11 @@ def build_pdd_items() -> list[dict[str, Any]]:
             cleaned_body = ""
 
         if cleaned_body and len(cleaned_body) >= 40:
-            summary_source = f"{desc} {cleaned_body}".strip() if desc and desc not in cleaned_body[:100] else cleaned_body
+            summary_source = (
+                f"{desc} {cleaned_body}".strip()
+                if desc and desc not in cleaned_body[:100]
+                else cleaned_body
+            )
         elif desc:
             summary_source = clean_text(desc)
         else:

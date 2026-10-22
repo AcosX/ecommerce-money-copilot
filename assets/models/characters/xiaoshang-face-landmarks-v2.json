@@ -1,0 +1,19 @@
+{
+  "height": 1.7499997019767761,
+  "center_y": -0.0036851560580544174,
+  "eye_left_y": -0.05423691315809265,
+  "eye_right_y": 0.04587539011845365,
+  "eye_y": 0.05005615163827315,
+  "eye_z": 1.5218337346450426,
+  "eye_half_width": 0.042,
+  "eye_half_height": 0.032,
+  "brow_z": 1.5590041442774236,
+  "mouth_z": 1.4519533645361662,
+  "mouth_half_width": 0.033,
+  "mouth_half_height": 0.011,
+  "front_min_x": -0.06,
+  "face_half_width": 0.113,
+  "face_min_z": 1.35,
+  "face_max_z": 1.595,
+  "deform_min_x": 0.03
+}
