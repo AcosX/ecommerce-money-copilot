@@ -110,7 +110,8 @@
     document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');
     audio.play(sound);
     cancelPaint();finishConversation();
-    if(name!=='journey')mail.cancel();$('missionBackdrop').hidden=name!=='journey';$('missionBackdrop').classList.toggle('paper-visible',name==='journey');if(name==='journey'){$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');}else{$('drawer').removeAttribute('role');$('drawer').removeAttribute('aria-modal');}
+    const centered=name!=='journey'&&name!=='inventory',modal=name!=='inventory';
+    if(name!=='journey')mail.cancel();$('missionBackdrop').hidden=!modal;$('missionBackdrop').classList.toggle('paper-visible',name==='journey');$('missionBackdrop').classList.toggle('panel-visible',centered);$('drawer').classList.toggle('centered-panel',centered);if(modal){$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');$('drawer').setAttribute('aria-labelledby','panelTitle');}else{$('drawer').removeAttribute('role');$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('aria-labelledby');}
     window.EmcRoute?.onView(name);
     panel=name;activeTask=null;answer=null;feedback=null;
     $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');$('drawer').classList.toggle('journey-card',name==='journey');$('drawer').classList.toggle('companion-panel',name==='companion');renderPanel();$('closePanel').focus({preventScroll:true});
@@ -456,8 +457,8 @@
   };
   document.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&e.target.id==='partnerNameInput'){e.preventDefault();savePartnerName(panel==='partner');return;}
-    if(e.key==='Escape'&&mail.state().visible){closePanel();return;}
-    if(e.key==='Tab'&&panel==='journey'){const nodes=Array.from($('drawer').querySelectorAll('button:not([disabled]),a[href],input,textarea,select')).filter(n=>n.getClientRects().length);if(nodes.length&&e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(nodes.length&&!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}
+    if(e.key==='Escape'&&$('drawer').getAttribute('aria-modal')==='true'){closePanel();return;}
+    if(e.key==='Tab'&&$('drawer').getAttribute('aria-modal')==='true'){const nodes=Array.from($('drawer').querySelectorAll('button:not([disabled]),a[href],input,textarea,select')).filter(n=>n.getClientRects().length);if(nodes.length&&e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(nodes.length&&!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}
     if(e.key==='Escape'){if(document.querySelector('.mobile-chat-open')){$('closeMobileChat').click();return;}if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
     if(selected&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA'].includes(e.target.tagName)){
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
