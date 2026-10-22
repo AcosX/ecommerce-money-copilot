@@ -49,6 +49,488 @@
         }
       }
     },
+    "/api/agent/projects/{project_id}/state": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get State",
+        "operationId": "get_state_api_agent_projects__project_id__state_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/projects/{project_id}/activity": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Activity",
+        "operationId": "activity_api_agent_projects__project_id__activity_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/projects/{project_id}/history": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get History",
+        "operationId": "get_history_api_agent_projects__project_id__history_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/projects/{project_id}/messages": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Send Message",
+        "operationId": "send_message_api_agent_projects__project_id__messages_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/capabilities": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Capabilities",
+        "operationId": "capabilities_api_agent_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Capabilities Api Agent Capabilities Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/guest/session": {
+      "post": {
+        "tags": [
+          "agent-guest"
+        ],
+        "summary": "Bootstrap",
+        "operationId": "bootstrap_api_agent_guest_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestContext"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Bootstrap Api Agent Guest Session Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/guest/state": {
+      "get": {
+        "tags": [
+          "agent-guest"
+        ],
+        "summary": "State",
+        "operationId": "state_api_agent_guest_state_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/guest/history": {
+      "get": {
+        "tags": [
+          "agent-guest"
+        ],
+        "summary": "History",
+        "operationId": "history_api_agent_guest_history_get",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/guest/activity": {
+      "post": {
+        "tags": [
+          "agent-guest"
+        ],
+        "summary": "Activity",
+        "operationId": "activity_api_agent_guest_activity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/guest/messages": {
+      "post": {
+        "tags": [
+          "agent-guest"
+        ],
+        "summary": "Messages",
+        "operationId": "messages_api_agent_guest_messages_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects": {
       "get": {
         "tags": [
@@ -1278,6 +1760,18 @@
   },
   "components": {
     "schemas": {
+      "ActivityIn": {
+        "properties": {
+          "reset_clock": {
+            "type": "boolean",
+            "title": "Reset Clock",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ActivityIn"
+      },
       "ArtifactCreateIn": {
         "properties": {
           "project_id": {
@@ -1372,6 +1866,172 @@
         ],
         "title": "ArtifactUpdateIn"
       },
+      "CompanionState": {
+        "properties": {
+          "affinity": {
+            "type": "integer",
+            "title": "Affinity",
+            "default": 20
+          },
+          "patience": {
+            "type": "integer",
+            "title": "Patience",
+            "default": 80
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "default": "L1"
+          },
+          "streak": {
+            "type": "integer",
+            "title": "Streak",
+            "default": 0
+          },
+          "perks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Perks"
+          },
+          "source": {
+            "type": "string",
+            "const": "server",
+            "title": "Source",
+            "default": "server"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmotionProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "CompanionState"
+      },
+      "EmotionProfile": {
+        "properties": {
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "mood": {
+            "type": "string",
+            "title": "Mood"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone"
+          },
+          "example": {
+            "type": "string",
+            "title": "Example"
+          },
+          "warmth": {
+            "type": "number",
+            "title": "Warmth"
+          },
+          "irritability": {
+            "type": "number",
+            "title": "Irritability"
+          },
+          "level_active_seconds": {
+            "type": "integer",
+            "title": "Level Active Seconds",
+            "default": 0
+          },
+          "stagnant_seconds": {
+            "type": "integer",
+            "title": "Stagnant Seconds",
+            "default": 0
+          },
+          "grace_seconds": {
+            "type": "integer",
+            "title": "Grace Seconds",
+            "default": 1200
+          },
+          "next_decay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Decay Seconds"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "default": false
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "relationship",
+          "mood",
+          "tone",
+          "example",
+          "warmth",
+          "irritability"
+        ],
+        "title": "EmotionProfile"
+      },
+      "GuestContext": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "xiaohongshu",
+              "pinduoduo"
+            ],
+            "title": "Platform",
+            "default": "xiaohongshu"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Category",
+            "default": ""
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "L1",
+              "L2",
+              "L3",
+              "L4",
+              "L5",
+              "L6",
+              "first_order"
+            ],
+            "title": "Level",
+            "default": "L1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GuestContext"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1384,6 +2044,122 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoryItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "message",
+          "reply",
+          "created_at"
+        ],
+        "title": "HistoryItem"
+      },
+      "HistoryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "HistoryPage"
+      },
+      "MessageIn": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "companion_name": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Companion Name",
+            "default": "小商"
+          },
+          "page_context": {
+            "$ref": "#/components/schemas/PageContext"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message",
+          "version"
+        ],
+        "title": "MessageIn"
+      },
+      "PageContext": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Page",
+            "default": "shop"
+          },
+          "selected_item": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Item"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PageContext"
       },
       "ProjectCreateIn": {
         "properties": {
@@ -1508,6 +2284,64 @@
         ],
         "title": "ProjectUpdateIn"
       },
+      "Reply": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "local-guide"
+            ],
+            "title": "Source"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CompanionState"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/UIAction"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "skill_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skill Ids"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source",
+          "state"
+        ],
+        "title": "Reply"
+      },
       "ReviewDecisionIn": {
         "properties": {
           "decision": {
@@ -1537,6 +2371,58 @@
           "decision"
         ],
         "title": "ReviewDecisionIn"
+      },
+      "Source": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Source"
+      },
+      "UIAction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "show_task",
+              "open_kit",
+              "open_submission"
+            ],
+            "title": "Type"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "level"
+        ],
+        "title": "UIAction"
       },
       "ValidationError": {
         "properties": {
