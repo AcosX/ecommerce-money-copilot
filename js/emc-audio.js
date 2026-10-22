@@ -60,7 +60,7 @@
     }
   }
   const effects={reward:[[72,0,.13,.2],[76,.09,.13,.19],[79,.18,.13,.18],[84,.3,.33,.17]],upgrade:[[72,0,.15,.19],[76,.12,.15,.18],[79,.24,.15,.18],[84,.36,.2,.18],[88,.5,.2,.17],[91,.65,.45,.15]]};
-  function effect(ctx,bus,name,time){if(drums[name])drum(ctx,bus,time,drums[name]);else effects[name]?.forEach(([n,offset,duration,volume])=>tone(ctx,bus,n,time+offset,duration,volume,'square'));}
+  function effect(ctx,bus,name,time){if(name==='upgrade'){drum(ctx,bus,time,[105,1.15,.35]);for(const n of [48,60,64,67])tone(ctx,bus,n,time+.08,.85,.08,'triangle');}if(drums[name])drum(ctx,bus,time,drums[name]);else effects[name]?.forEach(([n,offset,duration,volume])=>tone(ctx,bus,n,time+offset,duration,volume,'square'));}
   function create(){
     let preferences={music:true,sfx:true,musicVolume:.45,sfxVolume:.6};try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p==='object')for(const k of Object.keys(preferences)){if(typeof p[k]===typeof preferences[k])preferences[k]=typeof p[k]==='number'&&Number.isFinite(p[k])?Math.max(0,Math.min(1,p[k])):typeof p[k]==='boolean'?p[k]:preferences[k];}}catch(_){}
     let ctx,music,sfx,master,timer=null,next=0,index=0,unlocked=false,disposed=false,lastEffect=null,effectCount=0;

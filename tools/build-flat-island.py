@@ -12,7 +12,7 @@ for o in objects:
  bm=bmesh.new();bm.from_mesh(o.data);leveled=0;preserved=0
  for q in bm.verts:
   z=q.co.z;r=math.hypot(q.co.x,q.co.y)
-  radial=max(0,min(1,(.43-r)/.10));radial=radial*radial*(3-2*radial)
+  radial=1.0 # Level the full top to the rim; no raised annular transition.
   # A continuous deformation keeps duplicated UV seam vertices watertight.
   if .08<z<.22 and radial>0:
    # The entire central support surface is horizontal (under 3 mm relief in game units).
