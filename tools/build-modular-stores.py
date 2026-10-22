@@ -131,7 +131,7 @@ def build4():
  sign(1.62,-1.24,2.52,1.70,.65)
 def build3():
  global GROUP
- GROUP='foundation';cube('Closed factory foundation',(4.9,3.9,.19),(-.15,0,.095),'plinth')
+ GROUP='foundation';cube('Closed factory foundation',(5.15,3.9,.19),(-.275,0,.095),'plinth')
  GROUP='body';cube('Brick factory structure',(3.8,3.0,3.27),(0,0,1.82),'brick',.025)
  # Brick piers remain visible between deep industrial windows.
  for f in range(3):
@@ -142,7 +142,9 @@ def build3():
     cube('Window cross mullion',(.64,.035,.025),(x,side*1.61,z+.52),'frame',.003);cube('Window center mullion',(.025,.035,.72),(x,side*1.61,z+.52),'frame',.003)
   for side in [-1,1]:
    for j in range(3):
-    y=-.98+j*.98;cube('Side black reveal',(.12,.73,.82),(side*1.91,y,z+.52),'frame',.012);cube('Side factory glass',(.026,.63,.71),(side*1.98,y,z+.52),'retail' if f==0 else 'glass',.004)
+    y=-.98+j*.98
+    if f==1 and side==-1 and j==2:continue
+    cube('Side black reveal',(.12,.73,.82),(side*1.91,y,z+.52),'frame',.012);cube('Side factory glass',(.026,.63,.71),(side*1.98,y,z+.52),'retail' if f==0 else 'glass',.004)
   GROUP='floors';cube('Concrete sill course',(3.91,3.1,.085),(0,0,z),'silver',.009);GROUP='body'
  GROUP='roof'
  # Sawtooth roof: closed wedge solids with bevelled sloping metal plates.
@@ -158,9 +160,28 @@ def build3():
  for z in [1.30,2.36]:cube('Cantilevered gallery fascia',(4.05,.60,.17),(0,-1.62,z),'silver',.015)
  for x in [-1.94,1.94]:cube('Gallery edge post',(.08,.08,1.0),(x,-1.91,1.86),'frame')
  GROUP='entrance'
- for i in range(13):cube('Stair tread',(.74,.23,.085),(-2.24,-1.50+i*.18,.27+i*.085),'plinth',.008)
- for x in [-2.65,-1.83]:beam('Yellow stair solid parapet',(x,-1.61,.73),(x,.81,1.80),.09,.40,'yellow')
- cube('Yellow landing',(.92,.70,.14),(-2.24,.97,1.38),'yellow');door(0,-1.62,.23,.85,.91)
+ # A stair assembly from one rise/run definition, including its closed underflight.
+ n=13;rise=(1.30-.19)/n;run=.18;cx=-2.32;start=-1.50;width=.76
+ for i in range(n):
+  top=.19+(i+1)*rise
+  cube('Stair tread',(width,run+.018,.07),(cx,start+i*run,top-.035),'plinth',.005)
+ # Sloping side plates have vertical thickness, not the twisted cross-section of a rotated beam.
+ for x in [cx-width/2-.045,cx+width/2+.045]:
+  y0=start-run/2;y1=start+(n-1)*run+run/2;z0=.19+rise;z1=1.30;t=.075
+  verts=[(xx,yy,zz) for xx in [x-t/2,x+t/2] for yy,zz in [(y0,z0-.14),(y1,z1-.14),(y1,z1+.60),(y0,z0+.60)]]
+  faces=[(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)]
+  mesh=bpy.data.meshes.new('Stair side plate');mesh.from_pydata(verts,[],faces);mesh.update();o=bpy.data.objects.new('Aligned yellow stair parapet',mesh);bpy.context.collection.objects.link(o);finish(o,'Aligned yellow stair parapet','yellow',.012)
+ # Underflight follows the risers; the stair no longer floats without structural support.
+ beam('Underflight stringer',(cx,start-.05,.19),(cx,start+(n-1)*run+.04,1.20),.56,.10,'frame')
+ landing_y=1.03;landing_d=.70
+ cube('Connected upper landing',(1.0,landing_d,.12),(-2.33,landing_y,1.24),'yellow',.008)
+ cube('Landing outer parapet',(.075,landing_d,.60),(-2.80,landing_y,1.60),'yellow',.009)
+ cube('Landing end parapet',(1.0,.075,.60),(-2.33,landing_y+landing_d/2,1.60),'yellow',.009)
+ # Door actually enters the second floor, on the left wall at the landing.
+ cube('Upper side doorway',(.13,.68,.88),(-1.95,1.03,1.74),'frame',.01)
+ cube('Upper side door glass',(.025,.57,.78),(-2.03,1.03,1.74),'glass',.005)
+ cube('Upper side door pull',(.04,.025,.20),(-2.07,.86,1.70),'gold',.003)
+ door(0,-1.62,.23,.85,.91)
  sign(0,-1.64,2.92,2.66,.46)
 def export(level):
  global GROUP
@@ -182,7 +203,10 @@ def export(level):
  bpy.ops.wm.save_as_mainfile(filepath=str(WORK/f'level-{level}.blend'))
  (folder/'audit.json').write_text(json.dumps({'level':level,'modules':audit,'triangles':sum(x['triangles'] for x in audit),'bytes':(OUT/f'level-{level}-web.glb').stat().st_size},indent=2),encoding='utf-8')
  print('MODULAR_COMPLETE',level,len(parts),flush=True)
-for level,builder in [(5,build5),(4,build4),(3,build3)]:init();builder();export(level)
+import sys
+requested=[int(x) for x in sys.argv[sys.argv.index('--')+1:]] if '--' in sys.argv else [5,4,3]
+for level,builder in [(5,build5),(4,build4),(3,build3)]:
+ if level in requested:init();builder();export(level)
 
 entries=[]
 for level in [3,4,5]:

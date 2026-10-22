@@ -14,7 +14,7 @@
     {
       "name": "body",
       "file": "level-3/body.glb",
-      "triangles": 25004,
+      "triangles": 24628,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
       "materials": [
@@ -51,14 +51,15 @@
     {
       "name": "entrance",
       "file": "level-3/entrance.glb",
-      "triangles": 3948,
+      "triangles": 5076,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
       "materials": [
         "plinth",
         "yellow",
-        "gold",
-        "glass"
+        "frame",
+        "glass",
+        "gold"
       ]
     },
     {
@@ -73,6 +74,6 @@
       ]
     }
   ],
-  "triangles": 37268,
-  "bytes": 2436576
+  "triangles": 38020,
+  "bytes": 2460092
 }
