@@ -1,7 +1,7 @@
 {
   "version": 3,
   "source": "Blender hard-surface modules with generated material textures",
-  "integration_status": "preview_only_not_connected_to_game",
+  "integration_status": "production_source_packed_by_pack_game_buildings",
   "buildings": [
     {
       "level": 3,
@@ -83,7 +83,7 @@
       "bytes": 2460092,
       "model_url": "assets/models/buildings-v3/level-3-web.glb",
       "separate_editable_modules": true,
-      "status": "modular_candidate_for_visual_review"
+      "status": "production_source"
     },
     {
       "level": 4,
@@ -203,7 +203,7 @@
       "bytes": 3212040,
       "model_url": "assets/models/buildings-v3/level-4-web.glb",
       "separate_editable_modules": true,
-      "status": "modular_candidate_for_visual_review"
+      "status": "production_source"
     },
     {
       "level": 5,
@@ -317,7 +317,7 @@
       "bytes": 3530772,
       "model_url": "assets/models/buildings-v3/level-5-web.glb",
       "separate_editable_modules": true,
-      "status": "modular_candidate_for_visual_review"
+      "status": "production_source"
     }
   ]
 }

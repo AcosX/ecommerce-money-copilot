@@ -212,5 +212,5 @@ for level,builder in [(5,build5),(4,build4),(3,build3)]:
 
 entries=[]
 for level in [3,4,5]:
- audit=json.loads((OUT/f'level-{level}/audit.json').read_text());audit.update(model_url=f'assets/models/buildings-v3/level-{level}-web.glb',separate_editable_modules=True,status='modular_candidate_for_visual_review');entries.append(audit)
-(OUT/'manifest.json').write_text(json.dumps({'version':3,'source':'Blender hard-surface modules with generated material textures','integration_status':'preview_only_not_connected_to_game','buildings':entries},indent=2)+'\n',encoding='utf-8')
+ audit=json.loads((OUT/f'level-{level}/audit.json').read_text());audit.update(model_url=f'assets/models/buildings-v3/level-{level}-web.glb',separate_editable_modules=True,status='production_source');entries.append(audit)
+(OUT/'manifest.json').write_text(json.dumps({'version':3,'source':'Blender hard-surface modules with generated material textures','integration_status':'production_source_packed_by_pack_game_buildings','buildings':entries},indent=2)+'\n',encoding='utf-8')
