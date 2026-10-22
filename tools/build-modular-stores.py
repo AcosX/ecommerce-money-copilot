@@ -100,13 +100,14 @@ def build5():
  GROUP='body';rounded('Central portal tower',1.20,1.05,5.50,.15,-1.55,2.98,'stone',.14);cube('Portal vertical glass',(.78,.045,4.68),(.15,-2.10,2.95),'glass',.01)
  for x in [-.49,.79]:cube('Tower gold fin',(.105,.16,5.38),(x,-2.14,2.96),'gold',.018)
  for f in range(6):cube('Portal floor transom',(.83,.07,.027),(.15,-2.145,.64+f*.76),'gold',.004)
- GROUP='entrance';rounded('Grand entrance canopy',3.60,1.45,.20,.15,-2.03,1.60,'stone',.40);rounded('Canopy gold trim',3.64,1.49,.045,.15,-2.03,1.49,'gold',.42)
+ GROUP='canopy';rounded('Grand entrance canopy',3.60,1.45,.20,.15,-2.03,1.60,'stone',.40);rounded('Canopy gold trim',3.64,1.49,.045,.15,-2.03,1.49,'gold',.42)
+ GROUP='entrance'
  for x in [-1.12,1.42]:
   cylinder('Entry bronze column',.115,1.25,(x,-2.37,.90));cylinder('Column foot',.145,.10,(x,-2.37,.30));cylinder('Column capital',.145,.09,(x,-2.37,1.47))
  for x in [-.7,0,.7]:cube('Recessed soffit light',(.16,.30,.012),(x,-2.25,1.485),'warm',.005)
  door(.15,-2.18,.23,.94,1.15);steps(2.70,3,.15,-2.67,.035)
  sign(.15,-2.16,5.12,.88,.87)
- GROUP='roof';cube('Crown vertical plinth',(.11,.15,.27),(.15,-1.55,5.86),'gold');o=cube('Geometric shop emblem',(.34,.17,.34),(.15,-1.55,6.10),'gold',.018);o.rotation_euler.y=math.pi/4
+ GROUP='emblem';cube('Crown vertical plinth',(.11,.15,.27),(.15,-1.55,5.86),'gold');o=cube('Geometric shop emblem',(.34,.17,.34),(.15,-1.55,6.10),'gold',.018);o.rotation_euler.y=math.pi/4
  # Real facade panel joints on the back and side maintain a finished all-around model.
  GROUP='details'
  for f in range(6):
@@ -124,7 +125,8 @@ def build4():
  for side in [-1,1]:cube('Bridge light ribbon',(2.04,.028,.024),(-.12,.12+side*.53,3.46),'cyan',.004)
  GROUP='details';cube('Cyan tower recess',(.36,.10,3.24),(-1.18,-1.24,2.34),'frame');cube('Tower identity light',(.26,.03,3.10),(-1.18,-1.31,2.34),'cyan')
  for x,y,z,w in [(-1.93,-1.01,4.52,1.5),(1.62,-1.02,3.68,1.8)]:planter(w,.18,x,y,z)
- GROUP='entrance';rounded('Orange arcade canopy',4.5,1.50,.19,.12,-1.63,1.20,'orange',.25);rounded('Canopy top',4.43,1.43,.04,.12,-1.63,1.315,'silver',.24)
+ GROUP='canopy';rounded('Orange arcade canopy',4.5,1.50,.19,.12,-1.63,1.20,'orange',.25);rounded('Canopy top',4.43,1.43,.04,.12,-1.63,1.315,'silver',.24)
+ GROUP='entrance'
  for x in [-1.65,1.80]:cylinder('Canopy support',.09,.93,(x,-2.13,.64),'orange')
  cube('Entrance canopy warm strip',(4.05,.035,.025),(.12,-2.40,1.105),'warm')
  cube('Arcade recessed entry',(1.5,.12,.92),(-.05,-1.05,.67),'frame');door(-.05,-1.14,.20,1.05,.86);steps(1.8,3,-.05,-2.2,.035)

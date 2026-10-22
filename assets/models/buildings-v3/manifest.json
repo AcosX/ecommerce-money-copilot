@@ -162,14 +162,24 @@
           ]
         },
         {
-          "name": "entrance",
-          "file": "level-4/entrance.glb",
-          "triangles": 3784,
+          "name": "canopy",
+          "file": "level-4/canopy.glb",
+          "triangles": 1144,
           "boundary_edges": 0,
           "nonmanifold_edges": 0,
           "materials": [
             "orange",
-            "silver",
+            "silver"
+          ]
+        },
+        {
+          "name": "entrance",
+          "file": "level-4/entrance.glb",
+          "triangles": 2640,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "orange",
             "warm",
             "frame",
             "gold",
@@ -190,7 +200,7 @@
         }
       ],
       "triangles": 68636,
-      "bytes": 3211164,
+      "bytes": 3212040,
       "model_url": "assets/models/buildings-v3/level-4-web.glb",
       "separate_editable_modules": true,
       "status": "modular_candidate_for_visual_review"
@@ -250,7 +260,17 @@
         {
           "name": "roof",
           "file": "level-5/roof.glb",
-          "triangles": 948,
+          "triangles": 572,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "stone"
+          ]
+        },
+        {
+          "name": "canopy",
+          "file": "level-5/canopy.glb",
+          "triangles": 1144,
           "boundary_edges": 0,
           "nonmanifold_edges": 0,
           "materials": [
@@ -261,11 +281,10 @@
         {
           "name": "entrance",
           "file": "level-5/entrance.glb",
-          "triangles": 5492,
+          "triangles": 4348,
           "boundary_edges": 0,
           "nonmanifold_edges": 0,
           "materials": [
-            "stone",
             "gold",
             "warm",
             "glass",
@@ -282,10 +301,20 @@
             "gold",
             "sign"
           ]
+        },
+        {
+          "name": "emblem",
+          "file": "level-5/emblem.glb",
+          "triangles": 376,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "materials": [
+            "gold"
+          ]
         }
       ],
       "triangles": 79500,
-      "bytes": 3529748,
+      "bytes": 3530772,
       "model_url": "assets/models/buildings-v3/level-5-web.glb",
       "separate_editable_modules": true,
       "status": "modular_candidate_for_visual_review"

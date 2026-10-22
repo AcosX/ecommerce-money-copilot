@@ -75,14 +75,24 @@
       ]
     },
     {
-      "name": "entrance",
-      "file": "level-4/entrance.glb",
-      "triangles": 3784,
+      "name": "canopy",
+      "file": "level-4/canopy.glb",
+      "triangles": 1144,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
       "materials": [
         "orange",
-        "silver",
+        "silver"
+      ]
+    },
+    {
+      "name": "entrance",
+      "file": "level-4/entrance.glb",
+      "triangles": 2640,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "orange",
         "warm",
         "frame",
         "gold",
@@ -103,5 +113,5 @@
     }
   ],
   "triangles": 68636,
-  "bytes": 3211164
+  "bytes": 3212040
 }
