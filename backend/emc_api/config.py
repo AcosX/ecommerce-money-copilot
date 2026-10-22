@@ -68,6 +68,22 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
+    agent_provider: Literal["local", "compatible"] = "local"
+    agent_base_url: str = "https://api.openai.com/v1"
+    agent_api_key: SecretStr = SecretStr("")
+    agent_model: str = ""
+    agent_timeout_seconds: float = Field(default=12, gt=0, le=60)
+    agent_content_dir: str = ""
+    agent_knowledge_dir: str = ""
+    agent_emotion_grace_seconds: int = Field(default=1200, ge=60, le=86400)
+    agent_emotion_decay_interval_seconds: int = Field(default=300, ge=30, le=3600)
+    agent_emotion_decay_points: int = Field(default=5, ge=1, le=20)
+    agent_guest_enabled: bool = False
+    agent_guest_origins: str = ""
+    agent_guest_daily_limit: int = Field(default=20, ge=1, le=1000)
+    agent_guest_global_daily_limit: int = Field(default=200, ge=1, le=100000)
+    agent_guest_session_hourly_limit: int = Field(default=10, ge=1, le=1000)
+
     @field_validator("public_origin")
     @classmethod
     def _check_public_origin(cls, value: str) -> str:
