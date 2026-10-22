@@ -49,488 +49,6 @@
         }
       }
     },
-    "/api/agent/projects/{project_id}/state": {
-      "get": {
-        "tags": [
-          "agent"
-        ],
-        "summary": "Get State",
-        "operationId": "get_state_api_agent_projects__project_id__state_get",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompanionState"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/projects/{project_id}/activity": {
-      "post": {
-        "tags": [
-          "agent"
-        ],
-        "summary": "Activity",
-        "operationId": "activity_api_agent_projects__project_id__activity_post",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActivityIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompanionState"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/projects/{project_id}/history": {
-      "get": {
-        "tags": [
-          "agent"
-        ],
-        "summary": "Get History",
-        "operationId": "get_history_api_agent_projects__project_id__history_get",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          },
-          {
-            "name": "before",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Before"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/projects/{project_id}/messages": {
-      "post": {
-        "tags": [
-          "agent"
-        ],
-        "summary": "Send Message",
-        "operationId": "send_message_api_agent_projects__project_id__messages_post",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Reply"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/capabilities": {
-      "get": {
-        "tags": [
-          "agent"
-        ],
-        "summary": "Capabilities",
-        "operationId": "capabilities_api_agent_capabilities_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Capabilities Api Agent Capabilities Get"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/guest/session": {
-      "post": {
-        "tags": [
-          "agent-guest"
-        ],
-        "summary": "Bootstrap",
-        "operationId": "bootstrap_api_agent_guest_session_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GuestContext"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Bootstrap Api Agent Guest Session Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/guest/state": {
-      "get": {
-        "tags": [
-          "agent-guest"
-        ],
-        "summary": "State",
-        "operationId": "state_api_agent_guest_state_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompanionState"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/guest/history": {
-      "get": {
-        "tags": [
-          "agent-guest"
-        ],
-        "summary": "History",
-        "operationId": "history_api_agent_guest_history_get",
-        "parameters": [
-          {
-            "name": "before",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Before"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/guest/activity": {
-      "post": {
-        "tags": [
-          "agent-guest"
-        ],
-        "summary": "Activity",
-        "operationId": "activity_api_agent_guest_activity_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActivityIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompanionState"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/guest/messages": {
-      "post": {
-        "tags": [
-          "agent-guest"
-        ],
-        "summary": "Messages",
-        "operationId": "messages_api_agent_guest_messages_post",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Reply"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/projects": {
       "get": {
         "tags": [
@@ -1598,6 +1116,402 @@
         }
       }
     },
+    "/api/agent/config": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get Agent Config",
+        "description": "返回小商 3D 数字人 SDK 配置、候选角色预设、工具清单及当前玩家记忆。",
+        "operationId": "get_agent_config_api_agent_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Agent Config Api Agent Config Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/memory": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Read Agent Memory",
+        "description": "读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。",
+        "operationId": "read_agent_memory_api_agent_memory_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Read Agent Memory Api Agent Memory Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/tools/execute": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Execute Tool Endpoint",
+        "description": "执行受控 Agent 工具（强制以服务端会话 player.id 为准，忽略客户端伪造的 player_id）。",
+        "operationId": "execute_tool_endpoint_api_agent_tools_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolExecuteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Execute Tool Endpoint Api Agent Tools Execute Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/reviews/{submission_id}": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Trigger Ai Deliverable Review",
+        "description": "触发小商 L1–L6 结构化成果审核（仅申请人本人或审核员可触发）。",
+        "operationId": "trigger_ai_deliverable_review_api_agent_reviews__submission_id__post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Trigger Ai Deliverable Review Api Agent Reviews  Submission Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get Ai Deliverable Review",
+        "description": "查询指定认证申请的最新 AI 审核报告（仅申请人本人或审核员可读）。",
+        "operationId": "get_ai_deliverable_review_api_agent_reviews__submission_id__get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Ai Deliverable Review Api Agent Reviews  Submission Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/session": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Start Xingyun Session",
+        "description": "代理魔珐星云 `POST /user/v1/ttsa/session`：服务端计算 X-TOKEN 签名并注入 3D 角色配置。",
+        "operationId": "start_xingyun_session_api_agent_xingyun_session_post",
+        "parameters": [
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Xingyun Session Api Agent Xingyun Session Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Stop Xingyun Session",
+        "description": "代理魔珐星云 `DELETE /user/v1/ttsa/session`。",
+        "operationId": "stop_xingyun_session_api_agent_xingyun_session_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Xingyun Session Api Agent Xingyun Session Delete"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/e2e-session": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Start Xingyun E2E Session",
+        "description": "代理魔珐星云 `POST /user/v1/ttsa_v2/session`（XingyunAvatarAgent 端到端 SDK 对比验证）。",
+        "operationId": "start_xingyun_e2e_session_api_agent_xingyun_e2e_session_post",
+        "parameters": [
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Xingyun E2E Session Api Agent Xingyun E2E Session Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Stop Xingyun E2E Session",
+        "description": "代理魔珐星云 `DELETE /user/v1/ttsa_v2/session`。",
+        "operationId": "stop_xingyun_e2e_session_api_agent_xingyun_e2e_session_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Xingyun E2E Session Api Agent Xingyun E2E Session Delete"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/chat": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Companion Chat",
+        "description": "小商伴随对话主入口。\n\n- 若玩家已登录（有效 `emc_session`），强制校验 CSRF，并开启个人成果/草稿/记忆读写。\n- 若为未登录游客，以只读沙盘陪伴模式运行（不写入个人数据库草稿，随时可体验 3D 数字人互动）。",
+        "operationId": "companion_chat_api_agent_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionChatIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Companion Chat Api Agent Chat Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Openai Compatible Agent Bridge",
+        "description": "OpenAI Chat Completions 兼容桥接接口（供星云控制台『自定义对话模型』或外部客户端接入）。",
+        "operationId": "openai_compatible_agent_bridge_api_agent_v1_chat_completions_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Openai Compatible Agent Bridge Api Agent V1 Chat Completions Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "get": {
         "tags": [
@@ -1760,18 +1674,6 @@
   },
   "components": {
     "schemas": {
-      "ActivityIn": {
-        "properties": {
-          "reset_clock": {
-            "type": "boolean",
-            "title": "Reset Clock",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "ActivityIn"
-      },
       "ArtifactCreateIn": {
         "properties": {
           "project_id": {
@@ -1866,171 +1768,111 @@
         ],
         "title": "ArtifactUpdateIn"
       },
-      "CompanionState": {
+      "CompanionChatIn": {
         "properties": {
-          "affinity": {
-            "type": "integer",
-            "title": "Affinity",
-            "default": 20
-          },
-          "patience": {
-            "type": "integer",
-            "title": "Patience",
-            "default": 80
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version",
-            "default": 1
-          },
-          "level": {
+          "message": {
             "type": "string",
-            "title": "Level",
-            "default": "L1"
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message"
           },
-          "streak": {
-            "type": "integer",
-            "title": "Streak",
-            "default": 0
-          },
-          "perks": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Perks"
-          },
-          "source": {
-            "type": "string",
-            "const": "server",
-            "title": "Source",
-            "default": "server"
-          },
-          "emotion": {
+          "level_id": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/EmotionProfile"
+                "type": "string",
+                "maxLength": 16
               },
               {
                 "type": "null"
               }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "CompanionState"
-      },
-      "EmotionProfile": {
-        "properties": {
-          "relationship": {
-            "type": "string",
-            "title": "Relationship"
+            ],
+            "title": "Level Id"
+          },
+          "current_level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Level"
+          },
+          "current_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current View"
           },
           "mood": {
-            "type": "string",
-            "title": "Mood"
-          },
-          "tone": {
-            "type": "string",
-            "title": "Tone"
-          },
-          "example": {
-            "type": "string",
-            "title": "Example"
-          },
-          "warmth": {
-            "type": "number",
-            "title": "Warmth"
-          },
-          "irritability": {
-            "type": "number",
-            "title": "Irritability"
-          },
-          "level_active_seconds": {
-            "type": "integer",
-            "title": "Level Active Seconds",
-            "default": 0
-          },
-          "stagnant_seconds": {
-            "type": "integer",
-            "title": "Stagnant Seconds",
-            "default": 0
-          },
-          "grace_seconds": {
-            "type": "integer",
-            "title": "Grace Seconds",
-            "default": 1200
-          },
-          "next_decay_seconds": {
             "anyOf": [
               {
                 "type": "integer"
               },
               {
+                "type": "number"
+              },
+              {
                 "type": "null"
               }
             ],
-            "title": "Next Decay Seconds"
+            "title": "Mood"
           },
-          "paused": {
+          "save_as_draft": {
             "type": "boolean",
-            "title": "Paused",
+            "title": "Save As Draft",
             "default": false
           },
-          "reason_codes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Reason Codes"
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "client_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Context"
           }
         },
         "type": "object",
         "required": [
-          "relationship",
-          "mood",
-          "tone",
-          "example",
-          "warmth",
-          "irritability"
+          "message"
         ],
-        "title": "EmotionProfile"
-      },
-      "GuestContext": {
-        "properties": {
-          "platform": {
-            "type": "string",
-            "enum": [
-              "xiaohongshu",
-              "pinduoduo"
-            ],
-            "title": "Platform",
-            "default": "xiaohongshu"
-          },
-          "category": {
-            "type": "string",
-            "maxLength": 64,
-            "title": "Category",
-            "default": ""
-          },
-          "level": {
-            "type": "string",
-            "enum": [
-              "L1",
-              "L2",
-              "L3",
-              "L4",
-              "L5",
-              "L6",
-              "first_order"
-            ],
-            "title": "Level",
-            "default": "L1"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "GuestContext"
+        "title": "CompanionChatIn"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2044,122 +1886,6 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
-      },
-      "HistoryItem": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "sequence": {
-            "type": "integer",
-            "title": "Sequence"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "reply": {
-            "$ref": "#/components/schemas/Reply"
-          },
-          "created_at": {
-            "type": "string",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "sequence",
-          "message",
-          "reply",
-          "created_at"
-        ],
-        "title": "HistoryItem"
-      },
-      "HistoryPage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/HistoryItem"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "next_before": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Before"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "title": "HistoryPage"
-      },
-      "MessageIn": {
-        "properties": {
-          "message": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Message"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Version"
-          },
-          "companion_name": {
-            "type": "string",
-            "maxLength": 12,
-            "minLength": 1,
-            "title": "Companion Name",
-            "default": "小商"
-          },
-          "page_context": {
-            "$ref": "#/components/schemas/PageContext"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "message",
-          "version"
-        ],
-        "title": "MessageIn"
-      },
-      "PageContext": {
-        "properties": {
-          "page": {
-            "type": "string",
-            "maxLength": 64,
-            "title": "Page",
-            "default": "shop"
-          },
-          "selected_item": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Selected Item"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PageContext"
       },
       "ProjectCreateIn": {
         "properties": {
@@ -2284,64 +2010,6 @@
         ],
         "title": "ProjectUpdateIn"
       },
-      "Reply": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "ai",
-              "local-guide"
-            ],
-            "title": "Source"
-          },
-          "state": {
-            "$ref": "#/components/schemas/CompanionState"
-          },
-          "actions": {
-            "items": {
-              "$ref": "#/components/schemas/UIAction"
-            },
-            "type": "array",
-            "title": "Actions"
-          },
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/Source"
-            },
-            "type": "array",
-            "title": "Sources"
-          },
-          "skill_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Skill Ids"
-          },
-          "turn_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Turn Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "text",
-          "source",
-          "state"
-        ],
-        "title": "Reply"
-      },
       "ReviewDecisionIn": {
         "properties": {
           "decision": {
@@ -2372,57 +2040,38 @@
         ],
         "title": "ReviewDecisionIn"
       },
-      "Source": {
+      "ToolExecuteIn": {
         "properties": {
-          "id": {
+          "tool_name": {
             "type": "string",
-            "title": "Id"
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tool Name"
           },
-          "title": {
-            "type": "string",
-            "title": "Title"
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
           },
-          "url": {
+          "client_context": {
             "anyOf": [
               {
-                "type": "string"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Url"
+            "title": "Client Context"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "id",
-          "title"
+          "tool_name"
         ],
-        "title": "Source"
-      },
-      "UIAction": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "show_task",
-              "open_kit",
-              "open_submission"
-            ],
-            "title": "Type"
-          },
-          "level": {
-            "type": "string",
-            "title": "Level"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "level"
-        ],
-        "title": "UIAction"
+        "title": "ToolExecuteIn"
       },
       "ValidationError": {
         "properties": {

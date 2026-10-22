@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-一个纯前端单页 HTML 应用，把「从 0 到 1 做电商」拆成 6 个可验证的关卡，并内置一个 AI 向导「小商」作为副驾：
+原生 HTML/JavaScript 与 FastAPI/MariaDB 组成的游戏，将「从 0 到 1 做电商」拆成 6 个关卡，复用小商 Agent Runtime 与 3D 数字人进行带教：
 
 | 关卡 | 名称 | 目标 | 掉落道具 |
 |------|------|------|----------|
@@ -36,7 +36,7 @@ cd C:\Dev\ACC\ecommerce-money-copilot
 python -m http.server 5189 --bind 127.0.0.1
 ```
 
-浏览器打开 `http://127.0.0.1:5189/`。此命令仅提供静态前端，账号和持久化接口需启动后端，见 [backend/README.md](backend/README.md)。已有 Docker 静态部署见 [deploy/README.md](deploy/README.md)。
+浏览器打开 `http://127.0.0.1:5189/`。此命令仅提供静态前端，账号和持久化接口需启动后端，见 [backend/README.md](backend/README.md)。可选本地 Docker 测试栈见 [deploy/README.md](deploy/README.md)；生产使用 VM3 的版本化部署。Agent 架构见 [docs/agent-integration.md](docs/agent-integration.md)。
 
 ## 技术栈与目录
 

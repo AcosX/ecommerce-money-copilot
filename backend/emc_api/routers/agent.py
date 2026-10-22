@@ -1,246 +1,405 @@
+"""小商伴随式数字人 Agent 与六关（L1–L6）成果审核路由（#62）。"""
+
 from __future__ import annotations
 
-import hmac
-import uuid
+import json
+import time
+from collections.abc import Iterator
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from ..agent.contracts import ActivityIn, CompanionState, HistoryPage, MessageIn, Reply
-from ..agent.emotion import EmotionPolicy, emotion_profile
-from ..agent.guests import guest_budget
-from ..agent.relationship import evolve
-from ..agent.service import (
-    business_context,
-    owned_project,
-    performance_view,
-    require_active,
-    state_view,
-    tick_activity,
+from ..config import Settings
+from ..db import get_db
+from ..errors import NotFound, ValidationFailed
+from ..ids import VERIFICATION, has_prefix
+from ..models import VerificationSubmission
+from ..security import (
+    CurrentPlayer,
+    get_app_settings,
+    get_current_player,
+    require_csrf,
+    require_player,
 )
-from ..db import get_db, with_retry
-from ..errors import IdempotencyKeyReuse, RateLimited, ValidationFailed, VersionConflict
-from ..models import AgentState, AgentTurn, IdempotencyRecord
-from ..security import CurrentPlayer, require_player
+from ..services.agent_runtime import (
+    AGENT_TOOL_SCHEMAS,
+    KNOWLEDGE_BASE_META,
+    LEVEL_GUIDES,
+    PROMPT_VERSION,
+    RUBRIC_VERSION,
+    XINGYUN_CHARACTER_PRESETS,
+    execute_agent_tool,
+    get_latest_ai_review,
+    get_player_memory,
+    get_recent_conversation,
+    proxy_xingyun_session,
+    proxy_xingyun_stop_session,
+    run_ai_deliverable_review,
+    run_companion_chat,
+    tool_get_player_progress,
+)
 from ..services.audit import record_audit
-from ..services.idempotency import endpoint_id, idempotency_key, request_hash, run_idempotent
-from ..timeutil import isoformat_utc, utcnow
 
-router = APIRouter(prefix="/agent", tags=["agent"])
+# 挂载在 include_api_router 下（自动带 /api 前缀与 require_csrf）
+router = APIRouter(tags=["agent"])
 
-
-def emotion_policy(request: Request) -> EmotionPolicy:
-    settings = request.app.state.settings
-    return EmotionPolicy(
-        settings.agent_emotion_grace_seconds,
-        settings.agent_emotion_decay_interval_seconds,
-        settings.agent_emotion_decay_points,
-    )
+# 供 XmovAvatar Web SDK 内部 fetch()、游客体验对话与 OpenAI 兼容网关调用的路由
+sdk_router = APIRouter(tags=["agent-sdk"])
 
 
-@router.get("/projects/{project_id}/state", response_model=CompanionState)
-def get_state(
-    project_id: str,
-    request: Request,
-    player: CurrentPlayer = Depends(require_player),
-    db: Session = Depends(get_db),
-) -> CompanionState:
-    project = owned_project(db, project_id, player.id)
-    context = business_context(db, project)
-    return state_view(
-        db.get(AgentState, project_id),
-        context["level"],
-        performance_view(db, project_id, context),
-        emotion_policy(request),
-    )
+class CompanionChatIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    message: str = Field(min_length=1, max_length=2000)
+    level_id: str | None = Field(default=None, max_length=16)
+    current_level: str | None = Field(default=None, max_length=16)
+    current_view: str | None = Field(default=None, max_length=32)
+    mood: int | float | None = Field(default=None)
+    save_as_draft: bool = Field(default=False)
+    preset_id: str | None = Field(default=None, max_length=32)
+    session_id: str | None = Field(default=None, max_length=64)
+    client_context: dict[str, Any] | None = Field(default=None)
 
 
-@router.post("/projects/{project_id}/activity", response_model=CompanionState)
-def activity(
-    project_id: str,
-    body: ActivityIn,
-    request: Request,
-    player: CurrentPlayer = Depends(require_player),
-    db: Session = Depends(get_db),
-) -> CompanionState:
-    def handler(s: Session) -> CompanionState:
-        project = owned_project(s, project_id, player.id, lock=True)
-        require_active(project)
-        context = business_context(s, project)
-        tick_activity(s, project, context, reset_clock=body.reset_clock)
-        return state_view(
-            s.get(AgentState, project_id),
-            context["level"],
-            performance_view(s, project_id, context),
-            emotion_policy(request),
-        )
+class ToolExecuteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-    return with_retry(db, handler)
+    tool_name: str = Field(min_length=1, max_length=64)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    client_context: dict[str, Any] | None = Field(default=None)
 
 
-@router.get("/projects/{project_id}/history", response_model=HistoryPage)
-def get_history(
-    project_id: str,
-    before: int | None = Query(default=None, ge=1),
-    limit: int = Query(default=20, ge=1, le=50),
-    player: CurrentPlayer = Depends(require_player),
+@router.get("/agent/config")
+def get_agent_config(
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    owned_project(db, project_id, player.id)
-    stmt = select(AgentTurn).where(AgentTurn.project_id == project_id)
-    if before is not None:
-        stmt = stmt.where(AgentTurn.sequence < before)
-    rows = list(db.scalars(stmt.order_by(AgentTurn.sequence.desc()).limit(limit + 1)))
-    more = len(rows) > limit
-    rows = rows[:limit]
+    """返回小商 3D 数字人 SDK 配置、候选角色预设、工具清单及当前玩家记忆。"""
+    presets_public = [
+        {
+            "preset_id": item["preset_id"],
+            "name": item["name"],
+            "role_title": item["role_title"],
+            "persona_summary": item["persona_summary"],
+            "avatar_badge": item["avatar_badge"],
+            "preview_image": item["preview_image"],
+            "preview_video": item["preview_video"],
+        }
+        for item in XINGYUN_CHARACTER_PRESETS.values()
+    ]
+    memory = get_player_memory(db, player.id) if player else None
+    progress = tool_get_player_progress(db, player.id if player else None)
+    recent_turns = get_recent_conversation(db, player.id, limit=6) if player else []
+
     return {
-        "items": [
+        "architecture": {
+            "selected_scheme": "scheme_3_xingyun_sdk_plus_fastapi_runtime",
+            "title": "魔珐星云 3D 具身驱动 Web SDK (XmovAvatar) + 自建 FastAPI Agent Runtime",
+            "rubric_version": RUBRIC_VERSION,
+            "prompt_version": PROMPT_VERSION,
+        },
+        "xingyun": {
+            "app_id": settings.xingyun_app_id,
+            "gateway_server": "/api/agent/xingyun/session",
+            "e2e_gateway_server": "/api/agent/xingyun/e2e-session",
+            "default_preset": settings.xingyun_default_preset,
+            "presets": presets_public,
+        },
+        "authenticated": player is not None,
+        "player": (
             {
-                "id": r.id,
-                "sequence": r.sequence,
-                "message": r.message,
-                "reply": r.response,
-                "created_at": isoformat_utc(r.created_at),
+                "id": player.id,
+                "display_name": player.display_name,
+                "roles": player.roles,
             }
-            for r in reversed(rows)
-        ],
-        "next_before": rows[-1].sequence if more else None,
+            if player
+            else None
+        ),
+        "memory": memory,
+        "progress": progress,
+        "recent_conversation": recent_turns,
+        "tools": AGENT_TOOL_SCHEMAS,
+        "level_guides": LEVEL_GUIDES,
+        "knowledge_base": KNOWLEDGE_BASE_META,
     }
 
 
-@router.post("/projects/{project_id}/messages", response_model=Reply)
-def send_message(
-    project_id: str,
-    body: MessageIn,
-    request: Request,
-    key: str | None = Depends(idempotency_key),
+@router.get("/agent/memory")
+def read_agent_memory(
     player: CurrentPlayer = Depends(require_player),
     db: Session = Depends(get_db),
-) -> JSONResponse:
-    if key is None:
-        raise ValidationFailed.field(["header", "Idempotency-Key"], "伙伴消息必须提供幂等键")
-    project = owned_project(db, project_id, player.id)
-    require_active(project)
-    endpoint = endpoint_id(request)
-    payload = {"project_id": project_id, **body.model_dump(mode="json")}
-    # 重试已成功的请求时直接走既有幂等框架，不再调用付费模型。
-    cached = db.get(IdempotencyRecord, (player.id, endpoint, key))
-    if cached is not None and cached.expires_at > utcnow():
-        if not hmac.compare_digest(cached.request_hash, request_hash(payload)):
-            raise IdempotencyKeyReuse()
-        return JSONResponse(
-            cached.response_body,
-            status_code=cached.response_status,
-            headers={"Idempotency-Replayed": "true"},
-        )
-    guest_budget(db, request)
-    context = business_context(db, project)
-    row = db.get(AgentState, project_id)
-    state = state_view(row, context["level"])
-    performance = performance_view(db, project_id, context)
-    policy = emotion_policy(request)
-    if body.version != state.version:
-        raise VersionConflict(details={"state": state.model_dump()})
-    now = utcnow()
-    if row is not None and (now - row.updated_at).total_seconds() < 2:
-        raise RateLimited(headers={"Retry-After": "2"})
-    affinity, patience, memory = evolve(
-        state.affinity,
-        state.patience,
-        row.memory if row else {},
-        body.message,
-        context["level"],
-        now,
-        performance,
-        policy,
-    )
-    next_state = CompanionState(
-        affinity=affinity,
-        patience=patience,
-        version=state.version + 1,
-        level=context["level"],
-        streak=memory.get("streak", 0),
-        perks=memory.get("perks", []),
-        emotion=emotion_profile(
-            affinity,
-            patience,
-            performance,
-            memory.get("last_change", {}).get("reason_codes", []),
-            policy,
-        ),
-    )
-    turns = list(
-        db.scalars(
-            select(AgentTurn)
-            .where(AgentTurn.project_id == project_id)
-            .order_by(AgentTurn.sequence.desc())
-            .limit(6)
-        )
-    )
-    history = []
-    for turn in reversed(turns):
-        history.extend(
-            [
-                {"role": "user", "content": turn.message},
-                {"role": "assistant", "content": turn.response["text"]},
-            ]
-        )
-    # 网络调用期间不占用项目行锁或数据库事务。
-    db.rollback()
-    reply = request.app.state.agent_runtime.reply(
-        body.message,
-        body.companion_name,
-        context,
-        next_state,
-        history,
-        body.page_context.model_dump(),
-    )
-    reply.turn_id = "agt_" + uuid.uuid4().hex[:28]
+) -> dict[str, Any]:
+    """读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。"""
+    return {
+        "memory": get_player_memory(db, player.id),
+        "recent_conversation": get_recent_conversation(db, player.id, limit=10),
+        "progress": tool_get_player_progress(db, player.id),
+    }
 
-    def handler(s: Session) -> tuple[int, dict]:
-        current_project = owned_project(s, project_id, player.id, lock=True)
-        require_active(current_project)
-        current = s.scalar(
-            select(AgentState)
-            .where(AgentState.project_id == project_id)
-            .execution_options(populate_existing=True)
-        )
-        if (current.version if current else 1) != body.version:
-            raise VersionConflict("对话已更新，请刷新伙伴状态后重试")
-        if business_context(s, current_project) != context:
-            raise VersionConflict("经营进度已变化，请重新发起对话")
-        if current is None:
-            current = AgentState(project_id=project_id)
-            s.add(current)
-        guest_budget(s, request, consume=True)
-        current.affinity, current.patience = affinity, patience
-        current.version, current.memory = next_state.version, memory
-        current.updated_at = utcnow()
-        result = reply.model_dump(mode="json")
-        s.add(
-            AgentTurn(
-                id=reply.turn_id,
-                project_id=project_id,
-                sequence=next_state.version,
-                message=body.message,
-                response=result,
-                created_at=current.updated_at,
-            )
-        )
+
+@router.post("/agent/tools/execute")
+def execute_tool_endpoint(
+    body: ToolExecuteIn,
+    player: CurrentPlayer = Depends(require_player),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """执行受控 Agent 工具（强制以服务端会话 player.id 为准，忽略客户端伪造的 player_id）。"""
+    result = execute_agent_tool(
+        db,
+        player_id=player.id,
+        tool_name=body.tool_name,
+        arguments=body.arguments,
+        client_context=body.client_context,
+    )
+    db.commit()
+    return {
+        "tool_name": body.tool_name,
+        "player_id": player.id,
+        "result": result,
+    }
+
+
+@router.post("/agent/reviews/{submission_id}")
+def trigger_ai_deliverable_review(
+    submission_id: str,
+    player: CurrentPlayer = Depends(require_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """触发小商 L1–L6 结构化成果审核（仅申请人本人或审核员可触发）。"""
+    return run_ai_deliverable_review(
+        db,
+        settings,
+        submission_id=submission_id,
+        actor_player_id=player.id,
+        is_reviewer=player.is_reviewer,
+    )
+
+
+@router.get("/agent/reviews/{submission_id}")
+def get_ai_deliverable_review(
+    submission_id: str,
+    player: CurrentPlayer = Depends(require_player),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """查询指定认证申请的最新 AI 审核报告（仅申请人本人或审核员可读）。"""
+    if not has_prefix(submission_id, VERIFICATION):
+        raise NotFound("未找到对应的认证申请")
+    sub = db.get(VerificationSubmission, submission_id)
+    if sub is None:
+        raise NotFound("未找到对应的认证申请")
+    if sub.owner_id != player.id and not player.is_reviewer:
+        raise NotFound("未找到对应的认证申请")
+
+    report = get_latest_ai_review(db, submission_id)
+    return {
+        "submission_id": sub.id,
+        "status": sub.status,
+        "has_ai_review": report is not None,
+        "ai_review": report,
+    }
+
+
+# ---------------------------------------------------------------- SDK 网关代理与伴随对话路由
+
+
+@sdk_router.post("/agent/xingyun/session")
+async def start_xingyun_session(
+    request: Request,
+    preset: str | None = Query(default=None, max_length=32),
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """代理魔珐星云 `POST /user/v1/ttsa/session`：服务端计算 X-TOKEN 签名并注入 3D 角色配置。"""
+    try:
+        raw_body = await request.json()
+        payload = raw_body if isinstance(raw_body, dict) else {}
+    except Exception:
+        payload = {}
+
+    chosen_preset = preset or str(payload.pop("preset_id", "") or settings.xingyun_default_preset)
+    data = proxy_xingyun_session(settings, payload, preset_id=chosen_preset, e2e=False)
+
+    if player is not None:
+        session_id = str((data.get("data") or {}).get("session_id") or "")
         record_audit(
-            s,
-            "agent.reply",
+            db,
+            "agent.xingyun.session_start",
             actor_player_id=player.id,
-            target_type="project",
-            target_id=project_id,
-            details={"turn_id": reply.turn_id, "source": reply.source},
+            target_type="xingyun_session",
+            target_id=session_id or "init",
+            details={
+                "preset_id": chosen_preset,
+                "error_code": data.get("error_code"),
+                "sdk_mode": "ttsa_v1",
+            },
         )
-        s.flush()
-        return 200, result
+        db.commit()
+    return data
 
-    return run_idempotent(
-        db, player_id=player.id, endpoint=endpoint, key=key, request_body=payload, handler=handler
-    ).to_response()
+
+@sdk_router.delete("/agent/xingyun/session")
+async def stop_xingyun_session(
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, Any]:
+    """代理魔珐星云 `DELETE /user/v1/ttsa/session`。"""
+    try:
+        raw_body = await request.json()
+        payload = raw_body if isinstance(raw_body, dict) else {}
+    except Exception:
+        payload = {}
+    return proxy_xingyun_stop_session(settings, payload, e2e=False)
+
+
+@sdk_router.post("/agent/xingyun/e2e-session")
+async def start_xingyun_e2e_session(
+    request: Request,
+    preset: str | None = Query(default=None, max_length=32),
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, Any]:
+    """代理魔珐星云 `POST /user/v1/ttsa_v2/session`（XingyunAvatarAgent 端到端 SDK 对比验证）。"""
+    try:
+        raw_body = await request.json()
+        payload = raw_body if isinstance(raw_body, dict) else {}
+    except Exception:
+        payload = {}
+    chosen_preset = preset or str(payload.pop("preset_id", "") or settings.xingyun_default_preset)
+    return proxy_xingyun_session(settings, payload, preset_id=chosen_preset, e2e=True)
+
+
+@sdk_router.delete("/agent/xingyun/e2e-session")
+async def stop_xingyun_e2e_session(
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, Any]:
+    """代理魔珐星云 `DELETE /user/v1/ttsa_v2/session`。"""
+    try:
+        raw_body = await request.json()
+        payload = raw_body if isinstance(raw_body, dict) else {}
+    except Exception:
+        payload = {}
+    return proxy_xingyun_stop_session(settings, payload, e2e=True)
+
+
+@sdk_router.post("/agent/chat")
+def companion_chat(
+    body: CompanionChatIn,
+    request: Request,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """小商伴随对话主入口。
+
+    - 若玩家已登录（有效 `emc_session`），强制校验 CSRF，并开启个人成果/草稿/记忆读写。
+    - 若为未登录游客，以只读沙盘陪伴模式运行（不写入个人数据库草稿，随时可体验 3D 数字人互动）。
+    """
+    if player is not None:
+        require_csrf(request, db, settings)
+
+    merged_context = dict(body.client_context or {})
+    if body.current_view is not None:
+        merged_context.setdefault("current_view", body.current_view)
+    if body.mood is not None:
+        merged_context.setdefault("mood", body.mood)
+    if body.save_as_draft:
+        merged_context["save_as_draft"] = True
+
+    return run_companion_chat(
+        db,
+        settings,
+        player_id=player.id if player else None,
+        message=body.message,
+        level_id=body.level_id or body.current_level,
+        preset_id=body.preset_id,
+        client_context=merged_context,
+        session_id=body.session_id,
+    )
+
+
+@sdk_router.post("/agent/v1/chat/completions")
+async def openai_compatible_agent_bridge(
+    request: Request,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> Any:
+    """OpenAI Chat Completions 兼容桥接接口（供星云控制台『自定义对话模型』或外部客户端接入）。"""
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise ValidationFailed("请求体必须为合法 JSON") from exc
+
+    messages = payload.get("messages") if isinstance(payload, dict) else []
+    user_msg = "你好，请介绍一下小商参谋"
+    if isinstance(messages, list):
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get("role") == "user" and msg.get("content"):
+                user_msg = str(msg["content"])[:2000]
+                break
+
+    chat_res = run_companion_chat(
+        db,
+        settings,
+        player_id=player.id if player else None,
+        message=user_msg,
+        level_id=payload.get("level_id") if isinstance(payload, dict) else None,
+        preset_id=payload.get("preset_id") if isinstance(payload, dict) else None,
+    )
+    reply_text = chat_res["spoken_text"]
+    completion_id = f"chatcmpl-emc-{int(time.time() * 1000)}"
+    created_ts = int(time.time())
+    model_name = str(payload.get("model") or "xiaoshang-agent-v1")
+
+    if isinstance(payload, dict) and payload.get("stream") is True:
+
+        def event_stream() -> Iterator[str]:
+            chunk = {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created_ts,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "role": "assistant",
+                            "content": reply_text,
+                        },
+                        "finish_reason": None,
+                    }
+                ],
+            }
+            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            done_chunk = {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created_ts,
+                "model": model_name,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+            }
+            yield f"data: {json.dumps(done_chunk, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    return {
+        "id": completion_id,
+        "object": "chat.completion",
+        "created": created_ts,
+        "model": model_name,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": reply_text},
+                "finish_reason": "stop",
+            }
+        ],
+        "emc_agent": chat_res,
+    }

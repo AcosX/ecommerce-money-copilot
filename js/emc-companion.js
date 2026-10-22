@@ -3,9 +3,21 @@
   'use strict';
   const DIMENSIONS=[['goal','说清目标'],['evidence','补充事实'],['scope','明确范围'],['attempt','说明尝试']];
   const clamp=(v,min,max,fallback)=>typeof v==='number'&&Number.isFinite(v)?Math.min(max,Math.max(min,Math.round(v))):fallback;
-  const fingerprint=text=>String(text||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu,'').slice(0,240);
+  // Persist a compact deduplication marker, never a copy of the user's chat text.
+  // This is a non-cryptographic dedup key, not a substitute for encryption.
+  const fingerprint=text=>{
+    const normalized=String(text||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu,'').slice(0,240);
+    if(!normalized)return '';
+    let a=0x811c9dc5,b=0x9e3779b9;
+    for(let i=0;i<normalized.length;i++){const n=normalized.charCodeAt(i);a=Math.imul(a^n,0x01000193)>>>0;b=Math.imul(b^(n+0x9e37),0x85ebca6b)>>>0;}
+    return 'h2:'+a.toString(16).padStart(8,'0')+b.toString(16).padStart(8,'0');
+  };
   function create(){return {version:1,affinity:20,patience:80,level:'L1',streak:0,seen:[],perks:[],last:null};}
-  function normalize(value){const state=create();if(!value||value.version!==1)return state;state.affinity=clamp(value.affinity,0,100,20);state.patience=clamp(value.patience,25,100,80);state.level=/^(L[1-6]|first_order)$/.test(value.level)?value.level:'L1';state.streak=clamp(value.streak,0,3,0);state.seen=Array.isArray(value.seen)?value.seen.filter(s=>typeof s==='string').slice(-120):[];state.perks=Array.isArray(value.perks)?[...new Set(value.perks.filter(s=>/^L[1-6]$/.test(s)))]:[];return state;}
+  function normalize(value){const state=create();if(!value||value.version!==1)return state;state.affinity=clamp(value.affinity,0,100,20);state.patience=clamp(value.patience,25,100,80);state.level=/^(L[1-6]|first_order)$/.test(value.level)?value.level:'L1';state.streak=clamp(value.streak,0,3,0);state.seen=Array.isArray(value.seen)?value.seen.filter(s=>typeof s==='string').slice(-120).map(s=>{
+    const match=/^(L[1-6]|first_order):([\s\S]*)$/.exec(s);if(!match)return null;
+    const previous=match[2],hash=/^h2:[a-f0-9]{16}$/.test(previous)?previous:fingerprint(previous);
+    return hash?match[1]+':'+hash:null;
+  }).filter(Boolean):[];state.perks=Array.isArray(value.perks)?[...new Set(value.perks.filter(s=>/^L[1-6]$/.test(s)))]:[];return state;}
   function assess(text){
     const message=String(text||'').slice(0,240);
     const goal=/(想|目标|希望|计划|打算|需要|准备|怎么|如何|帮我).{2,45}/.test(message);

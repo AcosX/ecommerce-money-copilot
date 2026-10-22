@@ -15,25 +15,12 @@ from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .agent.content import ContentCatalog
-from .agent.runtime import AgentRuntime, CompatibleGenerator
 from .config import Settings, get_settings
 from .db import Database
 from .errors import install_exception_handlers
 from .logging_config import configure_logging
 from .middleware import BodySizeLimitMiddleware, RequestContextMiddleware
-from .routers import (
-    admin,
-    agent,
-    agent_guest,
-    artifacts,
-    auth,
-    evidence,
-    health,
-    me,
-    projects,
-    verifications,
-)
+from .routers import admin, agent, artifacts, auth, evidence, health, me, projects, verifications
 from .security import require_csrf
 
 # 仓库根目录（backend/ 的上一级），仅 EMC_ENV=dev 时用于提供前端静态文件。
@@ -121,10 +108,6 @@ def create_app(
     )
     app.state.settings = settings
     app.state.db = db
-    app.state.agent_runtime = AgentRuntime(
-        ContentCatalog(settings.agent_content_dir, settings.agent_knowledge_dir),
-        CompatibleGenerator(settings) if settings.agent_provider == "compatible" else None,
-    )
 
     install_exception_handlers(app)
 
@@ -140,14 +123,13 @@ def create_app(
 
     include_api_router(app, health.router)
     include_api_router(app, me.router)
-    include_api_router(app, agent.router)
-    app.include_router(agent_guest.capabilities_router, prefix="/api")
-    app.include_router(agent_guest.router, prefix="/api")
     include_api_router(app, projects.router)
     include_api_router(app, artifacts.router)
     include_api_router(app, evidence.router)
     include_api_router(app, verifications.router)
     include_api_router(app, admin.router)
+    include_api_router(app, agent.router)
+    app.include_router(agent.sdk_router, prefix="/api")
     app.include_router(admin.ui_router)
     # /auth/* 由 OIDC 登录模块实现（见 routers/auth.py）。
     app.include_router(auth.router)

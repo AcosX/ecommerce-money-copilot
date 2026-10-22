@@ -38,12 +38,20 @@ def test_login_returns_to_current_panel(open_page, panel):
     h = open_page()
     page = goto(h)
     page.locator('[data-panel="' + panel + '"]').click()
-    page.locator("#emcLoginBtn").click()
+    # Settings and mission navigation are modal. Use an accessible login entry
+    # inside each dialog rather than clicking a blocked topbar control.
+    login = (
+        page.locator("#emcLoginBtn")
+        if panel == "inventory"
+        else page.locator('[data-account-action="login"]')
+    )
+    expect(login).to_be_visible()
+    login.click()
     expect(page.locator("#confirmPartnerName")).to_be_visible()
     page.locator("#partnerNameInput").fill("小满")
     page.locator("#confirmPartnerName").click()
     page.wait_for_function("window.EmcSession?.isLoggedIn()")
-    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == ("journey" if panel == "quests" else panel)
+    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == ("missions" if panel == "quests" else panel)
     expect(page.locator("#emcLogoutBtn")).to_be_visible()
     assert not h.urls("/api/artifacts")
     assert not h.urls("/api/verifications")
@@ -105,6 +113,8 @@ def test_backend_unavailable_does_not_block_teaching(open_page, state):
     page = goto(h)
     page.locator("#continueButton").click()
     expect(page.locator("#drawer")).to_be_visible()
+    # Welcome letter is modal; close it before using the header login button.
+    page.locator("#closePanel").click()
     page.locator("#emcLoginBtn").click()
     expect(page.locator("#emcPromptTitle")).to_have_text("登录服务暂时不可用")
     page.locator("#emcPromptPrimary").click()
@@ -257,6 +267,9 @@ def test_existing_formal_component_contract_is_preserved(open_page, state):
 def test_journey_deep_link_still_requires_shop_entry(open_page):
     h = open_page()
     page = goto(h, "/#view=journey")
+    expect(page.locator("[data-j-action=begin]")).to_be_visible()
+    assert page.evaluate("JSON.parse(render_game_to_text()).journey.view") == "welcome"
+    page.locator("[data-j-action=begin]").click()
     expect(page.locator("#journeySetup")).to_be_visible()
     assert page.evaluate("JSON.parse(render_game_to_text()).journey.view") == "setup"
     assert not h.urls("/api/artifacts")

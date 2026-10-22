@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -68,21 +68,46 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    agent_provider: Literal["local", "compatible"] = "local"
-    agent_base_url: str = "https://api.openai.com/v1"
-    agent_api_key: SecretStr = SecretStr("")
-    agent_model: str = ""
-    agent_timeout_seconds: float = Field(default=12, gt=0, le=60)
-    agent_content_dir: str = ""
-    agent_knowledge_dir: str = ""
-    agent_emotion_grace_seconds: int = Field(default=1200, ge=60, le=86400)
-    agent_emotion_decay_interval_seconds: int = Field(default=300, ge=30, le=3600)
-    agent_emotion_decay_points: int = Field(default=5, ge=1, le=20)
-    agent_guest_enabled: bool = False
-    agent_guest_origins: str = ""
-    agent_guest_daily_limit: int = Field(default=20, ge=1, le=1000)
-    agent_guest_global_daily_limit: int = Field(default=200, ge=1, le=100000)
-    agent_guest_session_hourly_limit: int = Field(default=10, ge=1, le=1000)
+    # 魔珐星云 3D 数字人网关配置（小商具身驱动）
+    xingyun_app_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMC_XINGYUN_APP_ID", "XINGYUN_APP_ID"),
+    )
+    xingyun_app_secret: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("EMC_XINGYUN_APP_SECRET", "XINGYUN_APP_SECRET"),
+    )
+    xingyun_gateway_url: str = Field(
+        default="https://nebula-agent.xingyun3d.com",
+        validation_alias=AliasChoices("EMC_XINGYUN_GATEWAY_URL", "XINGYUN_GATEWAY_URL"),
+    )
+    xingyun_default_preset: str = Field(
+        default="yingyi",
+        validation_alias=AliasChoices("EMC_XINGYUN_DEFAULT_PRESET", "XINGYUN_DEFAULT_PRESET"),
+    )
+
+    # AI 大模型网关配置（支持 GOOGLE_GEMINI_BASE_URL / GEMINI_API_KEY）
+    ai_base_url: str = Field(
+        default="https://api.openai.com",
+        validation_alias=AliasChoices("EMC_AI_BASE_URL", "GOOGLE_GEMINI_BASE_URL"),
+    )
+    ai_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("EMC_AI_API_KEY", "GEMINI_API_KEY"),
+    )
+    ai_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("EMC_AI_MODEL", "GEMINI_MODEL"),
+    )
+    ai_review_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("EMC_AI_REVIEW_MODEL", "GEMINI_REVIEW_MODEL"),
+    )
+    ai_timeout_seconds: float = Field(
+        default=8.0,
+        gt=0,
+        validation_alias=AliasChoices("EMC_AI_TIMEOUT_SECONDS", "GEMINI_TIMEOUT_SECONDS"),
+    )
 
     @field_validator("public_origin")
     @classmethod
