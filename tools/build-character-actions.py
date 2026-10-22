@@ -172,14 +172,20 @@ def relax_hands(action,phase):
         delta=(world@hand.matrix).to_quaternion()@rest[hand_name].inverted()
         flex_axis=delta@Vector((1,0,0))
         starts=[11,14,17] if side==1 else [27,30,33]
+        grip=curve(phase,[(0,0),(.03,0),(.14,1),(.86,1),(.98,0),(1,0)]) if action=='letter' and side==-1 else 0
         for finger,start in enumerate(starts):
             closed=(.18+finger*.055,.32+finger*.045,.22+finger*.035)
             curls=tuple(a*(1-wave_weight)+b*wave_weight for a,b in zip(closed,(.05,.10,.07)))
+            curls=tuple(a*(1-grip)+b*grip for a,b in zip(curls,(.32,.46,.28)))
             for joint,curl in enumerate(curls):
-                overlap=.016*math.sin(phase*math.pi*2-finger*.25-joint*.15)
+                overlap=.016*math.sin(phase*math.pi*2-finger*.25-joint*.15)*(1-grip)
                 axis_world('bone_'+str(start+joint),flex_axis,-side*(curl+overlap))
         prefix='tripo::0_Right_Limb_' if side==1 else 'tripo::1_Left_Limb_'
-        for index in (3,4,5):axis_world(prefix+str(index),flex_axis,-side*(.16-.10*wave_weight))
+        for index in (3,4,5):axis_world(prefix+str(index),flex_axis,-side*((.16-.10*wave_weight)*(1-grip)+.27*grip))
+        if grip:
+            # Oppose the thumb across the paper, rather than leave a waving palm.
+            palm_normal=delta@Vector((0,0,-1))
+            axis_world(prefix+'3',palm_normal,.72*grip)
 
 
 rest_positions={b.name:world@b.head_local for b in rig.data.bones}
@@ -528,7 +534,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'letter-v8: two raised hands, anticipatory hop and rebound, soft grounded landings',
+    'motion_revision':'letter-grip-v9: opposed thumb and curled fingers pinch the envelope during the cheer',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
                            'sit_cross':{'hold_phase':[.56,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},

@@ -71,7 +71,7 @@
   "forward": "+X",
   "in_place": true,
   "character_source": "xiaoshang-expressive-v2.blend",
-  "motion_revision": "letter-v8: two raised hands, anticipatory hop and rebound, soft grounded landings",
+  "motion_revision": "letter-grip-v9: opposed thumb and curled fingers pinch the envelope during the cheer",
   "interaction_anchors": {
     "letter": {
       "hand": "tripo::1_Left_Limb_2",
