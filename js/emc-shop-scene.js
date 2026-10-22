@@ -6,7 +6,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-upgrade6';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-sign7';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -96,11 +96,23 @@ export class ShopScene{
     probe.set(anchor.axis==='x'?new THREE.Vector3(10,y,anchor.z||0):new THREE.Vector3(anchor.x||0,y,10),anchor.axis==='x'?new THREE.Vector3(-1,0,0):new THREE.Vector3(0,0,-1));
     const hit=probe.intersectObject(shop,true)[0];if(!hit)return;
     const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
-    if(anchor.board)normal.set(anchor.axis==='x'?1:0,0,anchor.axis==='x'?0:1);else if(normal.z<0)normal.negate();
+    if(anchor.board||anchor.conform)normal.set(anchor.axis==='x'?1:0,0,anchor.axis==='x'?0:1);else if(normal.z<0)normal.negate();
     this.signCanvas=document.createElement('canvas');this.signCanvas.width=2048;this.signCanvas.height=Math.round(2048*anchor.height/anchor.width);
     this.signTexture=new THREE.CanvasTexture(this.signCanvas);this.signTexture.colorSpace=THREE.SRGBColorSpace;this.signTexture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
     const material=new THREE.MeshBasicMaterial({map:this.signTexture,transparent:true,alphaTest:.02,depthWrite:false,toneMapped:false});this.materials.push(material);
-    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.board){const board=this.signBoard=new THREE.Group();board.position.copy(hit.point).addScaledVector(normal,.025);board.quaternion.copy(this.shopSign.quaternion);this.root.add(board);const backing=this.box(board,[anchor.width+.10,anchor.height+.10,.06],[0,0,0],'#765238'),face=this.box(board,[anchor.width,anchor.height,.025],[0,0,.043],'#35564b');backing.userData.paintPart='sign';face.userData.paintPart='sign';this.signBoardWood=[{material:backing.material,base:'#765238',shade:.7},{material:face.material,base:'#35564b',shade:1}];this.shopSign.position.copy(board.position).addScaledVector(normal,.065);this.shopSign.userData.paintPart='sign';}if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.49,this.signBoard?0:anchor.height*1.16);this.drawShopName();
+    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height,anchor.conform?32:1,anchor.conform?6:1),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.board){const board=this.signBoard=new THREE.Group();board.position.copy(hit.point).addScaledVector(normal,.025);board.quaternion.copy(this.shopSign.quaternion);this.root.add(board);const backing=this.box(board,[anchor.width+.10,anchor.height+.10,.06],[0,0,0],'#765238'),face=this.box(board,[anchor.width,anchor.height,.025],[0,0,.043],'#35564b');backing.userData.paintPart='sign';face.userData.paintPart='sign';this.signBoardWood=[{material:backing.material,base:'#765238',shade:.7},{material:face.material,base:'#35564b',shade:1}];this.shopSign.position.copy(board.position).addScaledVector(normal,.065);this.shopSign.userData.paintPart='sign';}if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);
+    if(anchor.conform){
+      // Project transparent lettering onto the authored wooden sign, preserving its original frame.
+      const vertices=this.shopSign.geometry.attributes.position,point=new THREE.Vector3();
+      for(let i=0;i<vertices.count;i++){
+        point.fromBufferAttribute(vertices,i).applyMatrix4(this.shopSign.matrixWorld);
+        probe.set(anchor.axis==='x'?new THREE.Vector3(10,point.y,point.z):new THREE.Vector3(point.x,point.y,10),anchor.axis==='x'?new THREE.Vector3(-1,0,0):new THREE.Vector3(0,0,-1));
+        const surface=probe.intersectObject(shop,true)[0];if(!surface)continue;
+        point.copy(surface.point).addScaledVector(normal,anchor.depth_offset??.008);this.shopSign.worldToLocal(point);vertices.setXYZ(i,point.x,point.y,point.z);
+      }
+      vertices.needsUpdate=true;this.shopSign.geometry.computeVertexNormals();
+    }
+    this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:(anchor.paint_width?anchor.paint_width*.5:anchor.width*.49),this.signBoard?0:(anchor.paint_height?anchor.paint_height*.5:anchor.height*1.16));this.drawShopName();
   }
   rebuildSign(spec,x,y){
     // 第四级生成牌面有歪斜，用独立的水平木牌覆盖；边框与店名共用一个基准。
