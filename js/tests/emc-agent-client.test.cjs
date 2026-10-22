@@ -13,7 +13,7 @@ function setup() {
     EmcApi: {
       get: async (url) => {
         calls.push({ type: 'GET', url });
-        assert.equal(url, '/api/agent/memory');
+        assert.ok(url === '/api/agent/memory' || url === '/api/agent/memory?session_id=proj_1');
         return {
           memory: { intimacy_score: 27, interactions_count: 2, current_focus_level: 'L2' },
           recent_conversation: [
@@ -72,6 +72,7 @@ test('registered chat uses #62 /api/agent/chat, never forwards a forged prompt o
 test('history is filtered by project session id and avoids cross-project exposure', async () => {
   const t = setup();
   const history = await t.client.history('proj_1');
+  assert.ok(t.calls.some(call => call.url === '/api/agent/memory?session_id=proj_1'));
   assert.equal(history.items.length, 1);
   assert.equal(history.items[0].message, '问题');
   assert.equal(history.items[0].reply.text, '服务端回答');

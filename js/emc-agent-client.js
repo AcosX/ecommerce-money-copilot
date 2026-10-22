@@ -42,7 +42,7 @@
   async function history(id, { signal } = {}) {
     if (!loggedIn()) return { items: [], next_before: null };
     const requester = keyFor(id);
-    const data = await root.EmcApi.get('/api/agent/memory', { signal });
+    const data = await root.EmcApi.get('/api/agent/memory?session_id=' + encodeURIComponent(id), { signal });
     if (requester !== keyFor(id)) return { items: [], next_before: null };
     cache.set(requester, view(data.memory));
     const rows = (data.recent_conversation || []).filter(turn => turn.session_id === id);

@@ -130,13 +130,16 @@ def get_agent_config(
 
 @router.get("/agent/memory")
 def read_agent_memory(
+    session_id: str | None = Query(default=None, min_length=1, max_length=64),
     player: CurrentPlayer = Depends(require_player),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。"""
     return {
         "memory": get_player_memory(db, player.id),
-        "recent_conversation": get_recent_conversation(db, player.id, limit=10),
+        "recent_conversation": get_recent_conversation(
+            db, player.id, limit=10, session_id=session_id
+        ),
         "progress": tool_get_player_progress(db, player.id),
     }
 
