@@ -274,7 +274,7 @@
   "island": {
     "model_url": "assets/models/island-flat-v2-web.glb",
     "rotation_y": -1.5707963267948966,
-    "surface_ratio": 0.8440585856793485,
+    "surface_ratio": 0.8317323640904496,
     "generation": {
       "provider": "Tripo",
       "model": "v3.1-20260211",
@@ -289,19 +289,20 @@
     },
     "preview_url": "assets/models/previews/island-detail.webp",
     "delivery": {
-      "bytes": 2148216,
+      "bytes": 2148212,
       "triangles": 46958,
       "texture_max_dimension": 2048,
       "texture_format": "webp",
-      "refinement": "full horizontal terrain to the rim; preserved source mesh, UVs and volumetric decorations"
+      "refinement": "horizontal ground reference; preserve volumetric grass, stones and cliff rim with column translation"
     },
     "lite": {
       "model_url": "assets/models/island-flat-v2-lite.glb",
-      "bytes": 1206572,
+      "bytes": 1197960,
       "triangles": 32868,
       "texture_max_dimension": 1024
     },
     "texture_max_dimension": 2048,
-    "texture_format": "webp"
+    "texture_format": "webp",
+    "revision": "terrain-4586ebd88acc"
   }
 }
