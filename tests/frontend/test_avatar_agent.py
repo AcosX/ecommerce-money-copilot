@@ -44,7 +44,7 @@ def test_bottom_right_3d_digital_human_stage_and_controls(open_page, state):
 
     # 2. 打开副驾面板，测试 3D 控制台：切换形象、姿态与打断播报
     page.locator("#cpFab").click()
-    assert page.locator("#cpPanel.open").is_visible()
+    assert page.locator("#emcAvatarConfig[open]").is_visible()
     assert page.locator("#emcAvatarDeck").is_visible()
     assert "星云 3D 具身底座" in page.locator("#emcAgentArchBadge").inner_text()
 
@@ -82,8 +82,8 @@ def test_bottom_right_3d_digital_human_stage_and_controls(open_page, state):
     assert len(xy_calls) == 1 and xy_calls[0]["preset_id"] == "yingyi"
 
     # 4. 发送选品算账提问，验证工具链调用卡片与四维 ROI 卡片
-    page.locator("#cpInput").fill("帮我算账：拿货32元售价79元值不值得做？")
-    page.locator("#cpPanel .cp-input button").click()
+    page.locator("#copilotInput").fill("帮我算账：拿货32元售价79元值不值得做？")
+    page.locator("#copilotSend").click()
     page.wait_for_function("document.querySelectorAll('[data-emc-roi-card]').length === 1")
 
     roi_text = page.locator("[data-emc-roi-card]").inner_text()

@@ -1,10 +1,10 @@
 const assert=require('node:assert/strict'),os=require('node:os'),path=require('node:path');
-const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
-(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
+const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright'),base=process.env.EMC_TEST_URL||'http://127.0.0.1:5173';
+(async()=>{const browser=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||undefined});try{
   for(const width of [1440,390,320]){
     const page=await browser.newPage({viewport:{width,height:900}}),errors=[],writes=[];
     page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/**',r=>{if(r.request().method()!=='GET')writes.push(r.request().url());return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({authenticated:false,items:[],next_cursor:null})});});
-    await page.goto('http://127.0.0.1:5173/?demo=1#view=journey');await page.locator('[data-demo=begin]').click();await page.waitForFunction(()=>window.EmcLetterArt&&EmcLetterArt.assets().every(a=>a.ready));await page.waitForTimeout(350);
+    await page.goto(base+'/?demo=1#view=journey');await page.locator('[data-demo=begin]').click();await page.waitForFunction(()=>window.EmcLetterArt&&EmcLetterArt.assets().every(a=>a.ready));await page.waitForTimeout(350);
     assert.equal(await page.locator('.mail-art-back').count(),1);assert.equal(await page.locator('.mail-art-pocket').count(),1);assert.equal(await page.locator('.mail-attachment-grid button').count(),1);
     if(width===1440){const nav=await page.locator('.quest-peek').boundingBox(),chat=await page.locator('.copilot-dock').boundingBox();assert.ok(nav.x>width/2&&chat.x>width/2&&chat.width>200);}
     await page.screenshot({path:path.join(os.tmpdir(),`emc-art-final-letter-${width}.png`)});
