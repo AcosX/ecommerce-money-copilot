@@ -1,0 +1,79 @@
+{
+  "level": 3,
+  "modules": [
+    {
+      "name": "foundation",
+      "file": "level-3/foundation.glb",
+      "triangles": 188,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "plinth"
+      ]
+    },
+    {
+      "name": "body",
+      "file": "level-3/body.glb",
+      "triangles": 24628,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "brick",
+        "frame",
+        "retail",
+        "glass"
+      ]
+    },
+    {
+      "name": "floors",
+      "file": "level-3/floors.glb",
+      "triangles": 1316,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "silver",
+        "frame"
+      ]
+    },
+    {
+      "name": "roof",
+      "file": "level-3/roof.glb",
+      "triangles": 6436,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "roof",
+        "glass",
+        "silver",
+        "brick"
+      ]
+    },
+    {
+      "name": "entrance",
+      "file": "level-3/entrance.glb",
+      "triangles": 5076,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "plinth",
+        "yellow",
+        "frame",
+        "glass",
+        "gold"
+      ]
+    },
+    {
+      "name": "sign",
+      "file": "level-3/sign.glb",
+      "triangles": 376,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "gold",
+        "sign"
+      ]
+    }
+  ],
+  "triangles": 38020,
+  "bytes": 2460092
+}

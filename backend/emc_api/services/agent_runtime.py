@@ -571,8 +571,7 @@ def _load_knowledge_base() -> tuple[list[dict[str, Any]], dict[str, Any]]:
                 meta = {
                     "version": str(raw.get("version") or "2026.10.kb.v1"),
                     "source": str(
-                        raw.get("source")
-                        or "knowledge.zip (xiaohongshu.zip + pinduoduo(1).zip)"
+                        raw.get("source") or "knowledge.zip (xiaohongshu.zip + pinduoduo(1).zip)"
                     ),
                     "total_items": len(items),
                     "counts": counts,
@@ -1751,9 +1750,7 @@ def _try_calculate_roi_from_message(msg: str) -> dict[str, Any] | None:
                 "supply_price_yuan": cost,
                 "estimated_net_profit_yuan": profit,
                 "margin_rate_pct": round(margin * 100, 2),
-                "score_4d": {
-                    "weighted_total": round(min(96.0, max(55.0, margin * 145 + 25)), 1)
-                },
+                "score_4d": {"weighted_total": round(min(96.0, max(55.0, margin * 145 + 25)), 1)},
                 "verdict": verdict,
             }
     return None
@@ -2073,9 +2070,7 @@ def run_companion_chat(
             top_kb = kb_res["hits"][0] if kb_res["hits"] else KNOWLEDGE_BASE[0]
             kb_platform = top_kb.get("platform") or "通用"
             kb_category = top_kb.get("category") or "经营实操"
-            kb_points = [
-                str(p).strip() for p in (top_kb.get("key_points") or []) if str(p).strip()
-            ]
+            kb_points = [str(p).strip() for p in (top_kb.get("key_points") or []) if str(p).strip()]
             points_block = (
                 "\n" + "\n".join(f"  - {pt}" for pt in kb_points[:3]) if kb_points else ""
             )

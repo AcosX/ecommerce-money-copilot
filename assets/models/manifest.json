@@ -1,182 +1,264 @@
 {
-  "schema_version": 1,
-  "source": "Tripo H-series v3.1 Ultra, detailed textures",
-  "shops": {
-    "1": {
-      "model_url": "assets/models/shop-1-web.glb",
-      "wall_materials": [],
-      "rotation_y": -1.5707963267948966,
+  "schema_version": 2,
+  "source": "Current reviewed buildings; source geometry preserved",
+  "buildings": {
+    "0": {
+      "level": 0,
+      "name": "地摊起步",
+      "rotation_y": 0,
+      "modular": false,
       "wall_mask": "cream",
-      "roof_ratio": 0.85,
-      "generation": {
-        "provider": "Tripo",
-        "model": "v3.1-20260211",
-        "task_id": "51251bb7-02aa-4b56-8b38-85046b758c67",
-        "source_image": "assets/game/shop-1.png",
-        "credits_consumed": 60,
-        "geometry_quality": "detailed",
-        "texture_quality": "detailed",
-        "texture_version": "v3.5-20260815",
-        "triangles": 45691,
-        "bytes": 8538124
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-0-web.glb",
+      "bytes": 4022660,
+      "triangles": 47044,
+      "lite": {
+        "model_url": "assets/models/buildings/level-0-lite.glb",
+        "bytes": 1961504,
+        "triangles": 47044,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
       },
-      "preview_url": "assets/models/previews/shop-1-detail.webp",
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    },
+    "1": {
+      "level": 1,
+      "name": "复古商车",
+      "rotation_y": 0,
+      "modular": false,
+      "wall_mask": "cream",
+      "wall_materials": [],
+      "roof_ratio": 1,
       "sign": {
-        "height_ratio": 0.5584,
-        "width": 2.4,
-        "height": 0.3,
-        "paint_back_depth": -0.028
+        "height_ratio": 0.91,
+        "width": 2,
+        "height": 0.27,
+        "axis": "x",
+        "board": true
       },
-      "delivery": {
-        "bytes": 2977472,
-        "original_bytes": 8538124,
-        "texture_max_dimension": 2048,
-        "texture_format": "webp",
-        "geometry_sha256": "e4bd076b8da144c155ee386fae3f3f009eb2ae44eae354d1f76c2bf74d2ef1bf"
-      }
+      "model_url": "assets/models/buildings/level-1-web.glb",
+      "bytes": 3215688,
+      "triangles": 42694,
+      "lite": {
+        "model_url": "assets/models/buildings/level-1-lite.glb",
+        "bytes": 1962408,
+        "triangles": 42694,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
     },
     "2": {
-      "model_url": "assets/models/shop-2-web.glb",
-      "wall_materials": [],
-      "rotation_y": -1.5707963267948966,
+      "level": 2,
+      "name": "日式精品店",
+      "rotation_y": 0,
+      "modular": false,
       "wall_mask": "cream",
-      "roof_ratio": 0.87,
-      "generation": {
-        "provider": "Tripo",
-        "model": "v3.1-20260211",
-        "task_id": "212af9c6-eddc-4296-b2ce-f23aed6f1dda",
-        "source_image": "assets/game/shop-2.png",
-        "credits_consumed": 60,
-        "geometry_quality": "detailed",
-        "texture_quality": "detailed",
-        "texture_version": "v3.5-20260815",
-        "triangles": 40318,
-        "bytes": 9058684
-      },
-      "preview_url": "assets/models/previews/shop-2-detail.webp",
+      "wall_materials": [],
+      "roof_ratio": 1,
       "sign": {
-        "height_ratio": 0.4096,
-        "width": 2.55,
-        "height": 0.24
+        "height_ratio": 0.59,
+        "width": 1.7,
+        "height": 0.28,
+        "board": true
       },
-      "delivery": {
-        "bytes": 3096812,
-        "original_bytes": 9058684,
-        "texture_max_dimension": 2048,
-        "texture_format": "webp",
-        "geometry_sha256": "df8ba520a3d14df0a6321f60d57703ca952525ce3819048bb009ac63ead29228"
-      }
+      "model_url": "assets/models/buildings/level-2-web.glb",
+      "bytes": 4194604,
+      "triangles": 42638,
+      "lite": {
+        "model_url": "assets/models/buildings/level-2-lite.glb",
+        "bytes": 2257964,
+        "triangles": 42638,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
     },
     "3": {
-      "model_url": "assets/models/shop-3-web.glb",
-      "wall_materials": [],
+      "level": 3,
+      "name": "工业旗舰店",
       "rotation_y": 0,
-      "wall_mask": "cream",
-      "roof_ratio": 0.91,
-      "generation": {
-        "provider": "Tripo",
-        "model": "v3.1-20260211",
-        "task_id": "bcdbb44b-40af-4833-83d1-edb53f8b43d0",
-        "source_image": "assets/game/shop-3.png",
-        "credits_consumed": 60,
-        "geometry_quality": "detailed",
-        "texture_quality": "detailed",
-        "texture_version": "v3.5-20260815",
-        "triangles": 45148,
-        "bytes": 10917460
+      "modular": true,
+      "wall_mask": null,
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-3-web.glb",
+      "bytes": 2108912,
+      "triangles": 38020,
+      "lite": {
+        "model_url": "assets/models/buildings/level-3-lite.glb",
+        "bytes": 1839784,
+        "triangles": 38020,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
       },
-      "preview_url": "assets/models/previews/shop-3-detail.webp",
-      "sign": {
-        "height_ratio": 0.2894,
-        "width": 2.2,
-        "height": 0.24,
-        "depth_offset": 0.018,
-        "x": 0.25
-      },
-      "delivery": {
-        "bytes": 3804508,
-        "original_bytes": 10917460,
-        "texture_max_dimension": 2048,
-        "texture_format": "webp",
-        "geometry_sha256": "cb342001cb703d89faf56392d247ccb0af94099e7dee3f9ff08b7ba743e64458"
-      }
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
     },
     "4": {
-      "model_url": "assets/models/shop-4-web.glb",
-      "wall_materials": [],
+      "level": 4,
+      "name": "未来商业街",
       "rotation_y": 0,
-      "wall_mask": "cream",
-      "roof_ratio": 0.95,
-      "generation": {
-        "provider": "Tripo",
-        "model": "v3.1-20260211",
-        "task_id": "a026ecae-ddbc-4c12-92a4-12afba4ccc64",
-        "source_image": "assets/game/shop-4.png",
-        "credits_consumed": 60,
-        "geometry_quality": "detailed",
-        "texture_quality": "detailed",
-        "texture_version": "v3.5-20260815",
-        "triangles": 40491,
-        "bytes": 11543020
+      "modular": true,
+      "wall_mask": null,
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-4-web.glb",
+      "bytes": 2705980,
+      "triangles": 68636,
+      "lite": {
+        "model_url": "assets/models/buildings/level-4-lite.glb",
+        "bytes": 2438036,
+        "triangles": 68636,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
       },
-      "preview_url": "assets/models/previews/shop-4-detail.webp",
-      "sign": {
-        "height_ratio": 0.296,
-        "width": 1.85,
-        "height": 0.3,
-        "depth_offset": 0.018,
-        "x": 0.2,
-        "rebuild": {
-          "width": 2.18,
-          "height": 0.64,
-          "depth": 1.7
-        }
-      },
-      "delivery": {
-        "bytes": 3939220,
-        "original_bytes": 11543020,
-        "texture_max_dimension": 2048,
-        "texture_format": "webp",
-        "geometry_sha256": "f1d3b8ff8aa945b64f5eb09cd634427f2f7758b04011c005f632ca1bd9fd87e0"
-      }
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
     },
     "5": {
-      "model_url": "assets/models/shop-5-web.glb",
+      "level": 5,
+      "name": "未来百货地标",
+      "rotation_y": 0,
+      "modular": true,
+      "wall_mask": null,
       "wall_materials": [],
-      "rotation_y": -1.5707963267948966,
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-5-web.glb",
+      "bytes": 3042464,
+      "triangles": 79500,
+      "lite": {
+        "model_url": "assets/models/buildings/level-5-lite.glb",
+        "bytes": 2774520,
+        "triangles": 79500,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    }
+  },
+  "shops": {
+    "1": {
+      "level": 0,
+      "name": "地摊起步",
+      "rotation_y": 0,
+      "modular": false,
       "wall_mask": "cream",
-      "roof_ratio": 0.96,
-      "generation": {
-        "provider": "Tripo",
-        "model": "v3.1-20260211",
-        "task_id": "0e4e161a-4f3e-40a9-9f4f-664119120ae3",
-        "source_image": "assets/game/shop-5.png",
-        "credits_consumed": 60,
-        "geometry_quality": "detailed",
-        "texture_quality": "detailed",
-        "texture_version": "v3.5-20260815",
-        "triangles": 39644,
-        "bytes": 11792972
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-0-web.glb",
+      "bytes": 4022660,
+      "triangles": 47044,
+      "lite": {
+        "model_url": "assets/models/buildings/level-0-lite.glb",
+        "bytes": 1961504,
+        "triangles": 47044,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
       },
-      "preview_url": "assets/models/previews/shop-5-detail.webp",
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    },
+    "2": {
+      "level": 2,
+      "name": "日式精品店",
+      "rotation_y": 0,
+      "modular": false,
+      "wall_mask": "cream",
+      "wall_materials": [],
+      "roof_ratio": 1,
       "sign": {
-        "height_ratio": 0.2222,
-        "width": 2.3,
-        "height": 0.3
+        "height_ratio": 0.59,
+        "width": 1.7,
+        "height": 0.28,
+        "board": true
       },
-      "delivery": {
-        "bytes": 4258420,
-        "original_bytes": 11792972,
-        "texture_max_dimension": 2048,
-        "texture_format": "webp",
-        "geometry_sha256": "1bddce42f4773eaedd8a42f1d6c5035d60723a685229c5e0a45e0dfae4417d21"
-      }
+      "model_url": "assets/models/buildings/level-2-web.glb",
+      "bytes": 4194604,
+      "triangles": 42638,
+      "lite": {
+        "model_url": "assets/models/buildings/level-2-lite.glb",
+        "bytes": 2257964,
+        "triangles": 42638,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    },
+    "3": {
+      "level": 3,
+      "name": "工业旗舰店",
+      "rotation_y": 0,
+      "modular": true,
+      "wall_mask": null,
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-3-web.glb",
+      "bytes": 2108912,
+      "triangles": 38020,
+      "lite": {
+        "model_url": "assets/models/buildings/level-3-lite.glb",
+        "bytes": 1839784,
+        "triangles": 38020,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    },
+    "4": {
+      "level": 4,
+      "name": "未来商业街",
+      "rotation_y": 0,
+      "modular": true,
+      "wall_mask": null,
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-4-web.glb",
+      "bytes": 2705980,
+      "triangles": 68636,
+      "lite": {
+        "model_url": "assets/models/buildings/level-4-lite.glb",
+        "bytes": 2438036,
+        "triangles": 68636,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
+    },
+    "5": {
+      "level": 5,
+      "name": "未来百货地标",
+      "rotation_y": 0,
+      "modular": true,
+      "wall_mask": null,
+      "wall_materials": [],
+      "roof_ratio": 1,
+      "model_url": "assets/models/buildings/level-5-web.glb",
+      "bytes": 3042464,
+      "triangles": 79500,
+      "lite": {
+        "model_url": "assets/models/buildings/level-5-lite.glb",
+        "bytes": 2774520,
+        "triangles": 79500,
+        "texture_max_dimension": 1024,
+        "texture_format": "webp"
+      },
+      "texture_max_dimension": 2048,
+      "texture_format": "webp"
     }
   },
   "island": {
-    "model_url": "assets/models/island-web.glb",
+    "model_url": "assets/models/island-flat-v2-web.glb",
     "rotation_y": -1.5707963267948966,
-    "surface_ratio": 0.9,
+    "surface_ratio": 0.8440585856793485,
     "generation": {
       "provider": "Tripo",
       "model": "v3.1-20260211",
@@ -191,11 +273,19 @@
     },
     "preview_url": "assets/models/previews/island-detail.webp",
     "delivery": {
-      "bytes": 3373020,
-      "original_bytes": 9958316,
+      "bytes": 2148216,
+      "triangles": 46958,
       "texture_max_dimension": 2048,
       "texture_format": "webp",
-      "geometry_sha256": "13bac261429e7e175d0b3e184d0a755a27d50ac8b5295c40e293d22a3964c7a9"
-    }
+      "refinement": "leveled paving geometry; preserved 3D grass, rocks, moss and cliff"
+    },
+    "lite": {
+      "model_url": "assets/models/island-flat-v2-lite.glb",
+      "bytes": 1197916,
+      "triangles": 32870,
+      "texture_max_dimension": 1024
+    },
+    "texture_max_dimension": 2048,
+    "texture_format": "webp"
   }
 }

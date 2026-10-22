@@ -1,17 +1,26 @@
 (function(){
   'use strict';
-  const G=window.EmcGame,S=window.EmcTutorialSave,C=window.EmcCopilot,K=window.EmcSky,$=id=>document.getElementById(id);
+  const M=window.EmcCompanion,G=window.EmcGame,S=window.EmcTutorialSave,C=window.EmcCopilot,K=window.EmcSky,$=id=>document.getElementById(id);
   const sceneURL=new URL('./emc-shop-scene.js',document.currentScript.src);sceneURL.search=new URL(document.currentScript.src).search;
-  const audio=window.EmcAudio.create();
+  const audio=window.EmcAudio.create(),juice=window.EmcJuice.create();
   const store=S.createStore(()=>window.localStorage),loaded=store.load();
+  let journey=null,companionFeedback=null,companionQuote='',perkExpanded=false,companionSaveOk=true;
+  const guidedPrompts=new Set();
+  const companionScope=()=>String(window.EmcSession?.current()?.player?.id||'guest')+':'+String(journey?.summary().project_id||'local')+(journey?.isDemo()?':demo':'')+(serverAgentProject()==='guest'?':guest-ai':'');
+  const companionStore=M.createStore({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value)},companionScope);
+
   let tutorial=loaded.data;
   const rawGame=tutorial.levels.L1.exercise_result.shop_game_v1;
   let game=G.normalize(rawGame),panel=null,tab='main',activeTask=null,answer=null,feedback=null,selected=null,toastTimer,bagTab='wall',paintDrag=null,paintUndo=null;
-  let continueLogin=null;
+  let continueLogin=null,chatWasCloud=false,localChatHistory=game.npc_chat;
   const partnerName=()=>game.companion_name;
+  if(!game.companion_named)game.companion_name='小商';
+  const growthStage=()=>journey?journey.progress().stage-1:G.stage(game);
+  const mainTask=()=>{if(!journey)return G.current(game);const current=journey.progress().current;return current?{id:current.id,name:current.title,topic:current.topic}:{id:'first_order',name:'卖出真实第一单',topic:'最终试炼'};};
   const futureGame=rawGame&&rawGame.schema_version>1;
   let npcState=null,conversation=false,sending=false,bubbleUntil=0,bubbleKind=null,lastReminderAt=performance.now()-28000,replyController=null,speechEpoch=0;
   let homeScene=null,homeStage=0,homeToken=0,homeReady=Promise.resolve();
+  const mail=window.EmcMissionMail.create({sound:n=>audio.play(n),hold:value=>{const guide=homeScene?.guide;if(!guide)return null;guide.setHoldingLetter(value);const status=guide.status(true);return value&&status.visible?{...status.screen,delay:1600}:null;},locate:()=>homeScene?.guide?.letterScreen()});
   function sceneLoading(context){
     finishConversation();npcState=null;$('npcAnchor').hidden=true;updateChatAvailability();
     $('scene').dataset.loading=context;$('scene').setAttribute('aria-busy','true');$('sceneLoader').hidden=false;$('sceneLoader').dataset.state='loading';$('retryScene').hidden=true;
@@ -28,14 +37,14 @@
   const theme=()=>skyState.ui_theme;
   const rewardOwned=id=>game.side.some(side=>G.SIDE.find(t=>t.id===side).reward===id);
   function saveStatus(status){
-    const messages={empty:'教学模拟 · 当前浏览器自动保存',restored:'教学模拟 · 已恢复本地进度',saved:'教学模拟 · 已保存',recovered:'已恢复备份 · 原始存档会保留',corrupt:'存档损坏 · 操作后先备份原文再保存',unsupported:'存档来自更新版本 · 当前进度不会保存',unavailable:'保存失败 · 刷新可能丢失进度',recovery_full:'原始存档已保护 · 请先处理恢复副本',invalid:'数据格式异常 · 未覆盖存档'};
+    const messages={empty:'小岛设置 · 当前浏览器保存',restored:'小岛设置 · 已恢复',saved:'小岛设置 · 已保存',recovered:'已恢复备份 · 原始存档会保留',corrupt:'存档损坏 · 操作后先备份原文再保存',unsupported:'存档来自更新版本 · 当前进度不会保存',unavailable:'保存失败 · 刷新可能丢失进度',recovery_full:'原始存档已保护 · 请先处理恢复副本',invalid:'数据格式异常 · 未覆盖存档'};
     $('saveStatus').textContent=messages[status]||messages.unavailable;
     $('saveRetry').hidden=!['unavailable','invalid'].includes(status);
     document.querySelector('.save-footer').classList.toggle('warning',!['empty','restored','saved'].includes(status));
   }
   function save(){
     if(futureGame){saveStatus('unsupported');return false;}
-    tutorial.levels.L1.exercise_result.shop_game_v1=game;
+    tutorial.levels.L1.exercise_result.shop_game_v1={...game,npc_chat:chatWasCloud?localChatHistory:game.npc_chat};
     G.MAIN.forEach(task=>{
       const level=tutorial.levels[task.level];
       if(game.main.includes(task.id))level.task_checks[task.id]=true;
@@ -67,55 +76,65 @@
     toastTimer=setTimeout(()=>{$('toast').className='toast'},upgrade?5000:3300);
   }
   function render(){
-    renderPartnerName();renderTheme();const level=G.stage(game),stage=G.STAGES[level],next=G.STAGES[level+1],xp=G.xp(game),task=G.current(game);
-    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=stage.title;
+    renderPartnerName();renderSocialChat();renderTheme();const level=growthStage(),stage=journey?{...G.STAGES[level],xp:[0,320,640,800,960][level]}:G.STAGES[level],next=journey?(level<4?{xp:[320,640,800,960][level]}:null):G.STAGES[level+1],xp=journey?journey.progress().xp:G.xp(game),task=mainTask();
+    $('shopOwner').textContent=game.shop_name;$('stageCount').textContent=(level+1)+' / 5';$('stageTitle').textContent=journey?.isDemo()?'演示 · '+window.EmcJourney.GROWTH[level]:journey?window.EmcJourney.GROWTH[level]:stage.title;
     $('xpCount').textContent=next?xp+' / '+next.xp:xp+' · 满级';
     const progress=next?Math.min(100,(xp-stage.xp)/(next.xp-stage.xp)*100):100;
     $('xpFill').style.width=progress+'%';
     const progressbar=document.querySelector('.xp-track');progressbar.setAttribute('aria-valuenow',String(xp));progressbar.setAttribute('aria-valuemax',String(next?.xp||Math.max(xp,800)));
     $('sceneCaption').innerHTML=escape(stage.name)+' <span>·</span> Lv.'+(level+1);
-    $('questChapter').textContent=task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
-    $('questHint').textContent=task?'完成学习挑战，获得 80 经验':'继续探索支线，装扮你的百货大楼';
-    $('continueText').textContent=task?'继续主线':'回顾学习';$('continueHint').textContent=task?.name||'你的下一次经营，才刚开始';
-    refreshInventoryDots();
-    $('guideText').textContent=next?'主线让小店成长，支线带来意外惊喜。':'百货大楼落成了，知识会陪你走得更远。';
+    $('questChapter').textContent=journey?mainTask().id+' · '+mainTask().topic:task?'主线 · '+task.topic:'全部主线已完成';$('questTitle').textContent=task?.name||'让知识，成为你的经营能力';
+    $('questHint').textContent='领任务 · 带锦囊 · 交成果 · 等确认';
+    $('continueText').textContent='';$('continueHint').textContent=journey?.profile().category?task?.name||'准备真实第一单':'先给小店定个方向';
+    refreshInventoryDots();renderJournal();
+    $('guideText').textContent='目标第一单，先拿下这一步！';
     if(panel)renderPanel();
     homeReady=syncHome();
   }
   async function syncHome(){
-    const stage=G.stage(game)+1;
-    if(homeScene&&homeStage===stage){homeScene.draft=game;homeScene.sync();homeScene.setShopName(game.shop_name);homeScene.setAtmosphere(skyState.light);return homeScene.ready;}
-    if(homeStage===stage)return;
-    const token=++homeToken;selected=null;homeStage=stage;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=false;
+    const stage=growthStage()+1,progress=journey?.progress(),modelLevel=progress?(progress.certified||['approved','demo-approved'].includes(progress.firstOrder)?5:progress.completed>=5?4:progress.completed>=4?3:progress.completed>=2?2:progress.completed>=1?1:0):[0,2,3,4,5][stage-1],sceneKey=stage+':'+modelLevel;
+    if(homeScene&&homeStage===sceneKey){homeScene.draft=game;homeScene.sync();homeScene.setShopName(game.shop_name);homeScene.setAtmosphere(skyState.light);return homeScene.ready;}
+    if(homeStage===sceneKey)return;
+    const token=++homeToken;selected=null;homeStage=sceneKey;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=false;
     sceneLoading('home');
     const deadline=setTimeout(()=>{if(token!==homeToken)return;++homeToken;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed('场景加载超时，可以重试，或先继续学习。');},210000);
     try{
       const {ShopScene}=await import(sceneURL.href);if(token!==homeToken)return;
-      const candidate=new ShopScene($('homeCanvas'),{stage,framingElement:$('sceneFraming'),night:theme()==='night',atmosphere:skyState.light,shopName:game.shop_name,draft:game,onLoadProgress:p=>{if(token!==homeToken)return;const label=p.phase==='shop'?'店铺':'小岛';$('sceneLoadHint').textContent=p.phase==='manifest'?'正在读取场景清单…':p.phase==='compile'?'正在准备灯光与材质…':p.retrying?'网络中断，正在重试下载'+label+'…':p.decoding?'正在准备'+label+'贴图…':'正在下载'+label+'…'+(p.total?' '+Math.min(100,Math.round(p.loaded/p.total*100))+'%':p.loaded?' '+(p.loaded/1048576).toFixed(1)+' MB':'');},onContextLost:()=>{if(token!==homeToken)return;++homeToken;homeStage=0;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=true;sceneFailed('显卡连接中断，请点击重新加载。');},onNpcFrame:updateNpcFrame,isInventoryPoint:e=>panel==='inventory'&&inBackpack(e),onReturnDecoration:id=>{audio.play('cancel');game.placements=game.placements.filter(p=>p.id!==id);selected=null;homeScene.sync();save();renderInventory();},onSelect:id=>{if(id)audio.play('pick');selected=id;if(panel==='inventory')renderInventory();},onChange:()=>{audio.play('place');save();if(panel==='inventory')renderInventory();}});homeScene=candidate;
+      const candidate=new ShopScene($('homeCanvas'),{stage,modelLevel,quality:game.graphics_quality,framingElement:$('sceneFraming'),night:theme()==='night',atmosphere:skyState.light,shopName:game.shop_name,draft:game,onLoadProgress:p=>{if(token!==homeToken)return;const label=p.phase==='character'?partnerName():p.phase==='shop'?'店铺':'小岛';$('sceneLoadHint').textContent=p.phase==='manifest'?'正在读取场景清单…':p.phase==='compile'?'正在准备灯光与材质…':p.retrying?'网络中断，正在重试下载'+label+'…':p.decoding?'正在准备'+label+'贴图…':'正在下载'+label+'…'+(p.total?' '+Math.min(100,Math.round(p.loaded/p.total*100))+'%':p.loaded?' '+(p.loaded/1048576).toFixed(1)+' MB':'');},onContextLost:()=>{if(token!==homeToken)return;++homeToken;homeStage=0;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=true;sceneFailed('显卡连接中断，请点击重新加载。');},onNpcFrame:updateNpcFrame,isInventoryPoint:e=>panel==='inventory'&&inBackpack(e),onReturnDecoration:id=>{audio.play('cancel');game.placements=game.placements.filter(p=>p.id!==id);selected=null;homeScene.sync();save();renderInventory();},onSelect:id=>{if(id)audio.play('pick');selected=id;if(panel==='inventory')renderInventory();},onChange:()=>{audio.play('place');save();if(panel==='inventory')renderInventory();}});homeScene=candidate;
       await candidate.ready;if(token!==homeToken)return;if(candidate.source!=='tripo_model')throw new Error('Scene assets unavailable');
       await candidate.prepareFrame();if(token!==homeToken)return;
       $('homeCanvas').hidden=false;sceneLoaded();
     }catch(error){if(token!==homeToken)return;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed(/^[\u4e00-\u9fff]/.test(error.message)?error.message:'场景资源加载失败，请检查网络后重试。');}finally{clearTimeout(deadline);}
   }
-  function openPanel(name){
-    audio.play('open');
+  function openPanel(name,sound='open'){
+    document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');
+    audio.play(sound);
     cancelPaint();finishConversation();
+    const centered=name!=='journey'&&name!=='inventory',modal=name!=='inventory';
+    if(name!=='journey')mail.cancel();$('missionBackdrop').hidden=!modal;$('missionBackdrop').classList.toggle('paper-visible',name==='journey');$('missionBackdrop').classList.toggle('panel-visible',centered);$('drawer').classList.toggle('centered-panel',centered);if(modal){$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');$('drawer').setAttribute('aria-labelledby','panelTitle');}else{$('drawer').removeAttribute('role');$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('aria-labelledby');}
     window.EmcRoute?.onView(name);
     panel=name;activeTask=null;answer=null;feedback=null;
-    $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');renderPanel();$('closePanel').focus({preventScroll:true});
+    $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');$('drawer').classList.toggle('journey-card',name==='journey');$('drawer').classList.toggle('companion-panel',name==='companion');renderPanel();$('closePanel').focus({preventScroll:true});
   }
-  function closePanel(){continueLogin=null;if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
+  function closePanel(){mail.close();continueLogin=null;if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('role');$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
   function renderPanel(){
-    const titles={quests:['ONE SMALL STEP','任务手册'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字']};
+    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],journal:['MY SHOP JOURNAL','经营手帐'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
+    $('panelBody').classList.toggle('journey-body',panel==='journey');
     $('panelEyebrow').textContent=titles[panel][0];$('panelTitle').textContent=titles[panel][1];
-    if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
+    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();if($('panelBody').querySelector('.award-view'))$('panelTitle').textContent='通关证书';
   }
+  function renderMissionList(){
+    const p=journey.profile(),state=journey.progress(),labels={approved:'已完成',pending:'确认中',rejected:'待补充',ready:'进行中',draft:'草稿',locked:'未解锁'};
+    $('panelBody').innerHTML=`<p class="mission-list-intro">从一间小店，到第一单。这里查看路线和进度，具体任务写在小商的来信里。</p><div class="mission-list-info"><span>${escape(window.EmcJourney.PLATFORMS[p.platform]?.name||'待选平台')}</span><span>${escape(p.category||'待定类目')}</span><span>${state.completed} / 6 关${journey.isDemo()?' · 演示':''}</span></div><ol class="mission-list">${state.levels.map((l,i)=>`<li><button data-mail-level="${l.id}" ${l.status==='locked'&&!journey.isDemo()?'disabled':''}><i>${l.status==='approved'?'✓':i+1}</i><span><b>${escape(l.title)}</b><small>${l.id} · ${l.topic}</small></span><em>${labels[l.status]}</em></button></li>`).join('')}<li><button data-mail-level="first_order" ${state.completed<6&&!journey.isDemo()?'disabled':''}><i>✦</i><span><b>卖出真实第一单</b><small>最终试炼 · 订单核验</small></span><em>${state.completed<6?'未解锁':'待挑战'}</em></button></li></ol><p class="mission-list-note">${journey.isDemo()?'试玩支持直接预览各关，演示经验与真实成果独立保存。':'完成实操并通过核验后，才能解锁下一关。'}</p><button class="j-button primary" data-mail-current>拆开当前任务来信 →</button><button class="j-button" data-mail-side>查看可选支线</button>${!window.EmcSession?.isLoggedIn()?'<p class="muted-note">可继续游客试玩；登录后才能保存正式经营成果。</p><button type="button" class="j-button" data-account-action="login">登录 / 注册</button>':''}`;
+  }
+  document.addEventListener('click',e=>{const level=e.target.closest('[data-mail-level]');if(level)openMission(null,level.dataset.mailLevel);else if(e.target.closest('[data-mail-current]'))openMission();else if(e.target.closest('[data-mail-side]')){tab='side';openPanel('quests');}});
   function renderQuests(){
+    if(tab==='main'&&journey){startMain();return;}
     const body=$('panelBody');
-    const tabs=`<div class="panel-tabs"><button class="${tab==='main'?'active':''}" data-tab="main">主线学习 <small>${game.main.length}/12</small></button><button class="${tab==='side'?'active':''}" data-tab="side">可选支线 <small>${game.side.length}/6</small></button></div>`;
+    const tabs=`<div class="panel-tabs"><button class="${tab==='main'?'active':''}" data-tab="main">回到主线任务卡</button><button class="${tab==='side'?'active':''}" data-tab="side">可选支线 <small>${game.side.length}/6</small></button></div>`;
     if(activeTask){
       const t=activeTask,done=(t.level==='side'?game.side:game.main).includes(t.id);
-      body.innerHTML=tabs+`<p class="eyebrow">${escape(t.topic)} · 教学挑战</p><h3 class="quest-heading">${escape(t.name)}</h3><p class="quest-question">${escape(t.question)}</p><div class="quest-options">${t.options.map((o,i)=>`<button class="quest-option ${answer===i?'selected':''}" data-answer="${i}" aria-pressed="${answer===i}" ${done?'disabled':''}><span class="choice-key">${String.fromCharCode(65+i)}</span><span>${escape(o)}</span></button>`).join('')}</div>${feedback?`<div class="quest-feedback ${feedback.ok?'success':''}" role="status">${escape(feedback.message)}</div>`:''}<div class="quest-reward"><span>✦ 经验 +${t.xp}</span>${t.reward?`<span>解锁 ${escape(G.DECOR.find(d=>d.id===t.reward).name)}</span>`:''}</div><button class="small-button gold quest-submit" id="submitAnswer" ${!done&&answer===null?'disabled':''}>${done?(t.level==='side'?'返回支线列表':'继续下一步'):'确认我的判断'}</button><p class="muted-note">可以随时离开，已完成的进度会保留。<br>当前为教学练习，不会执行真实平台操作。</p>`;
+      body.innerHTML=tabs+`<p class="eyebrow">${escape(t.topic)} · 教学挑战</p><h3 class="quest-heading">${escape(t.name)}</h3><p class="quest-question">${escape(t.question)}</p><div class="quest-options">${t.options.map((o,i)=>`<button class="quest-option ${answer===i?'selected':''}" data-answer="${i}" aria-pressed="${answer===i}" ${done?'disabled':''}><span class="choice-key">${String.fromCharCode(65+i)}</span><span>${escape(o)}</span></button>`).join('')}</div>${feedback?`<div class="quest-feedback ${feedback.ok?'success':''}" role="status">${escape(feedback.message)}</div>`:''}<div class="quest-reward"><span>${t.level==='side'?'✦ 完成装饰挑战':'✦ 经验 +'+t.xp}</span>${t.reward?`<span>解锁 ${escape(G.DECOR.find(d=>d.id===t.reward).name)}</span>`:''}</div><button class="small-button gold quest-submit" id="submitAnswer" ${!done&&answer===null?'disabled':''}>${done?(t.level==='side'?'返回支线列表':'继续下一步'):'确认我的判断'}</button><p class="muted-note">可以随时离开，已完成的进度会保留。<br>当前为教学练习，不会执行真实平台操作。</p>`;
     }else if(tab==='main'){
       body.innerHTML=tabs+(game.main.length===G.MAIN.length?`<div class="completed-banner">${icons('star')}<h3>从第一步，到独当一面。</h3><p>六个学习阶段已完成。<br>你的小店已成长为百货大楼，<br>也可以随时回顾每一项练习。</p></div>`:'')+G.MAIN.map((t,i)=>`<button class="quest-row" data-task="${t.id}"><span class="eyebrow">${String(i+1).padStart(2,'0')}</span><span class="row-text"><b>${escape(t.name)}</b><small>${t.level} · ${t.topic} · +80 经验</small></span><span>${game.main.includes(t.id)?'✓ 已完成':G.current(game)?.id===t.id?'进行中 →':'可预览'}</span></button>`).join('');
     }else{
@@ -150,8 +169,8 @@
     refreshInventoryDots();
   }
   function renderCollection(){
-    const current=G.stage(game);
-    $('panelBody').innerHTML='<p class="muted-note">五次成长，六段电商学习。<br>达到经验门槛并完成对应主线，小店就会蜕变。</p>'+G.STAGES.map((s,i)=>`<div class="stage-item ${i===current?'current':''}"><img src="assets/game/shop-${i+1}.png" alt="${s.name}" loading="lazy"><div><b>Lv.${i+1} ${s.name}</b><p>${s.title}<br>${i===0?'从这里出发':s.xp+' 经验 · 完成 '+s.mains+' 项主线'}</p></div><span class="stage-state">${i===current?'当前店铺':i<current?'已达成':'待成长'}</span></div>`).join('')+'<p class="muted-note">建筑等级代表教学成长，不是平台成交或正式认证。</p>';
+    const current=growthStage();
+    $('panelBody').innerHTML='<p class="muted-note">五段成长，从小店到真实第一单。<br>关卡成果确认后成长，首单核验通过才成为破零卖家。</p>'+G.STAGES.map((s,i)=>`<div class="stage-item ${i===current?'current':''}"><img src="assets/game/buildings-v2/level-${[0,2,3,4,5][i]}-reference.png" alt="${s.name}" loading="lazy"><div><b>Lv.${i+1} ${s.name}</b><p>${window.EmcJourney.GROWTH[i]}<br>${i===0?'L1 定方向 · L2 会选品':['','完成 L2','完成 L4','完成 L5 · L6 复盘','真实第一单核验通过'][i]}</p></div><span class="stage-state">${i===current?'当前店铺':i<current?'已达成':'待成长'}</span></div>`).join('')+'<p class="muted-note">建筑等级代表教学成长，不是平台成交或正式认证。</p>';
   }
   function accountSettings(){
     const me=window.EmcSession?.current(),logged=me?.authenticated;
@@ -160,6 +179,7 @@
   function renderPartnerName(){
     const name=partnerName();$('npcInteract').querySelector('span').textContent=name;$('npcInteract').title=name;$('npcInteract').setAttribute('aria-label','和伙伴'+name+'对话');
     $('npcBubble').querySelector('header b').textContent=name;$('npcBubble').querySelector('header b').title=name;$('npcBubble').setAttribute('aria-label',name+'的消息');
+    $('copilotProfile').setAttribute('aria-label','查看'+name+'的角色面板');$('copilotProfile').title=name+' · 我的伙伴';
     $('copilotInput').placeholder='问问'+name+'，下一步怎么做…';$('copilotInput').setAttribute('aria-label','给'+name+'发消息');updateChatAvailability();
   }
   function partnerField(){return `<label for="partnerNameInput">伙伴名称</label><input id="partnerNameInput" maxlength="24" value="${escape(partnerName())}" autocomplete="off" aria-describedby="partnerNameHint partnerNameError"><p class="muted-note" id="partnerNameHint">1—12 个中英文字或数字，也可用空格、·、_、-。以后可以修改。</p><p id="partnerNameError" class="muted-note" role="status"></p>`;}
@@ -181,12 +201,28 @@
   $('panelBody').addEventListener('input',e=>{if(e.target.id==='partnerNameInput'){$('partnerNameError').textContent='';e.target.removeAttribute('aria-invalid');}});
   function audioSettings(){
     const a=audio.state();
-    return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">小岛开张 · 8-bit 原创循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
+    return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">开张冲冲冲 · 128 BPM 原创街机循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
   }
+  function graphicsSettings(){return `<section class="setting-field" aria-label="画面质量"><p class="field-label">画面质量</p><div class="setting-actions">${[['auto','自动适配'],['smooth','流畅优先'],['detail','精细画面']].map(([id,name])=>`<button class="small-button" data-graphics-quality="${id}" aria-pressed="${game.graphics_quality===id}">${name}</button>`).join('')}</div><p class="muted-note">自动适配会为手机和较低配置使用轻量模型。感觉卡顿时，可以选择流畅优先；切换画质会重新加载小岛。</p></section>`;}
   function renderSettings(){
-    $('panelBody').innerHTML=accountSettings()+partnerSettings()+audioSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">这是一个电商教学小游戏。当前教学进度与装修仅保存在本浏览器，清除站点数据或换设备可能丢失。<br><br>正式经营与人工认证继续由原有服务端接口处理，本试玩不模拟认证通过。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">五级店铺与悬浮岛已接入 Tripo 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
+    $('panelBody').innerHTML=accountSettings()+`<section class="setting-field" aria-label="演示模式"><p class="field-label">演示模式</p><div class="audio-row"><span>试玩全部关卡</span><button type="button" class="small-button" data-demo-toggle role="switch" aria-label="演示模式" aria-checked="${Boolean(journey?.isDemo())}">${journey?.isDemo()?"开启":"关闭"}</button></div><p class="muted-note">使用示例材料体验完整旅程，不影响正式进度。关闭后回到正式模式，试玩记录会保留。</p>${journey?.isDemo()?journey.demoSettings():''}</section>`+partnerSettings()+audioSettings()+graphicsSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">伙伴设置、装修和旧版练习保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>完成任务后交回真实成果，确认通过才解锁后续关卡；提交文件不会自动视作通关。</p><button class="small-button" id="exportSave">导出教学存档</button><p class="muted-note">六种成长外形与立体浮岛已接入新版 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
   }
-  function startMain(){openPanel('quests');tab='main';activeTask=G.current(game);answer=null;feedback=null;renderQuests();}
+
+  function journalState(){
+    const state=journey?.progress(),p=journey?.profile(),id=state?.current?.id||'first_order',story=window.EmcJourneyStory.get(id),records=journey?.practiceRecords()||[];
+    const methods=(state?.levels||[]).filter(l=>l.status==='approved').flatMap(l=>window.EmcJourney.rewards(l.id,p?.platform));
+    return {state,p,id,story,records,methods};
+  }
+  function renderJournal(){
+    const host=$('shopJournal');if(!host||!journey)return;const j=journalState(),welcome=journey.summary().view==='welcome';
+    host.innerHTML=`<header class="journal-heading"><b>经营手帐</b><small>FIELD NOTES</small></header><p class="journal-now"><b>${welcome?'从这里开始':'正在学 · '+(j.state.current?.topic||'真实第一单')}</b>${escape(welcome?'认识你的小店，先跟着小商做一件小事。':j.story.learn)}</p><div class="journal-counts"><span><strong>${j.records.length}</strong>份草稿</span><span><strong>${j.methods.length}</strong>个方法</span></div><button type="button" data-panel="journal" aria-label="打开经营手帐">翻开手帐 <span aria-hidden="true">↗</span></button>`;host.querySelector('button').onclick=()=>openPanel('journal');
+  }
+  function renderJournalPanel(){
+    const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${journey.isDemo()?'DEMO · 演示手帐':'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">工作纸是你的个人草稿，保存在当前浏览器。试玩与正式记录分开，填写或勾选都不会自动通关。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的工作纸</h4>${j.records.length?j.records.filter(r=>journey.isDemo()||Number(r.id.slice(1))<=j.state.completed+1).map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${r.filled} 处记录 · 从来信附件继续整理</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有草稿。取出信里的实践附件，写下的想法会自动留在这里。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.external?m.url:'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
+  }
+  function openMission(entry,level){if(mail.state().opening)return;closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level);else journey.open(entry);$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');});}
+  function startMain(){openMission();}
+
   function showTask(id){
     const t=[...G.MAIN,...G.SIDE].find(t=>t.id===id);if(!t)return;
     activeTask=t;answer=null;feedback=null;
@@ -197,20 +233,24 @@
     if(!activeTask)return;
     const done=(activeTask.level==='side'?game.side:game.main).includes(activeTask.id);
     if(done){activeTask=activeTask.level==='side'?null:G.current(game);answer=null;feedback=null;renderQuests();return;}
-    const before=G.stage(game),result=G.complete(game,activeTask.id,answer);
+    const before=growthStage(),result=G.complete(game,activeTask.id,answer);
     feedback={ok:result.ok,message:result.ok?result.why:result.reason};
     if(result.ok){
       save();render();
-      const after=G.stage(game);audio.play(after>before?'upgrade':'reward');toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'获得 '+result.xp+' 经验'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
+      const after=growthStage();audio.play(after>before?'upgrade':'reward');juice.burst($('sideButton'));toast(after>before?'小店升级！现在是 Lv.'+(after+1)+' '+G.STAGES[after].name:'支线挑战完成'+(result.reward?' · '+G.DECOR.find(d=>d.id===result.reward).name+' 已放入背包':''),after>before);
     }else{audio.play('wrong');renderQuests();}
   }
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!$('scene').dataset.loading;}
   function updateChatAvailability(){
     const available=npcAvailable(),ready=available&&!sending&&!paintDrag?.active;
     $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||!$('copilotInput').value.trim();
-    const text=!homeScene?.presentable?partnerName()+'正在上岛…':!available?(npcState?.occluded?partnerName()+'被店铺挡住了，转一转小岛再聊':'转一转小岛，让'+partnerName()+'回到视野里'):sending?partnerName()+'正在回应…':typeof window.EmcCopilotTransport==='function'?partnerName()+' · AI 副驾':partnerName()+' · 本地教学演示';
+    const text=!homeScene?.presentable?partnerName()+'正在上岛…':!available?(npcState?.occluded?partnerName()+'被店铺挡住了，转一转小岛再聊':'转一转小岛，让'+partnerName()+'回到视野里'):sending?partnerName()+'正在回应…':partnerName()+' · '+chatSourceLabel();
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
+    if(panel==='companion'){
+      const presence=$('panelBody').querySelector('.companion-presence');if(presence){const label=available?'就在岛上，随时聊聊':'转动小岛，让我回到视野';if(presence.textContent!==label)presence.textContent=label;presence.classList.toggle('away',!available);}
+      $('panelBody').querySelectorAll('[data-companion-talk]').forEach(button=>{if(button.disabled!==!ready)button.disabled=!ready;});
+    }
   }
   function fitNpcCloud(){
     const bubble=$('npcBubble');if(bubble.hidden)return;
@@ -225,12 +265,12 @@
   function updateNpcFrame(state){
     npcState=state;
     const available=npcAvailable(),anchor=$('npcAnchor');anchor.hidden=!available;
-    if(available){anchor.style.left=state.screen.x+'px';anchor.style.top=state.screen.y+'px';const width=$('npcBubble').offsetWidth||(innerWidth<=370?200:innerWidth<=700?230:270);const offset=Math.max(width/2+12,Math.min(innerWidth-width/2-12,state.screen.x))-state.screen.x;$('npcBubble').style.left=offset+'px';$('npcBubble').style.setProperty('--tail-x',Math.max(12,Math.min(width-22,width/2-offset-5))+'px');if(innerWidth<=700){const bubble=$('npcBubble'),speech=$('npcSpeech'),chrome=bubble.hidden?138:bubble.offsetHeight-speech.clientHeight,ceiling=document.querySelector('.player-card').getBoundingClientRect().bottom+8;const limit=Math.max(40,Math.min(140,Math.floor((state.screen.y-40-ceiling-chrome)/20)*20));bubble.style.setProperty('--npc-text-max',limit+'px');}else $('npcBubble').style.removeProperty('--npc-text-max');}
+    if(available){anchor.style.left=state.screen.x+'px';anchor.style.top=state.screen.y+'px';const width=$('npcBubble').offsetWidth||(innerWidth<=370?200:innerWidth<=700?230:270);const offset=Math.max(width/2+12,Math.min(innerWidth-width/2-12,state.screen.x))-state.screen.x;$('npcBubble').style.left=offset+'px';$('npcBubble').style.setProperty('--tail-x',Math.max(12,Math.min(width-22,width/2-offset-5))+'px');if(innerWidth<=700){const bubble=$('npcBubble'),speech=$('npcSpeech'),chrome=bubble.hidden?108:bubble.offsetHeight-speech.clientHeight,ceiling=Math.max(...['.player-card','.shortcuts','.shop-journal'].map(selector=>document.querySelector(selector).getBoundingClientRect().bottom))+8;const limit=Math.max(20,Math.min(80,Math.floor((state.screen.y-28-ceiling-chrome)/20)*20));bubble.style.setProperty('--npc-text-max',limit+'px');}else $('npcBubble').style.removeProperty('--npc-text-max');}
     else if(conversation||!$('npcBubble').hidden){finishConversation();}
     fitNpcCloud();updateChatAvailability();
   }
   function finishConversation(){
-    speechEpoch++;conversation=false;homeScene?.guide?.setTalking(false);$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;
+    speechEpoch++;conversation=false;homeScene?.guide?.setTalking(false);homeScene?.guide?.stopSpeaking();$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;
   }
   function startConversation(){
     if(!npcAvailable()||!homeScene?.guide?.setTalking(true))return false;
@@ -238,39 +278,123 @@
   }
   function speak(text,kind='reply',source){
     if(!npcAvailable())return;
-    audio.play('message');
+    audio.play('message');homeScene?.guide?.speak(text);
     bubbleKind=kind;bubbleUntil=performance.now()+(kind==='reminder'?6500:Math.max(12000,Math.min(24000,text.length*150)));
-    $('npcSpeech').textContent=text;$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||(typeof window.EmcCopilotTransport==='function'?'AI 副驾':'本地教学演示');$('npcBubble').hidden=false;
-    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';fitNpcCloud();
+    $('npcSpeech').textContent=text;$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||chatSourceLabel();$('npcBubble').hidden=false;
+    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';$('npcMissionActions').hidden=!journey||!['reply','mission'].includes(kind);fitNpcCloud();
   }
+  let visibleCompanionScope='',visibleCompanionLevel='';
+  const agentScopes=new Set();
+  function serverAgentProject(){return (!journey?.isDemo()&&window.EmcSession?.isLoggedIn()?journey?.summary().project_id:null)||(window.EmcAgentClient?.guestAvailable()?'guest':null);}
+  window.EmcAgentClient?.configure({contextProvider:()=>journey?.context()||{}});
+  window.addEventListener('emc-agent-ready',()=>{renderSocialChat();if(panel==='companion')renderCompanion();});
+  function syncServerCompanion(){
+    const id=serverAgentProject(),scope=companionScope();if(!id||!window.EmcAgentClient||agentScopes.has(scope))return;
+    agentScopes.add(scope);
+    Promise.all([window.EmcAgentClient.activity(id),window.EmcAgentClient.history(id)]).then(([state,history])=>{
+      if(scope!==companionScope()||sending)return;
+      game.npc_chat=history.items.flatMap(turn=>[{role:'user',text:turn.message,source:'local-guide'},{role:'assistant',text:turn.reply.text,source:turn.reply.source}]);
+      renderSocialChat();if(panel==='companion')renderCompanion();
+    }).catch(()=>{if(scope===companionScope())toast('伙伴云端存档暂未接通，发送消息时会重试。');});
+  }
+  async function refreshEmotion(){
+    const id=serverAgentProject(),scope=companionScope();if(!id||document.hidden||sending||!window.EmcAgentClient)return;
+    try{await window.EmcAgentClient.activity(id);if(scope!==companionScope()||sending)return;renderSocialChat();if(panel==='companion')renderCompanion();}catch(_){}
+  }
+  setInterval(refreshEmotion,30000);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)window.EmcAgentClient?.pause(serverAgentProject());else refreshEmotion();});
+  function currentCompanionTask(){const task=journey?.progress().current;return task?{...task,name:task.title,required_evidence:task.slots.filter(s=>s.required).map(s=>s.label)}:null;}
+  function readCompanion(){
+    const scope=companionScope();if(scope!==visibleCompanionScope){if(chatWasCloud)game.npc_chat=localChatHistory;if(serverAgentProject()){if(!chatWasCloud)localChatHistory=game.npc_chat;game.npc_chat=[];chatWasCloud=true;}else chatWasCloud=false;agentScopes.delete(scope);visibleCompanionScope=scope;companionFeedback=null;companionQuote='';perkExpanded=false;}
+    const level=currentCompanionTask()?.id||'first_order';if(level!==visibleCompanionLevel){visibleCompanionLevel=level;companionFeedback=null;companionQuote='';perkExpanded=false;}
+    if(serverAgentProject()){syncServerCompanion();const practice=M.enter(companionStore.read(),level),live=window.EmcAgentClient?.snapshot(serverAgentProject());return {...practice,affinity:live?.affinity??practice.affinity,source:live?'server':'local-practice'};}
+    const previous=companionStore.read(),next=M.enter(previous,level);if(previous.level!==next.level)companionSaveOk=companionStore.save(next);return next;
+  }
+  function openCompanion(introduce=false){
+    openPanel('companion');
+    if(introduce&&npcAvailable()&&startConversation()){
+      const task=currentCompanionTask(),text=companionBrief(task,task?.status,partnerName());companionQuote=text;speak(text,'mission','本地任务引导');
+      if(game.npc_chat.at(-1)?.text!==text)appendChat('assistant',text,'local-guide');renderCompanion();
+    }
+  }
+  function askCompanion(text,send=false){
+    const prompt=String(text).slice(0,240);guidedPrompts.add(prompt);if(guidedPrompts.size>30)guidedPrompts.delete(guidedPrompts.values().next().value);
+    $('copilotInput').value=prompt;updateChatAvailability();
+    if(!npcAvailable()){toast('转一转小岛，让'+partnerName()+'回到视野里再聊。');return;}
+    $('copilotInput').focus({preventScroll:true});if(send)$('copilotForm').requestSubmit();
+  }
+  function renderCompanion(){
+    const body=$('panelBody'),scroll=body.scrollTop,state=readCompanion(),task=currentCompanionTask(),name=escape(partnerName()),available=npcAvailable(),owned=state.perks.includes(task?.id),last=companionFeedback;
+    const status={ready:'一起开始',draft:'整理成果',pending:'成果确认中',rejected:'补齐材料'}[task?.status]||'准备最终试炼';
+    const btn=(action,text,primary=false,talk=false)=>`<button type="button" class="${primary?'primary':'small-button'}" data-companion-action="${action}" ${talk?'data-companion-talk':''} ${talk&&!available?'disabled':''}>${text}</button>`;
+    const meter=(id,label,value,description)=>`<div class="companion-meter ${id}"><label>${label}<b>${value}<small>/100</small></b></label><div class="companion-track" role="progressbar" aria-label="${label}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"><i style="width:${value}%"></i></div><p>${description}</p></div>`;
+    body.innerHTML=`<section class="companion-hero"><img class="companion-portrait" src="assets/game/characters/xiaoshang-portrait-v1.webp" alt="经营伙伴${name}的形象"><div class="companion-identity"><small>一起冲第一单</small><h3>${name}</h3><p>${M.relationship(state)}${state.emotion?' · '+escape(state.emotion.mood):''}</p><span class="companion-presence ${available?'':'away'}">${available?'就在岛上，随时聊聊':'转动小岛，让我回到视野'}</span></div></section><div class="companion-meters">${meter('affinity','好感度',state.affinity,'每一次认真交流，都会更了解彼此。')}${meter('patience','耐心值',state.patience,state.emotion?escape(state.emotion.paused?'成果审核中，停滞计时暂停。':state.emotion.example):state.patience<45?'先聚焦一件小事，基础问题也可以问。':'给出目标和依据，我陪你想得更深。')}</div><blockquote class="companion-quote">${escape(companionQuote||companionBrief(task,task?.status,partnerName()))}</blockquote>${last?`<div class="companion-turn-note" role="status"><b>${last.assessment.high_quality?'这一问，有目标也有依据。':'我们先把问题说具体。'}</b><br>好感度 ${last.state.last.affinity_delta>=0?'+':''}${last.state.last.affinity_delta} · 耐心值 ${last.state.last.patience_delta>=0?'+':''}${last.state.last.patience_delta}<div class="companion-dimensions">${last.assessment.dimensions.map(d=>`<span class="${d.met?'met':''}">${d.met?'✓':'＋'} ${d.label}</span>`).join('')}</div></div>`:''}<section class="companion-section"><span class="companion-current">${task?escape(task.id+' · '+task.topic):'最终试炼'} / ${status}</span><h4 class="companion-mission-title">${escape(task?.name||'卖出真实第一单')}</h4><p>${task?'这一步要交回：'+escape(task.deliverable):'六环节已完成。首单核验开放后，用真实订单完成最后的试炼。'}</p><div class="companion-actions">${btn('talk','一起拆这一步 →',true,true)}${btn('card','回看任务卡')}</div><div class="companion-actions">${btn('kit','打开本关锦囊')}${btn('deliver',task?.status==='pending'?'查看确认进度':'我来交成果')}</div></section><section class="companion-section"><h4>把问题交给我，一起往前走</h4><p>先说目标，再补充你知道的事实、范围和已经试过的办法。不必一次说全，我会接着问。</p><div class="companion-prompts">${btn('clarify','我拿不定主意，先问我最关键的信息。',false,true)}${btn('reason','帮我分清：哪些有依据，哪些还要验证？',false,true)}</div></section><section class="companion-section"><h4>藏着一份本关验证锦囊</h4><div class="companion-streak"><div><strong>${owned?'3':state.streak}/3</strong><br><small>${owned?'本关福利已解锁':'连续三次有目标、有依据的提问'}</small></div><div class="companion-seals" aria-hidden="true">${[1,2,3].map(n=>`<i class="${n<=(owned?3:state.streak)?'active':''}">✦</i>`).join('')}</div></div><p>在清楚的目标外，补足事实、范围、已尝试的动作中的两项。换个环节，伙伴重新就位。</p><div class="companion-perk"><b>${owned?'已解锁 · 本关验证锦囊':'未解锁 · 把判断变成可验证的下一步'}</b>${owned?`<div class="companion-actions">${btn('perk',perkExpanded?'收起锦囊':'打开专属锦囊')}</div>${perkExpanded?M.perk(task).map(item=>`<article><b>${escape(item.title)}</b><p>${escape(item.text)}</p></article>`).join(''):''}`:'<p>解锁后，会多一份拆假设、做对照、整理证据的检查清单。</p>'}</div></section><p class="companion-local-note">${state.source==='server'?'对话及好感度云端记录':'伙伴成长试运行'} · ${state.source==='server'?'对话记录按账号保存；当前项目筛选最近对话，耐心和锦囊存于本浏览器':companionSaveOk?'当前浏览器、当前账号与项目分别保存':'本地保存暂不可用，刷新可能丢失进度'}。${state.source==='server'?'云端好感度随交流更新；耐心和锦囊属于本地练习，不影响答疑或审核。':'提问质量按本地练习规则识别，答疑通过现有小商 Agent 进行。'}不会发放正式经验或替代成果核验。${state.source==='server'?'亲密度由服务端按账号维护。':'快捷提问和重复问题不重复计分。'}${state.emotion?'耐心低时会逐步催促、冷淡或刻薄吐槽，但仍会帮你完成任务。':'耐心值较低时会先拆小问题，不会关闭基础答疑或主线任务。'}</p>`;
+    body.scrollTop=scroll;
+  }
+  document.addEventListener('click',e=>{
+    const action=e.target.closest('[data-companion-action]')?.dataset.companionAction;if(!action)return;
+    if(['talk','clarify','reason','perk'].includes(action))audio.play('click');
+    if(action==='card')openMission();
+    else if(action==='kit')openMission('kit');
+    else if(action==='deliver')openMission('submit');
+    else if(action==='perk'){perkExpanded=!perkExpanded;if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();}
+    else if(['talk','clarify','reason'].includes(action)){
+      if(panel!=='companion')openCompanion();const task=currentCompanionTask();
+      askCompanion(action==='talk'?'我们开始「'+(task?.name||'真实第一单')+'」，先帮我拆成一个能执行的小步骤。':action==='clarify'?'我在做「'+(task?.name||'当前任务')+'」，还拿不定主意，请先问我最关键的信息。':'我在做「'+(task?.name||'当前任务')+'」，请帮我分清已有事实、假设和下一步验证办法。',true);
+    }
+  });
+  function chatSourceLabel(){const source=game.npc_chat.filter(row=>row.role==='assistant').at(-1)?.source;return source==='ai'||serverAgentProject()==='guest'?'AI 副驾':serverAgentProject()?'本地规则引导':'本地教学演示';}
   function renderChatHistory(){
     const messages=game.npc_chat;
-    $('panelBody').innerHTML='<p class="muted-note">对话保存在当前浏览器。演示回复会单独标记。</p><div class="chat-log">'+(messages.length?messages.map(m=>`<article class="chat-message ${m.role}"><header><b>${m.role==='user'?'你':escape(partnerName())}</b><small>${m.role==='assistant'?(m.source==='ai'?'AI 副驾':'本地教学演示'):'玩家'}${m.time?' · '+new Date(m.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</small></header><p>${escape(m.text)}</p></article>`).join(''):'<div class="chat-empty">还没有聊过天。<br>在底部向'+escape(partnerName())+'打个招呼吧。</div>')+'</div>';
+    $('panelBody').innerHTML='<p class="muted-note">'+(serverAgentProject()?(serverAgentProject()==='guest'?'对话按当前浏览器游客会话保存在服务端。':'对话按当前账号与项目保存在服务端。'):'对话保存在当前浏览器。')+'演示回复会单独标记。</p><div class="chat-log">'+(messages.length?messages.map(m=>`<article class="chat-message ${m.role}"><header><b>${m.role==='user'?'你':escape(partnerName())}</b><small>${m.role==='assistant'?(m.source==='ai'?'AI 副驾':'本地教学演示'):'玩家'}${m.time?' · '+new Date(m.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</small></header><p>${escape(m.text)}</p></article>`).join(''):'<div class="chat-empty">还没有聊过天。<br>在底部向'+escape(partnerName())+'打个招呼吧。</div>')+'</div>';
     $('panelBody').scrollTop=$('panelBody').scrollHeight;
   }
-  function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}]);save();if(panel==='history')renderChatHistory();}
+  function companionBrief(task,status,name){const state=serverAgentProject()?window.EmcAgentClient?.snapshot(serverAgentProject()):null;const prefix=state?.emotion&&state.patience<55&&!state.emotion.paused?state.emotion.example+' ':'';return prefix+(journey?.summary().view==='welcome'?'我是'+name+'，会陪你从零学习电商。先拆开我的第一封信，认识一下这间小店；不用急着准备成果。':M.brief(task,status,name));}
+  function renderSocialChat(){
+    const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
+    $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
+    const rows=C.history(game.npc_chat,chatWasCloud?8000:400).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
+    const markup=rows.length?rows.map(row=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
+    if(host.innerHTML!==markup){host.innerHTML=markup;if(nearBottom)host.scrollTop=host.scrollHeight;}
+  }
+  function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:400);save();renderSocialChat();if(panel==='history')renderChatHistory();}
   $('copilotInput').addEventListener('input',updateChatAvailability);
-  $('copilotInput').addEventListener('focus',()=>{if(!npcAvailable())return;closePanel();startConversation();});
+  $('copilotInput').addEventListener('focus',()=>{if(!npcAvailable())return;if(panel!=='companion')closePanel();startConversation();});
   $('copilotInput').addEventListener('blur',()=>{if(!sending&&$('npcBubble').hidden)finishConversation();});
-  $('npcInteract').onclick=()=>{if(!npcAvailable())return;closePanel();if(startConversation()){speak('我在这儿。关于学习或装修，你想先聊哪一件事？');$('copilotInput').focus({preventScroll:true});}};
+  $('npcInteract').onclick=()=>{if(npcAvailable())openCompanion(true);};
+  const placeSocialChat=()=>{const nav=document.querySelector('.quest-peek').getBoundingClientRect(),dock=document.querySelector('.copilot-dock');dock.style.setProperty('--social-top',(nav.bottom+16)+'px');dock.style.setProperty('--social-right',(innerWidth-nav.right)+'px');dock.style.setProperty('--social-width',nav.width+'px');};
+  new ResizeObserver(placeSocialChat).observe(document.querySelector('.quest-peek'));window.addEventListener('resize',placeSocialChat);placeSocialChat();
+  $('companionAvatar').onclick=()=>openCompanion();
+  $('copilotProfile').onclick=()=>{if(panel==='companion')closePanel();else openCompanion();};
   $('closeNpcBubble').onclick=$('npcContinue').onclick=()=>{finishConversation();$('copilotInput').blur();lastReminderAt=performance.now();};
   $('npcBubble').addEventListener('pointerenter',()=>{if(bubbleKind==='reminder'&&npcAvailable())homeScene.guide.setTalking(true);});
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
-  $('copilotHistory').onclick=()=>{if(panel==='history')closePanel();else openPanel('history');};
+  $('closeMobileChat').onclick=()=>{document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','false');};
+  $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
+  $('copilotHistory').onclick=()=>{if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
   $('copilotForm').addEventListener('submit',async e=>{
     e.preventDefault();const message=$('copilotInput').value.trim().slice(0,240);
     if(sending||!message||paintDrag?.active)return;
     npcState=homeScene?.guide?.status(true)||null;if(!npcAvailable()||!startConversation()){updateChatAvailability();return;}
-    closePanel();startConversation();sending=true;const scene=homeScene,epoch=speechEpoch;appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
+    if(panel!=='companion')closePanel();startConversation();sending=true;const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
-      const context={companion_name:partnerName(),stage:G.stage(game)+1,xp:G.xp(game),task:G.current(game)?{id:G.current(game).id,name:G.current(game).name,topic:G.current(game).topic}:null,history:C.history(game.npc_chat).slice(-12)};
-      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},20000);});
+      const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
+      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat).slice(-12)};
+      if(!serverAgentProject()&&!journey?.isDemo()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
+      if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
+      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},40000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
+      if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
+      const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=result.state?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
       appendChat('assistant',result.text,result.source);
-      if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch){startConversation();speak(result.text,'reply',result.source==='ai'?'AI 副驾':'本地教学演示');}
+      if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();
+      if(change.unlocked){audio.play('reward');toast('连问三次有依据的问题 · 本关验证锦囊已解锁');}
+
+      if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch){startConversation();speak(result.text,'reply',result.source==='ai'?'AI 副驾':result.state?'本地规则引导':'本地教学演示');}
     }catch(error){
+      if(scope!==companionScope()){toast('账号或经营项目已切换，请重新发起对话。');return;}
       $('copilotInput').value=message;
       if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch)speak('暂时没能接通。消息已保留，可以稍后重试。','reply','连接失败');
       else toast('对话暂时没能接通，输入内容已保留。');
@@ -279,7 +403,7 @@
   setInterval(()=>{
     const now=performance.now();
     if(bubbleUntil&&now>bubbleUntil){$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;if(document.activeElement!==$('copilotInput')&&!sending)finishConversation();}
-    if(!document.hidden&&!panel&&!sending&&!conversation&&!paintDrag&&npcAvailable()&&now-lastReminderAt>35000){lastReminderAt=now;const task=G.current(game);speak(task?'下一步可以试试「'+task.name+'」。不急，准备好了就开始。':'主线已完成！去支线逛逛，给小店带件新装饰吧。','reminder');}
+    if(!document.hidden&&!panel&&!sending&&!conversation&&!paintDrag&&npcAvailable()&&now-lastReminderAt>35000){lastReminderAt=now;const task=mainTask();speak(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,partnerName()),'reminder');}
   },500);
   function inBackpack(e){const r=$('drawer').getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;}
   function cancelPaint(){
@@ -327,8 +451,9 @@
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));
   document.querySelector('.brand').onclick=e=>{e.preventDefault();closePanel();};
   $('panelBody').addEventListener('input',e=>{const key=e.target.dataset.audioVolume;if(key){audio.set(key,Number(e.target.value)/100);const output=$(key+'Value');if(output)output.textContent=e.target.value+'%';}});
-  document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&!b.disabled&&!b.matches('[data-panel],#closePanel,#continueButton,#sideButton,#submitAnswer,[data-audio-toggle],#copilotSend'))audio.play('click');});
-  window.addEventListener('pagehide',e=>{if(!e.persisted)audio.dispose();});
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&!b.disabled&&!b.matches('[data-panel],#closePanel,#continueButton,#sideButton,#submitAnswer,[data-audio-toggle],#copilotSend,#copilotProfile,#npcInteract,#npcTask,[data-companion-action],[data-j-action],[data-j-level],[data-j-remove]'))audio.play('click');});
+  window.addEventListener('pagehide',e=>{if(!e.persisted){audio.dispose();juice.dispose();}});
+  document.querySelector('.quest-peek').onclick=()=>openPanel('missions');$('missionBackdrop').onclick=closePanel;
   $('closePanel').onclick=closePanel;$('continueButton').onclick=startMain;$('sideButton').onclick=()=>{tab='side';openPanel('quests');};
   $('panelBody').onclick=e=>{
     const b=e.target.closest('button');if(!b)return;viewInventoryItem(b);
@@ -342,7 +467,9 @@
     else if(b.id==='undoPaint'&&paintUndo){game[paintUndo.part+'_color']=paintUndo.color;paintUndo=null;homeScene?.sync();save();renderInventory();}
     else if(b.id==='savePartnerName')savePartnerName(false);
     else if(b.id==='confirmPartnerName')savePartnerName(true);
+    else if(b.hasAttribute('data-demo-toggle')){journey?.setDemo(!journey.isDemo());renderSettings();}
     else if(b.dataset.audioToggle){const key=b.dataset.audioToggle;audio.set(key,!audio.state()[key]);audio.play('click');renderSettings();}
+    else if(b.dataset.graphicsQuality){game.graphics_quality=b.dataset.graphicsQuality;save();homeStage=0;render();}
     else if(b.dataset.themeOption){setTheme(b.dataset.themeOption);renderSettings();}
     else if(b.id==='saveName'){game.shop_name=$('shopNameInput').value.trim().slice(0,12)||'我的小店';const saved=save();render();toast(saved?'店名与招牌已保存':'店名暂存在当前页面，请重试保存');}
     else if(b.id==='exportSave'){
@@ -351,27 +478,30 @@
   };
   document.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&e.target.id==='partnerNameInput'){e.preventDefault();savePartnerName(panel==='partner');return;}
-    if(e.key==='Escape'){if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
+    if(e.key==='Escape'&&$('drawer').getAttribute('aria-modal')==='true'){closePanel();return;}
+    if(e.key==='Tab'&&$('drawer').getAttribute('aria-modal')==='true'){const nodes=Array.from($('drawer').querySelectorAll('button:not([disabled]),a[href],input,textarea,select')).filter(n=>n.getClientRects().length);if(nodes.length&&e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(nodes.length&&!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}
+    if(e.key==='Escape'){if(document.querySelector('.mobile-chat-open')){$('closeMobileChat').click();return;}if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
     if(selected&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA'].includes(e.target.tagName)){
       const p=game.placements.find(p=>p.id===selected);if(!p)return;e.preventDefault();p.x=Math.max(-4,Math.min(4,p.x+(e.key==='ArrowLeft'?-.2:e.key==='ArrowRight'?.2:0)));p.z=Math.max(-3.5,Math.min(3.5,p.z+(e.key==='ArrowUp'?-.2:e.key==='ArrowDown'?.2:0)));homeScene?.sync();save();
     }
   });
-  window.render_game_to_text=()=>JSON.stringify({mode:'tutorial',audio:audio.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:G.stage(game)+1,xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:activeTask?.id||G.current(game)?.id,formal_verification:'not_available',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:typeof window.EmcCopilotTransport==='function'?'ai':'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,model_textures:homeScene?.textureStatus||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
+  window.render_game_to_text=()=>JSON.stringify({mail:mail.state(),mode:'business_journey',companion:{...readCompanion(),source:readCompanion().source||'local-practice',relationship:M.relationship(readCompanion()),feedback:companionFeedback?.assessment||null},journey:journey?.summary(),audio:audio.state(),feedback:juice.state(),theme:theme(),sky:{mode:skyState.mode,phase:skyState.phase,local_hour:skyState.local_hour,sun:skyState.sun,moon:skyState.moon,daylight:skyState.daylight},panel,stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),shop_name:game.shop_name,companion_name:partnerName(),companion_named:game.companion_named,sign_text:homeScene?.shopSign?homeScene.shopName:null,sign_fits:homeScene?.signFits??null,main_completed:journey?journey.progress().levels.filter(l=>l.status==='approved').map(l=>l.id):game.main,side_completed:game.side,inventory_unread:G.unreadInventory(game),current_task:journey?mainTask().id:activeTask?.id||G.current(game)?.id,formal_verification:journey?.progress().certified?'approved':'not_certified',account:{authenticated:window.EmcSession?.isLoggedIn()||false,status:window.EmcSession?.status()||'idle'},editing:false,selected_decoration:selected,selection_visible:homeScene?.selection.visible||false,placements:game.placements,wall_color:game.wall_color,sign_color:game.sign_color,roof_color:game.roof_color,npc:npcState?{visible:npcAvailable(),occluded:npcState.occluded,onscreen:npcState.onscreen,talking:npcState.talking,holding_letter:npcState.holding_letter,model:npcState.model,profile:npcState.profile,behavior:npcState.behavior,motion:npcState.motion,morphs:npcState.morphs,props:npcState.props,mouth:npcState.mouth,position:npcState.position,heading:npcState.heading,screen:npcState.screen}:null,chat:{sending,conversation,history_count:game.npc_chat.length,reply_source:game.npc_chat.filter(row=>row.role==='assistant').at(-1)?.source||'local-guide',bubble:$('npcBubble').hidden?null:$('npcSpeech').textContent},paint_drag:paintDrag?.active?{part:paintDrag.part,id:paintDrag.id||null,color:paintDrag.color,valid:paintDrag.valid}:null,preview_part:homeScene?.previewPartName||null,camera:homeScene?.camera.position.toArray(),decoration_targets:homeScene?.screenTargets()||[],grounding:homeScene?.grounding||null,coordinates:'3D: X left/right, Y up, Z front/back; roof anchor Y relative to shop',scene_status:$('sceneLoader').hidden?'ready':$('sceneLoader').dataset.state,building_level:homeScene?.modelLevel,model_textures:homeScene?.textureStatus||null,graphics:homeScene?.performanceSummary()||null,model_source:$('scene').dataset.loading?'loading':homeScene?.source||'unavailable',save_status:$('saveStatus').textContent});
   window.shopDecorTargets=id=>homeScene?.decorTargets(id)||[];
   window.shopPaintTargets=()=>homeScene?.paintTargets()||[];
-  window.advanceTime=async ms=>{await homeReady;homeScene?.controls.update();homeScene?.render();};
+  window.advanceTime=async ms=>{await homeReady;const seconds=Math.max(0,Math.min(60,Number(ms)/1000||0)),steps=Math.max(1,Math.ceil(seconds*60));for(let i=0;i<steps;i++)homeScene?.guide?.update(seconds/steps);homeScene?.controls.update();homeScene?.render(true);};
   if(window.visualViewport){const keyboardLayout=()=>{const offset=innerWidth<=700?Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop):0;document.documentElement.style.setProperty('--keyboard-offset',offset+'px');document.body.classList.toggle('keyboard-open',offset>120);};visualViewport.addEventListener('resize',keyboardLayout);visualViewport.addEventListener('scroll',keyboardLayout);keyboardLayout();}
   // 登录只恢复浏览位置；不自动提交任务、不重放经营操作。
   window.toast=toast;
   document.addEventListener('emc:route-restore',e=>{
     e.preventDefault();const view=e.detail.view==='level'?'quests':e.detail.view;
-    if(['quests','inventory','collection','settings','history'].includes(view))openPanel(view);
+    if(['journey','missions','quests','inventory','collection','settings','history','companion','journal'].includes(view)){openPanel(view);if(view==='journey')journey?.open();}
   });
-  document.addEventListener('emc:session-changed',()=>{if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
+  document.addEventListener('emc:session-changed',()=>{void journey?.refresh();if(panel==='settings'){const section=$('panelBody').querySelector('.account-settings');if(section)section.outerHTML=accountSettings();}});
   let lastSessionRefresh=Date.now();
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),ask:text=>{openCompanion();askCompanion(text);}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();

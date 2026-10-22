@@ -43,9 +43,10 @@
   ].map(task=>({...task,xp:20,level:'side',topic:'支线探索'}));
   const COLORS=['#eee0c5','#a6c4b0','#a8bdd4','#d4b8a2','#c4b6d8'];
   const PALETTES={wall:COLORS,sign:['#9c531e','#407766','#426a9c','#805284','#cc9741'],roof:['#bd3f23','#517b61','#4c6e97','#715589','#806453']};
-  function create(){return {schema_version:1,theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'阿策',companion_named:false};}
+  function create(){return {schema_version:1,graphics_quality:'auto',theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'阿策',companion_named:false};}
   function normalize(value){
     const s=create();if(!value||value.schema_version!==1)return s;
+    s.graphics_quality=['auto','smooth','detail'].includes(value.graphics_quality)?value.graphics_quality:'auto';
     s.theme=['day','night','auto'].includes(value.theme)?value.theme:'auto';
     s.main=MAIN.filter(t=>Array.isArray(value.main)&&value.main.includes(t.id)).map(t=>t.id);
     // 主线仅认可连续完成的前缀，防止乱序存档跳过学习阶段。

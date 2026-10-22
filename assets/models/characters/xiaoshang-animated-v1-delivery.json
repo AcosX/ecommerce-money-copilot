@@ -1,0 +1,20 @@
+[
+  {
+    "model_url": "assets/models/characters/xiaoshang-animated-v1-web.glb",
+    "bytes": 5691776,
+    "triangles": 54740,
+    "morphs": 26,
+    "face_vertices": 5863,
+    "bones": 46,
+    "texture_limit": 2048
+  },
+  {
+    "model_url": "assets/models/characters/xiaoshang-animated-v1-lite.glb",
+    "bytes": 3977004,
+    "triangles": 32134,
+    "morphs": 26,
+    "face_vertices": 5863,
+    "bones": 46,
+    "texture_limit": 1024
+  }
+]

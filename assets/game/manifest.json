@@ -5,31 +5,6 @@
   "style": "Isometric pixel / voxel-inspired shop assets, warm cream walls, terracotta roofs, sage awnings, consistent three-quarter front-right camera",
   "assets": [
     {
-      "file": "shop-1.png",
-      "stage": 1,
-      "prompt_summary": "Standalone level-one compact storefront cottage; red pitched roof, cream walls, sage striped awning, transparent background, no island, no text"
-    },
-    {
-      "file": "shop-2.png",
-      "stage": 2,
-      "prompt_summary": "Same shop family, two-storey growing shop; consistent camera, palette and ground footprint; isolated transparent background"
-    },
-    {
-      "file": "shop-3.png",
-      "stage": 3,
-      "prompt_summary": "Same shop family, boutique shop upgrade with additional floors and architectural detail; consistent palette, camera, transparent background"
-    },
-    {
-      "file": "shop-4.png",
-      "stage": 4,
-      "prompt_summary": "Same shop family, four-storey commercial building; cream facade, terracotta cornices, sage storefront awning, transparent background"
-    },
-    {
-      "file": "shop-5.png",
-      "stage": 5,
-      "prompt_summary": "Same shop family, five-storey final department store, flat usable roof, cream facade, terracotta trim, sage awning, transparent background"
-    },
-    {
       "file": "island.png",
       "prompt_summary": "Empty floating inverted conical rocky island, grass rim, stone shop pad and path, no house, no UI, transparent background"
     },
@@ -49,9 +24,8 @@
     }
   ],
   "rendering": {
-    "home": "Tripo shop/island GLB scene shown after models, textures, grounding and first GPU frame are ready; pixel loading indicator while pending; retry state on failure",
-    "editor": "Tripo H-series Ultra shop/island models with independently positioned procedural decoration meshes",
-    "tripo_manifest": "../models/manifest.json",
-    "wall_material_preview": "Shared live 3D preview on home and editor, shader mask targets cream wall pixels and retains texture shading; semantic material separation requires further authoring"
+    "home": "Production 0–5 building models and 3D island, loading mask until first complete frame",
+    "model_manifest": "../models/manifest.json",
+    "customization": "Backpack drag and drop; modular buildings use semantic materials; earlier buildings use generated texture masks"
   }
 }

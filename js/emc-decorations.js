@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {batchDecoration} from './emc-model-performance.js';
 
 // 小型装饰采用真实立体几何；底面统一归零，兼容已有存档的摆放坐标。
 export function createDecoration(scene,id){
@@ -97,5 +98,5 @@ export function createDecoration(scene,id){
   root.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(root);
   if(!bounds.isEmpty()){const offset=-bounds.min.y;root.children.forEach(child=>{child.position.y+=offset;});}
   root.userData.modelRevision=2;
-  return root;
+  return batchDecoration(root);
 }

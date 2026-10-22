@@ -16,7 +16,7 @@ async function watchFrames(page){await page.addInitScript(()=>{window.sceneLeaks
    await p.goto(url,{waitUntil:'domcontentloaded'});await p.waitForFunction(()=>!!window.render_game_to_text);
    assert.equal((await state(p)).scene_status,'loading');assert.ok(await p.locator('#sceneLoader').isVisible());assert.equal(await p.locator('#modelComposite').count(),0);
    for(const mode of ['Day','Night']){await p.locator('#theme'+mode).click();await p.screenshot({path:path.join(shots,width+'-loading-'+mode+'.png')});}
-   await p.locator('#continueButton').click();assert.ok(await p.locator('#panelBody .quest-option').count());await p.locator('#closePanel').click();
+   await p.locator('#continueButton').click();assert.ok(await p.locator('#journeySetup').count());await p.locator('#closePanel').click();
    barrier.release();await ready(p);assert.equal((await state(p)).model_source,'tripo_model');assert.equal(await p.locator('#sceneLoader').isVisible(),false);assert.deepEqual(await p.locator('#homeCanvas canvas').boundingBox(),{x:0,y:0,width,height:width===390?844:1000},'3D 画布应覆盖整屏，放大后没有内部矩形截断');
    await p.screenshot({path:path.join(shots,width+'-ready.png')});assert.deepEqual(await p.evaluate(()=>window.sceneLeaks),[]);assert.deepEqual(errors,[]);
    await p.unroute('**/*.glb');let requests=0;p.on('request',r=>{if(r.url().endsWith('.glb'))requests++;});
@@ -24,8 +24,8 @@ async function watchFrames(page){await page.addInitScript(()=>{window.sceneLeaks
    await context.close();console.log('PASS '+width+'px 首帧/慢速加载/日夜/背包复用模型');
   }
   const context=await browser.newContext(),p=await context.newPage();await watchFrames(p);
-  await p.route('**/assets/models/manifest.json',route=>route.fulfill({contentType:'application/json',body:'{"shops":{}}'}));await p.goto(url);await p.waitForFunction(()=>JSON.parse(render_game_to_text()).scene_status==='error');assert.ok(await p.locator('#retryScene').isVisible());assert.equal(await p.locator('#scene').getAttribute('aria-busy'),'false');await p.screenshot({path:path.join(shots,'load-error.png')});
-  await p.unroute('**/assets/models/manifest.json');await p.locator('#retryScene').click();await ready(p);assert.equal((await state(p)).model_source,'tripo_model');
+  await p.route('**/assets/models/manifest.json*',route=>route.fulfill({contentType:'application/json',body:'{"shops":{}}'}));await p.goto(url);await p.waitForFunction(()=>JSON.parse(render_game_to_text()).scene_status==='error');assert.ok(await p.locator('#retryScene').isVisible());assert.equal(await p.locator('#scene').getAttribute('aria-busy'),'false');await p.screenshot({path:path.join(shots,'load-error.png')});
+  await p.unroute('**/assets/models/manifest.json*');await p.locator('#retryScene').click();await ready(p);assert.equal((await state(p)).model_source,'tripo_model');
   assert.deepEqual(await p.evaluate(()=>window.sceneLeaks),[]);await context.close();console.log('PASS 首次失败可重试');
  }finally{await browser.close();}
  console.log('Loading transition checks passed. Screenshots: '+shots);
