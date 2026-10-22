@@ -1,93 +1,107 @@
-/* Agent HTTP adapter: no DOM or game rules. Reuses session/CSRF/error handling in EmcApi. */
+/* Bridge the six-level island companion to the production #62 FastAPI Agent.
+ * No second agent backend, schema, migration, or client-supplied system prompt.
+ * The production service saves registered-player conversation in AuditEvent,
+ * while guest chat is read-only and local companion practice stays on-device.
+ */
 (function (root, factory) {
   'use strict';
   const api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.EmcAgentClient = api;
-    if (!root.EmcCopilotTransport) root.EmcCopilotTransport = api.transport;
+    root.EmcCopilotTransport = api.transport;
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
-  const cache = new Map(), loading = new Map(), pending = new Map(), activities = new Map(), busy = new Set();
-  const observed = new Set(), resumed = new Map();
+  const cache = new Map(), loading = new Map();
   const identity = () => root.EmcSession?.current()?.player?.id || 'guest';
-  const scope = id => identity() + ':' + id;
-  let guestEnabled=false, guestSession=null, guestLoading=null, guestContextKey='', contextProvider=()=>({});
-  const endpoint=id=>id==='guest'?'/api/agent/guest':'/api/agent/projects/'+encodeURIComponent(id);
-  async function prepare(id) {
-    if(id!=='guest')return {};
-    const context=contextProvider()||{}, candidate=context.task?.id||context.level||'L1';
-    const body={platform:context.platform==='pinduoduo'?'pinduoduo':'xiaohongshu',category:String(context.category||'').slice(0,64),level:/^(L[1-6]|first_order)$/.test(candidate)?candidate:'L1'};
-    const contextKey=JSON.stringify(body);
-    if(guestSession&&contextKey===guestContextKey)return {headers:{'X-CSRF-Token':guestSession.csrf_token}};
-    if(guestLoading){await guestLoading;return prepare(id);}
-    guestLoading=root.EmcApi.post('/api/agent/guest/session',body).then(data=>{guestSession=data;guestContextKey=contextKey;cache.delete(scope(id));}).finally(()=>{guestLoading=null;});
-    await guestLoading;return {headers:{'X-CSRF-Token':guestSession.csrf_token}};
+  const loggedIn = () => Boolean(root.EmcSession?.isLoggedIn() && identity() !== 'guest');
+  const keyFor = id => identity() + ':' + String(id || 'guest');
+  const clamp = v => Math.max(0, Math.min(100, Number(v) || 0));
+  function snapshot(id) { return cache.get(keyFor(id)) || null; }
+  function view(memory) {
+    const score = clamp(memory?.intimacy_score ?? 20);
+    return {
+      version: 1, source: 'server', server_version: Number(memory?.interactions_count || 0),
+      affinity: score, patience: 80, streak: 0, perks: [],
+      level: memory?.current_focus_level || 'L1', emotion: null
+    };
   }
-  async function call(id,method,suffix,body,options={}) {
-    const guestOptions=await prepare(id);
-    try{return method==='get'?await root.EmcApi.get(endpoint(id)+suffix,{...options,...guestOptions}):await root.EmcApi.post(endpoint(id)+suffix,body,{...options,...guestOptions});}
-    catch(error){if(error.code==='agent_guest_expired'){guestSession=null;cache.delete(scope(id));}throw error;}
-  }
-  if(root.document&&root.EmcApi)root.EmcApi.get('/api/agent/capabilities').then(data=>{guestEnabled=Boolean(data.guest_enabled);root.dispatchEvent(new Event('emc-agent-ready'));}).catch(()=>{});
-  const normalized = state => ({ ...state, version: 1, server_version: state.version,
-    seen: [], source: 'server' });
-  function snapshot(id) { return cache.get(scope(id)) || null; }
   async function sync(id, { signal, force = false } = {}) {
-    const key = scope(id);
+    const key = keyFor(id);
+    if (!loggedIn()) return snapshot(id);
     if (!force && cache.has(key)) return cache.get(key);
     if (loading.has(key)) return loading.get(key);
-    const work = call(id,'get','/state',null,{signal}).then(state => {
-      const view = normalized(state); cache.set(key, view); return view;
+    const work = root.EmcApi.get('/api/agent/memory', { signal }).then(result => {
+      if (key === keyFor(id)) cache.set(key, view(result.memory));
+      return cache.get(key) || null;
     }).finally(() => loading.delete(key));
-    loading.set(key, work); return work;
+    loading.set(key, work);
+    return work;
   }
-  async function history(id, { before, signal } = {}) {
-    return call(id,'get','/history'+(before?'?before='+before:''),null,{signal});
+  async function history(id, { signal } = {}) {
+    if (!loggedIn()) return { items: [], next_before: null };
+    const requester = keyFor(id);
+    const data = await root.EmcApi.get('/api/agent/memory', { signal });
+    if (requester !== keyFor(id)) return { items: [], next_before: null };
+    cache.set(requester, view(data.memory));
+    const rows = (data.recent_conversation || []).filter(turn => turn.session_id === id);
+    return {
+      items: rows.map(turn => ({
+        message: turn.user_message || '',
+        reply: { text: turn.reply || '', source: 'local-guide' },
+        time: turn.occurred_at
+      })),
+      next_before: null
+    };
   }
   async function activity(id, { signal } = {}) {
-    const key = scope(id);
-    if (busy.has(key)) return snapshot(id);
-    if (activities.has(key)) return activities.get(key);
-    const stamp = resumed.get(key) || 0, reset = !observed.has(key) || stamp > 0;
-    const work = call(id,'post','/activity',{reset_clock:reset},{signal}).then(state => {
-      observed.add(key);if(reset&&(resumed.get(key)||0)===stamp)resumed.delete(key);
-      // 生成回合期间不让迟到的心跳覆盖最新回复状态。
-      const existing = cache.get(key);
-      if (!existing || state.version >= existing.server_version) cache.set(key, normalized(state));
-      return cache.get(key);
-    }).finally(() => activities.delete(key));
-    activities.set(key, work); return work;
+    // #62 does not implement activity/decay; never fabricate a server heartbeat.
+    return snapshot(id) || sync(id, { signal });
   }
-  function pause(id) { if(id){const key=scope(id);resumed.set(key,(resumed.get(key)||0)+1);} }
+  function pause() { /* no server activity clock */ }
   async function transport({ message, context = {} }, { signal } = {}) {
-    const id = context.project_id;
-    if (!id || (id !== 'guest' && !root.EmcSession?.isLoggedIn())) {
-      return { text: root.EmcCopilot.localReply(message, context), source: 'local-guide' };
-    }
-    const key = scope(id), state = await sync(id, { signal });
-    const body = { message, version: state.server_version,
-      companion_name: context.companion_name || '小商',
-      page_context: { page: context.page_context?.page || 'shop', selected_item: context.page_context?.selected_item || null } };
-    // 超时/断网后复用原请求体及幂等键：服务端可能已经成功提交。
-    let operation = pending.get(key);
-    if (!operation || operation.body.message !== message ||
-        operation.body.companion_name !== body.companion_name) {
-      operation = { body, id: root.EmcApi.newIdempotencyKey() }; pending.set(key, operation);
-    }
-    try {
-      busy.add(key);
-      const result = await call(id,'post','/messages',operation.body,
-        { signal, idempotencyKey: operation.id, timeoutMs: 35000 });
-      cache.set(key, normalized(result.state)); pending.delete(key);
-      return result;
-    } catch (error) {
-      if (error.code === 'version_conflict') {
-        pending.delete(key); await sync(id, { signal, force: true });
-      } else if (error.status && error.status < 500) pending.delete(key);
-      throw error;
-    } finally { busy.delete(key); }
+    if (typeof message !== 'string' || !message.trim()) throw new Error('请输入聊天内容');
+    const project = typeof context.project_id === 'string' ? context.project_id : null;
+    const level = String(context.task?.id || context.level || 'L1');
+    const levelId = /^L[1-6]$/.test(level) ? level : 'L1';
+    const session = loggedIn() && project && project.length <= 64 ? project : 'island-guest';
+    const body = {
+      message: message.trim().slice(0, 2000),
+      level_id: levelId,
+      session_id: session,
+      client_context: {
+        current_view: String(context.page_context?.page || 'shop').slice(0, 32),
+        source: 'island-companion',
+        companion_name: String(context.companion_name || '小商').slice(0, 24),
+        platform: String(context.platform || '').slice(0, 32),
+        category: String(context.category || '').slice(0, 64),
+        active_project: project && loggedIn() ? {
+          id: project,
+          platform: String(context.platform || '').slice(0, 32),
+          category: String(context.category || '').slice(0, 64)
+        } : null
+      }
+    };
+    const requester = keyFor(project);
+    const result = await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
+    if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');
+    if (requester !== keyFor(project)) throw new Error('账号或经营项目已切换');
+    const old = cache.get(requester);
+    if (old) cache.set(requester, { ...old, affinity: Math.min(100, old.affinity + 3), server_version: old.server_version + 1 });
+    return {
+      text: result.reply,
+      source: result.provider === 'ai_gateway_live' ? 'ai' : 'local-guide',
+      provider: result.provider || 'unknown',
+      // The server does not have a project-level patience/perks model.
+      // Leave result.state absent so UI keeps the local practice state.
+    };
   }
-  return {snapshot,sync,history,activity,pause,transport,guestAvailable:()=>guestEnabled,configure:options=>{if(options?.contextProvider)contextProvider=options.contextProvider;}};
+  return {
+    snapshot, sync, history, activity, pause, transport,
+    // Guest chat works via /api/agent/chat, but there is no persistent guest
+    // project state; the UI should keep local chat history for guests.
+    guestAvailable: () => false,
+    configure: () => {}
+  };
 });

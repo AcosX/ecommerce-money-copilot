@@ -2,8 +2,6 @@
 
 对外约定见 [`docs/backend-contract.md`](../docs/backend-contract.md)。以下命令都在 `backend/` 目录执行。
 
-新增引导 Agent 的配置、接口、Skill/知识库扩展见 [Agent 接入文档](../docs/agent.md)。
-
 ## 本地启动
 
 ```bash
@@ -33,8 +31,6 @@ uv run ruff check . && uv run ruff format --check .
   每个用到数据库的测试结束后清空全部表。
 - 连接取 `EMC_TEST_DATABASE_URL`，否则取 `.env` 中的 `EMC_DATABASE_URL`。账号需要能创建 `emc_test_*` 库：
   开发容器首次初始化时由 `dev/mariadb-init/01-test-databases.sql` 授权（已有数据卷时需手动执行该 GRANT）。
-- 测试建库连接超时为 3 秒，读写超时为 5 秒。连接失败或缺少建库权限时，pytest
-  以退出码 2 立即停止并显示隐藏密码的连接地址，避免后续用例重复等待。
 
 ## 迁移
 

@@ -6,3 +6,13 @@ test('三次连续高质量问题才解锁本关福利，重复提问和引导�
 test('基础问题仍有答疑，不扣好感；新环节重新就位，已解锁福利保留',()=>{let state=M.record(M.create(),questions[0]).state;state=M.record(state,'预算是什么？').state;assert.equal(state.streak,0);assert.equal(state.affinity,25);for(let i=0;i<80;i++)state=M.record(state,'这是什么意思'+i).state;assert.equal(state.patience,25);assert.equal(M.depth(state),'focused');state.perks=['L1'];state=M.enter(state,'L2');assert.equal(state.patience,80);assert.equal(state.streak,0);assert.deepEqual(state.perks,['L1']);assert.equal('xp' in state,false);});
 test('账号与项目隔离保存，坏存档和存储不可用时不崩溃',()=>{const data=new Map();let scope='user-a:project-a';const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},store=M.createStore(storage,()=>scope);store.save(M.record(store.read(),questions[0]).state);scope='user-b:project-a';assert.equal(store.read().affinity,20);scope='user-a:project-b';assert.equal(store.read().affinity,20);scope='user-a:project-a';assert.equal(store.read().affinity,24);assert.equal(M.normalize({version:1,affinity:Infinity,patience:-10,perks:['L1','bad']}).affinity,20);assert.equal(M.normalize({version:1,patience:-10}).patience,25);const broken=M.createStore({getItem(){throw Error();},setItem(){throw Error();}},()=>1);assert.equal(broken.read().affinity,20);assert.equal(broken.save(M.create()),false);});
 test('六关各自引导，确认中不引导跳关；耐心影响提示词深度而非授权',async()=>{const names=['规划','选品','素材','上架','内容','复盘'];names.forEach((name,i)=>assert.match(M.brief({id:'L'+(i+1),name,deliverable:'真实成果'}),new RegExp(name)));assert.match(M.brief({name:'规划'},'pending'),/确认通过后/);const context={journey:{platform:'pinduoduo'},task:{id:'L2',name:'会选品',deliverable:'选品单'},companion:{patience:95,advice_depth:'deep'}};const reply=await C.reply(questions[1],context);assert.match(reply.text,/对照/);assert.match(reply.text,/选品单/);assert.match(C.systemPrompt(context),/不能拒绝基础问题/);assert.match(C.systemPrompt(context),/不要在回复里自行宣布加分/);assert.match(C.systemPrompt({...context,companion:{patience:30,advice_depth:'focused'}}),/聚焦一个问题/);});
+
+test('本地去重只保存短哈希而非用户完整提问；旧存档读取时会迁移',()=>{
+  const question=questions[0],entry=M.record(M.create(),question,{level:'L1'}).state.seen[0];
+  assert.match(entry,/^L1:h2:[a-f0-9]{16}$/);
+  assert.equal(entry.includes('预算2000'),false);
+  const old={version:1,seen:['L1:'+question.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu,'')]};
+  const normalized=M.normalize(old);
+  assert.deepEqual(normalized.seen,[entry]);
+  assert.equal(M.record(normalized,question,{level:'L1'}).changed,false);
+});

@@ -197,8 +197,3 @@ uv run pytest
 - `audit_events`：自增 `id`、`occurred_at`、`actor_player_id`、`action`、`target_type`、`target_id`、`request_id`、`details`（JSON）；只追加。
 - `idempotency_records`：`player_id` + `endpoint` + `key`（唯一）、`request_hash`、`response_status`、`response_body`、`created_at`、`expires_at`。
 - 教学进度相关表由 Phase 2 负责人以独立迁移添加。
-
-## 引导 Agent 扩展
-
-伙伴接口、状态版本、幂等消息、历史分页和配置见 [agent.md](agent.md)。
-该模块沿用本契约的登录、CSRF、错误信封与数据库约束。

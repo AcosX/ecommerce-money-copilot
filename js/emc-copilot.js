@@ -13,6 +13,11 @@
   function localReply(message,context){
     const task=context.task;
     if(/你是谁|你叫什么|你的名字|你叫啥/.test(message))return '我是'+companionName(context.companion_name)+'，陪你从一间小店开始学电商。想先看看下一步任务，还是聊聊装修？';
+    const nums=String(message||'').match(/\d+(?:\.\d+)?/g);
+    if(!context.journey&&nums&&nums.length>=2&&/成本|利润|定价|算账|拿货|售价|毛利|roi/i.test(message)){
+      const a=parseFloat(nums[0]),b=parseFloat(nums[1]),price=Math.max(a,b),cost=Math.min(a,b),profit=+(price-cost).toFixed(2),margin=price>0?+(profit/price*100).toFixed(1):0,roi=margin>0?+(100/margin).toFixed(2):99.9;
+      return '帮你算好啦：售价 ¥'+price+'、成本 ¥'+cost+'，单笔毛利 ¥'+profit+'（毛利率 '+margin+'%），保本 ROI ≈ '+roi+'。这是估算，广告费、退货和平台费用还需单独计入。';
+    }
     if(/颜色|装修|背包|招牌|屋顶|墙/.test(message))return '点开背包，选墙面、招牌或屋顶，长按配色拖到对应位置。看到绿色提示后松手；拖回背包就取消。';
     if(/升级|经验|成长|大楼/.test(message))return context.journey?'完成任务卡要求，把真实成果交回来，确认通过后才会获得经验、解锁下一关。提交文件和答题不会替代经营成果核验；首单证书还需要真实订单。':'完成主线每次获得 80 经验，支线每次 20 经验。经验和主线进度都达到门槛，小店才会升级；已经获得的装饰会保留。';
     if(!context.companion&&/成本|利润|定价/.test(message))return '可以先列采购、包装、运费、推广和退货损耗，再用售价减去全部成本估算单笔利润。这是学习建议，练习不会执行真实交易。';

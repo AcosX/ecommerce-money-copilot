@@ -185,6 +185,15 @@
       var h = make('div', 'emc-wb-item-head');
       h.appendChild(badge(v.status || 'pending'));
       h.appendChild(make('span', '', '认证申请 ' + v.id));
+      if (global.EmcAvatarAgent && typeof global.EmcAvatarAgent.runDeliverablePreReview === 'function') {
+        var aiBtn = make('button', 'emc-agent-mini-btn rtc', '小商 AI 预审');
+        aiBtn.type = 'button';
+        aiBtn.setAttribute('data-emc-ai-review-btn', v.id);
+        aiBtn.addEventListener('click', function () {
+          global.EmcAvatarAgent.runDeliverablePreReview(v.id, row);
+        });
+        h.appendChild(aiBtn);
+      }
       row.appendChild(h);
       if (v.note) row.appendChild(make('div', '', '说明：' + v.note));
       var reason = v.rejection_reason;

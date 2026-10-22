@@ -23,8 +23,3 @@ GRANT SELECT, INSERT ON emc.verification_reviews TO 'emc_app'@'127.0.0.1';
 GRANT SELECT, INSERT ON emc.audit_events TO 'emc_app'@'127.0.0.1';
 GRANT SELECT, INSERT, UPDATE, DELETE ON emc.idempotency_records TO 'emc_app'@'127.0.0.1';
 GRANT SELECT ON emc.alembic_version TO 'emc_app'@'127.0.0.1';
-GRANT SELECT, INSERT, UPDATE ON emc.agent_states TO 'emc_app'@'127.0.0.1';
-GRANT SELECT, INSERT ON emc.agent_turns TO 'emc_app'@'127.0.0.1';
-GRANT SELECT, INSERT, UPDATE ON emc.agent_engagements TO 'emc_app'@'127.0.0.1';
-
-GRANT SELECT, INSERT, UPDATE ON emc.agent_guest_sessions TO 'emc'@'%';

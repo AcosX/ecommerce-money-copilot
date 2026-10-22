@@ -273,85 +273,7 @@ class IdempotencyRecord(Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
 
 
-class AgentState(Base):
-    """项目级伙伴状态；客户端不能直接写入数值。"""
-
-    __tablename__ = "agent_states"
-    __table_args__ = (
-        CheckConstraint("affinity BETWEEN 0 AND 100", name="affinity"),
-        CheckConstraint("patience BETWEEN 0 AND 100", name="patience"),
-        CheckConstraint("json_valid(memory)", name="memory_json"),
-        TABLE_OPTIONS,
-    )
-
-    project_id: Mapped[str] = mapped_column(
-        ID, ForeignKey("business_projects.id"), primary_key=True
-    )
-    affinity: Mapped[int] = mapped_column(Integer, default=20)
-    patience: Mapped[int] = mapped_column(Integer, default=80)
-    version: Mapped[int] = mapped_column(Integer, default=1)
-    memory: Mapped[Any] = mapped_column(JSONText(), default=dict)
-    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-
-
-class AgentGuestSession(Base):
-    """仅供 AI 带教的游客会话；不会签发业务登录 Cookie。"""
-
-    __tablename__ = "agent_guest_sessions"
-    __table_args__ = (TABLE_OPTIONS,)
-
-    id_hash: Mapped[str] = mapped_column(SHA256, primary_key=True)
-    player_id: Mapped[str] = mapped_column(ID, ForeignKey("players.id"), unique=True)
-    project_id: Mapped[str] = mapped_column(ID, ForeignKey("business_projects.id"), unique=True)
-    csrf_token: Mapped[str] = mapped_column(String(64))
-    level: Mapped[str] = mapped_column(String(16), default="L1")
-    client_hash: Mapped[str] = mapped_column(SHA256, index=True)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
-    quota_day: Mapped[str] = mapped_column(String(10))
-    messages_today: Mapped[int] = mapped_column(Integer, default=0)
-
-
-class AgentEngagement(Base):
-    """活动计时与关系快照分开，心跳不会破坏正在生成回复的版本。"""
-
-    __tablename__ = "agent_engagements"
-    __table_args__ = (TABLE_OPTIONS,)
-
-    project_id: Mapped[str] = mapped_column(
-        ID, ForeignKey("business_projects.id"), primary_key=True
-    )
-    level: Mapped[str] = mapped_column(String(16))
-    progress_token: Mapped[str] = mapped_column(SHA256)
-    active_seconds: Mapped[int] = mapped_column(Integer, default=0)
-    stagnant_seconds: Mapped[int] = mapped_column(Integer, default=0)
-    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime())
-
-
-class AgentTurn(Base):
-    """一个完整回合；只保存成功回复，与状态变化同事务提交。"""
-
-    __tablename__ = "agent_turns"
-    __table_args__ = (
-        CheckConstraint("json_valid(response)", name="response_json"),
-        UniqueConstraint("project_id", "sequence"),
-        TABLE_OPTIONS,
-    )
-
-    id: Mapped[str] = mapped_column(ID, primary_key=True)
-    project_id: Mapped[str] = mapped_column(ID, ForeignKey("business_projects.id"))
-    sequence: Mapped[int] = mapped_column(Integer)
-    message: Mapped[str] = mapped_column(Text)
-    response: Mapped[Any] = mapped_column(JSONText())
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-
-
-APPEND_ONLY_MODELS: tuple[type[Base], ...] = (
-    AuditEvent,
-    VerificationReview,
-    ArtifactRevision,
-    AgentTurn,
-)
+APPEND_ONLY_MODELS: tuple[type[Base], ...] = (AuditEvent, VerificationReview, ArtifactRevision)
 
 
 class AppendOnlyViolation(RuntimeError):
@@ -373,10 +295,6 @@ def _guard_append_only(session: Session, flush_context: object, instances: objec
 
 
 __all__ = [
-    "AgentGuestSession",
-    "AgentEngagement",
-    "AgentState",
-    "AgentTurn",
     "APPEND_ONLY_MODELS",
     "AppendOnlyViolation",
     "Artifact",
