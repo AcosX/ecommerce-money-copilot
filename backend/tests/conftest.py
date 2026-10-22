@@ -30,6 +30,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from alembic import command
@@ -43,6 +44,7 @@ from emc_api.timeutil import utcnow
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 TEST_ORIGIN = "http://testserver"
+TEST_DB_CONNECT_ARGS = {"connect_timeout": 3, "read_timeout": 5, "write_timeout": 5}
 
 
 # ---------------------------------------------------------------- 数据库工具
@@ -63,19 +65,29 @@ def create_test_database(prefix: str = "emc_test_") -> URL:
     """新建空库（utf8mb4_unicode_ci），返回其连接 URL。"""
     base = _base_database_url()
     name = f"{prefix}{secrets.token_hex(6)}"
-    engine = create_engine(base, isolation_level="AUTOCOMMIT")
+    engine = create_engine(base, isolation_level="AUTOCOMMIT", connect_args=TEST_DB_CONNECT_ARGS)
     try:
         with engine.connect() as conn:
             conn.execute(
                 text(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
             )
+    except DBAPIError as exc:
+        code = getattr(exc.orig, "args", (None,))[0]
+        pytest.exit(
+            f"测试数据库不可用（MySQL {code}）：{base.render_as_string(hide_password=True)}。"
+            "请先启动 backend/docker-compose.dev.yml，核对 EMC_TEST_DATABASE_URL，"
+            "并确认账号有 emc_test_* 的建库权限。",
+            returncode=2,
+        )
     finally:
         engine.dispose()
     return base.set(database=name)
 
 
 def drop_test_database(url: URL) -> None:
-    engine = create_engine(_base_database_url(), isolation_level="AUTOCOMMIT")
+    engine = create_engine(
+        _base_database_url(), isolation_level="AUTOCOMMIT", connect_args=TEST_DB_CONNECT_ARGS
+    )
     try:
         with engine.connect() as conn:
             conn.execute(text(f"DROP DATABASE IF EXISTS `{url.database}`"))
