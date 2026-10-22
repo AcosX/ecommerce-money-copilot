@@ -38,12 +38,20 @@ def test_login_returns_to_current_panel(open_page, panel):
     h = open_page()
     page = goto(h)
     page.locator('[data-panel="' + panel + '"]').click()
-    page.locator("#emcLoginBtn").click()
+    # Settings and mission navigation are modal. Use an accessible login entry
+    # inside each dialog rather than clicking a blocked topbar control.
+    login = (
+        page.locator("#emcLoginBtn")
+        if panel == "inventory"
+        else page.locator('[data-account-action="login"]')
+    )
+    expect(login).to_be_visible()
+    login.click()
     expect(page.locator("#confirmPartnerName")).to_be_visible()
     page.locator("#partnerNameInput").fill("小满")
     page.locator("#confirmPartnerName").click()
     page.wait_for_function("window.EmcSession?.isLoggedIn()")
-    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == ("journey" if panel == "quests" else panel)
+    assert page.evaluate("JSON.parse(render_game_to_text()).panel") == ("missions" if panel == "quests" else panel)
     expect(page.locator("#emcLogoutBtn")).to_be_visible()
     assert not h.urls("/api/artifacts")
     assert not h.urls("/api/verifications")
