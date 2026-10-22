@@ -1,4 +1,4 @@
-/* Mobile island composition: one compact HUD, one playfield, one action dock.
+/* Mobile island composition: one compact HUD, one playfield, a standalone task letter and a separate chat dock.
    This file owns the <=700px layout after the feature stylesheets. */
 @media (max-width:700px){
   .game-shell{--mobile-gutter:12px;--mobile-top:max(12px,env(safe-area-inset-top));--mobile-floor:max(12px,env(safe-area-inset-bottom));}
@@ -14,15 +14,21 @@
   .shop-journal{top:calc(var(--mobile-top) + 126px);left:var(--mobile-gutter);right:auto;width:84px;padding:0;transform:none;}
   .shop-journal>button{height:36px;width:84px;min-height:36px;padding:0 8px;margin:0;gap:5px;font-size:10px;box-shadow:2px 2px var(--shadow);}
   .shortcuts{top:calc(var(--mobile-top) + 126px);left:calc(var(--mobile-gutter) + 92px);right:auto;gap:8px;}
-  .shortcut{height:36px;min-width:70px;padding:0 8px;flex-direction:row;gap:5px;font-size:10px;border:1.5px solid var(--line);border-radius:2px;background:var(--surface);box-shadow:2px 2px var(--shadow);}
+  .shortcut{color:var(--ink);height:36px;min-width:70px;padding:0 8px;flex-direction:row;gap:5px;font-size:10px;border:1.5px solid var(--line);border-radius:2px;background:var(--surface);box-shadow:2px 2px var(--shadow);}
   .shortcut svg{width:20px;height:20px;padding:0;border:0;background:transparent;box-shadow:none;}.shortcut b{right:-3px;top:-4px;}
-  .scene-framing{top:calc(var(--mobile-top) + 172px);bottom:calc(var(--mobile-floor) + 158px);left:50%;width:100%;height:auto;max-height:none;transform:translateX(-50%);}
+  .scene-framing{top:calc(var(--mobile-top) + 172px);bottom:calc(var(--mobile-floor) + 220px);left:50%;width:100%;height:auto;max-height:none;transform:translateX(-50%);}
   .scene-framing-content{inset:0 -3%;}
-  .quest-peek{top:auto;left:var(--mobile-gutter);right:calc(var(--mobile-gutter) + 68px);bottom:calc(var(--mobile-floor) + 86px);width:auto;height:60px;min-height:60px;padding:8px 10px;gap:9px;border-left-width:3px;box-shadow:2px 3px var(--shadow);}
-  .quest-peek small{font-size:8px;margin-bottom:3px;}.quest-peek b{font-size:12px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}.quest-peek em{display:none;}.quest-peek .peek-arrow{width:12px;}.peek-icon svg{width:21px;height:21px;}
-  .main-actions.mail-actions{top:auto;left:auto;right:var(--mobile-gutter);bottom:calc(var(--mobile-floor) + 86px);width:58px;height:60px;transform:none;display:block;}
-  .mail-actions .mail-button{width:58px;height:60px;padding:7px 0 5px;gap:5px;border:1.5px solid var(--line);border-radius:3px;background:var(--gold);box-shadow:2px 3px var(--shadow);filter:none;justify-content:center;}
-  .mail-actions .mail-button:after{content:'拆信';font-size:10px;font-weight:800;line-height:12px;}.mail-actions .mail-envelope{width:34px;height:24px;border-width:1px;border-radius:2px;box-shadow:1px 1px var(--ink);animation:none;}.mail-actions .mail-envelope:after{left:12px;top:7px;width:10px;height:10px;font-size:7px;line-height:8px;}.mail-actions .mail-spark{font-size:12px;right:-6px;top:-6px;}
+  /* The letter is the primary action, never a boxed shortcut beside a card. */
+  .quest-peek{top:auto;left:var(--mobile-gutter);right:var(--mobile-gutter);bottom:calc(var(--mobile-floor) + 80px);width:auto;height:32px;min-height:32px;padding:3px 8px;gap:7px;justify-content:center;border:0;background:transparent;box-shadow:none;}
+  .quest-peek>span:not(.peek-icon){min-width:0;display:flex;align-items:center;gap:7px;}.quest-peek small{font-size:9px;margin:0;white-space:nowrap;color:var(--muted);}.quest-peek b{font-size:11px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}.quest-peek em,.quest-peek .peek-icon{display:none;}.quest-peek .peek-arrow{margin-left:0;width:12px;height:12px;flex-shrink:0;}
+  .main-actions.mail-actions{top:auto;left:50%;right:auto;bottom:calc(var(--mobile-floor) + 118px);width:152px;height:90px;transform:translateX(-50%);display:block;}
+  .mail-actions .mail-button{position:relative;width:152px;height:90px;padding:10px 26px 6px;gap:10px;border:0;border-radius:0;background:transparent;box-shadow:none;filter:drop-shadow(0 4px 0 #20294c24);justify-content:center;}
+  .mail-actions .mail-button:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse,#ffe68155,transparent 68%);}
+  .mail-actions .mail-button:after{content:'拆开任务来信';font-size:10px;font-weight:800;letter-spacing:2px;line-height:14px;color:var(--ink);text-shadow:0 1px 3px var(--surface);}
+  .mail-actions .mail-envelope{width:86px;height:56px;flex-shrink:0;border-width:2px;border-radius:4px;box-shadow:3px 4px 0 #263355;animation:mail-nudge 3s ease-in-out infinite;}
+  .mail-actions .mail-envelope:after{left:31px;top:17px;width:20px;height:20px;font-size:13px;line-height:18px;}.mail-actions .mail-spark{font-size:24px;right:-13px;top:-14px;}
+  [data-theme="night"] .shortcut{color:var(--ink);}[data-theme="night"] .quest-peek{color:#f3efff;}[data-theme="night"] .quest-peek small{color:#c4c9e5;}[data-theme="night"] .mail-actions .mail-button:after{color:#fff0b5;text-shadow:0 2px 3px #111b46;}
+  .mail-actions .mail-button:active .mail-envelope{filter:brightness(1.12);}
   .copilot-dock{left:var(--mobile-gutter);right:var(--mobile-gutter);top:auto;bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px));width:auto;transform:none;grid-template-columns:minmax(0,1fr) 44px;gap:5px 8px;}
   .copilot-dock .copilot-status{min-height:12px;font-size:9px;margin:0 2px;line-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .copilot-dock form{height:48px;min-height:48px;padding:5px 6px 5px 10px;gap:7px;box-shadow:2px 3px var(--shadow);border-radius:3px;}.copilot-dock form>svg{width:16px;height:16px;}.copilot-dock input{font-size:16px;padding:5px 0;}.copilot-dock input::placeholder{font-size:12px;}.copilot-dock #copilotSend{width:34px;height:34px;}.copilot-dock button.copilot-history{width:44px;height:48px;border-radius:3px;box-shadow:2px 3px var(--shadow);}
@@ -37,7 +43,7 @@
   body:has(.backpack .bag-decor-grid) .scene-framing{bottom:calc(var(--mobile-floor) + min(320px,48svh) + 8px);}
   .copilot-dock.mobile-chat-open{left:12px;right:12px;bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px));height:min(620px,72svh);max-height:calc(100svh - var(--keyboard-offset,0px) - 84px);grid-template-columns:minmax(0,1fr);gap:0;padding:12px;border-radius:5px;}
   .mobile-chat-open .social-heading{grid-template-columns:44px minmax(0,1fr) 36px;}.mobile-chat-open .social-heading button.social-close{width:36px;height:36px;}.mobile-chat-open .copilot-status{white-space:normal;min-height:30px;padding:8px 0;}.mobile-chat-open .social-messages{min-height:0;}.mobile-chat-open form{box-shadow:none;}
-  .keyboard-open .player-card,.keyboard-open .shortcuts,.keyboard-open .shop-journal{visibility:hidden;}.keyboard-open .scene-framing{top:calc(var(--mobile-top) + 55px);bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px) + 90px);height:auto;}
+  .keyboard-open .player-card,.keyboard-open .shortcuts,.keyboard-open .shop-journal,.keyboard-open .quest-peek,.keyboard-open .main-actions{visibility:hidden;}.keyboard-open .scene-framing{top:calc(var(--mobile-top) + 55px);bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px) + 90px);height:auto;}
   .toast{bottom:calc(var(--mobile-floor) + 165px);max-width:calc(100vw - 32px);}
 }
 @media(max-width:370px){
@@ -45,5 +51,7 @@
   .player-card{grid-template-columns:28px minmax(0,1fr) 76px;gap:8px;}.player-avatar{height:30px;}.player-identity h1{font-size:11px;}.experience{padding-left:8px;}.quest-peek b{font-size:11px;}.npc-bubble{width:224px;}
 }
 @media(max-width:700px) and (max-height:650px){
-  .game-shell{--mobile-top:8px;--mobile-floor:8px;}.player-card{top:60px;height:54px;}.shop-journal,.shortcuts{top:124px;}.scene-framing{top:166px;bottom:146px;}.quest-peek,.main-actions.mail-actions{bottom:80px;height:54px;min-height:54px;}.mail-actions .mail-button{height:54px;gap:3px;}.copilot-dock form,.copilot-dock button.copilot-history{height:44px;min-height:44px;}.npc-bubble{padding-top:18px;padding-bottom:14px;}.npc-bubble p{max-height:min(var(--npc-text-max,40px),40px);}
+  .game-shell{--mobile-top:8px;--mobile-floor:8px;}.player-card{top:60px;height:54px;}.shop-journal,.shortcuts{top:124px;}.scene-framing{top:166px;bottom:190px;}.quest-peek{bottom:72px;height:28px;min-height:28px;}.main-actions.mail-actions{bottom:104px;height:78px;}.mail-actions .mail-button{height:78px;padding-block:5px;gap:7px;}.mail-actions .mail-envelope{width:78px;height:50px;}.mail-actions .mail-envelope:after{left:27px;top:14px;}.copilot-dock form,.copilot-dock button.copilot-history{height:44px;min-height:44px;}.npc-bubble{padding-top:18px;padding-bottom:14px;}.npc-bubble p{max-height:min(var(--npc-text-max,40px),40px);}
 }
+
+@media(max-width:700px) and (prefers-reduced-motion:reduce){.mail-actions .mail-envelope,.mail-actions .mail-spark{animation:none;}}

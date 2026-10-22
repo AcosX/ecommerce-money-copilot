@@ -11,7 +11,8 @@ const separated=(a,b)=>assert.ok(a.x+a.width<=b.x+1||b.x+b.width<=a.x+1||a.y+a.h
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(width<=700){
    const selectors=['.topbar','.player-card','.shop-journal','.shortcuts','.quest-peek','.main-actions','.copilot-dock'];const boxes=[];for(const s of selectors){const r=await rect(page,s);inside(r,width,height);boxes.push(r);}for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)separated(boxes[i],boxes[j]);
-   const play=await rect(page,'.scene-framing');assert.ok(play.height>200&&play.y>=boxes[3].y+boxes[3].height,'Island has a reserved playfield');assert.ok(play.y+play.height<boxes[4].y);
+   const play=await rect(page,'.scene-framing');assert.ok(play.height>200&&play.y>=boxes[3].y+boxes[3].height,'Island has a reserved playfield');assert.ok(play.y+play.height<=boxes[5].y,'Island ends above the standalone letter');
+   const envelope=await rect(page,'.mail-envelope');assert.ok(envelope.width>=78&&envelope.height>=50,'Letter remains prominent');assert.ok(Math.abs(boxes[5].x+boxes[5].width/2-width/2)<2,'Letter is centered independently');assert.ok(boxes[5].y+boxes[5].height<=boxes[4].y,'Task hint follows the letter');assert.equal(await page.locator('#continueButton').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
    const bubble=await rect(page,'#npcBubble');if(bubble){inside(bubble,width,height);assert.ok(bubble.y>=boxes[1].y+boxes[1].height,'Cloud cannot cover the shop status');}
   }
   await page.screenshot({path:path.join(out,width+'-day.png')});await page.locator('#themeNight').click();await page.waitForTimeout(150);await page.screenshot({path:path.join(out,width+'-night.png')});await page.locator('#themeDay').click();
