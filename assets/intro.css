@@ -5,3 +5,5 @@
 .opening:not(.intro-playing) *,.opening.intro-paused *{animation-play-state:paused!important}
 
 .opening.leaving>.boot-hero,.opening.leaving>.boot-bottom,.opening.leaving>.boot-corner{animation:boot-content-out .5s ease-out both}@keyframes boot-content-out{to{opacity:0;filter:blur(3px)}}
+
+.opening [hidden]{display:none!important}.opening #bootSkip{background:#333f60;color:#fff4cf;border:1px solid #a6b2cc;margin-top:8px}.opening.failed .boot-bottom{bottom:5%}
