@@ -28,6 +28,17 @@ async function withPolicy(page){
    console.log('PASS',browserName,width,'detailed->lite',s.diagnostics.map(x=>x.code).join(','),'tier='+s.tier);
    await page.close();
   }
+  {const page=await browser.newPage({viewport:{width:1440,height:960}});
+   await withPolicy(page);
+   await page.goto(url);
+   await page.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).scene_status==='ready',null,{timeout:30000});
+   await page.locator('#opening').waitFor({state:'detached',timeout:15000});
+   await page.locator('#continueButton').click();
+   await page.locator('#drawer').waitFor({state:'visible',timeout:12000});
+   assert.equal((await state(page)).source,'tripo_model');
+   console.log('PASS',browserName,'normal boot -> intro closes -> task opens');
+   await page.close();
+  }
   {const page=await browser.newPage({viewport:{width:390,height:844}});
    await withPolicy(page);
    await page.route('**/*.glb*',route=>route.fulfill({status:503,body:'simulate all 3D assets unavailable'}));

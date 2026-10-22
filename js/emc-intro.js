@@ -23,12 +23,12 @@ function update(){
 retry.onclick=()=>{document.getElementById('retryScene')?.click();update();};
 skip.onclick=()=>{document.dispatchEvent(new Event('emc:scene-skip'));leave();};
 const observer=new MutationObserver(update);observer.observe(loader,{attributes:true,attributeFilter:['hidden','data-state']});
-// Count rendered foreground time, not a wall-clock timeout that can overtake the animation.
+// Count actual foreground time; capping each frame delta made the 6s intro last much longer on slow GPUs.
 let played=0,last=null;
 document.addEventListener('visibilitychange',()=>{last=null;overlay.classList.toggle('intro-paused',document.hidden);});
 function tick(now){
  if(finished)return;
- if(!document.hidden){if(last!==null)played+=Math.min(100,now-last);last=now;}else last=null;
+ if(!document.hidden){if(last!==null)played+=Math.max(0,now-last);last=now;}else last=null;
  overlay.dataset.playedMs=String(Math.floor(played));
  if(played>=6000){elapsed=true;update();return;}
  requestAnimationFrame(tick);
