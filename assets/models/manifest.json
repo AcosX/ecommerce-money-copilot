@@ -277,12 +277,12 @@
       "triangles": 46958,
       "texture_max_dimension": 2048,
       "texture_format": "webp",
-      "refinement": "leveled paving geometry; preserved 3D grass, rocks, moss and cliff"
+      "refinement": "full horizontal terrain to the rim; preserved source mesh, UVs and volumetric decorations"
     },
     "lite": {
       "model_url": "assets/models/island-flat-v2-lite.glb",
-      "bytes": 1197916,
-      "triangles": 32870,
+      "bytes": 1206572,
+      "triangles": 32868,
       "texture_max_dimension": 1024
     },
     "texture_max_dimension": 2048,

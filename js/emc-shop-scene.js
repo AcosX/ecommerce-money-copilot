@@ -1,3 +1,4 @@
+import {startShopUpgrade} from './emc-shop-upgrade.js?v=upgrade2';
 import {bindBuildingParts,syncBuildingParts,createBuildingEnvironment} from './emc-building-parts.js?v=buildings4';
 import * as THREE from 'three';
 import './emc-render-quality.js';
@@ -5,7 +6,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-buildings4';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-upgrade5';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -57,6 +58,28 @@ export class ShopScene{
       }
       this.baseShopObjects.forEach(obj=>{this.root.remove(obj);disposeGeometry(obj);});this.baseShopObjects=[];this.root.add(group);pendingShop=null;this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);if(entry.modular)this.createModuleSign(group);else this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);await this.guide.ready;if(this.disposed)return;this.canPaint=this.paintMaterials.length>0||!!this.buildingParts?.length;this.sync();this.options.onModelLoaded?.(this.canPaint);
     }catch(error){if(pendingIsland)disposeAsset(pendingIsland.scene);if(pendingShop)disposeAsset(pendingShop.scene);if(!this.disposed){this.options.onModelError?.(error);throw error;}}
+  }
+  async upgradeTo(level,{onStart=()=>{},onReveal=()=>{}}={}){
+    if(this.upgradePromise){await this.upgradePromise;if(this.disposed||level<=this.modelLevel)return false;}
+    if(level<=this.modelLevel||this.disposed)return false;
+    const run=async()=>{
+      const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.buildings?.[String(level)];if(!entry)throw new Error('升级模型尚未准备好');
+      const asset=await loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{signal:this.loadController.signal});if(this.disposed){disposeAsset(asset.scene);return false;}
+      const box=new THREE.Box3().setFromObject(asset.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),scale=4.4/Math.max(size.x,size.z),group=new THREE.Group();asset.scene.position.set(-center.x,-box.min.y,-center.z);group.add(asset.scene);group.scale.setScalar(scale);group.rotation.y=entry.rotation_y||0;
+      const parts=entry.modular?bindBuildingParts(asset.scene):null;asset.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});acceleratePicking(asset.scene);
+      if(entry.modular&&!this.environmentTarget){this.environmentTarget=createBuildingEnvironment(this.renderer);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.7;}
+      try{await this.renderer.compileAsync(group,this.camera,this.scene);}catch(error){disposeAsset(group);throw error;}if(this.disposed){disposeAsset(group);return false;}
+      const oldObjects=[this.shopModel,this.shopSign,this.signBoard].filter(Boolean),oldMaterials=new Set();oldObjects.forEach(o=>o.traverse(c=>{for(const m of c.material?(Array.isArray(c.material)?c.material:[c.material]):[])oldMaterials.add(m);}));
+      onStart();this.upgradeEffect=startShopUpgrade(this,oldObjects,()=>{
+        this.shopSign=null;this.signBoard=null;this.signBoardWood=null;this.signCanvas=null;this.signTexture=null;this.buildingEntry=entry;this.modelLevel=level;this.options.modelLevel=level;this.buildingParts=parts;this.paintMaterials=[];
+        asset.scene.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){this.materials.push(m);if(!entry.modular&&entry.wall_mask==='cream'){installPartTint(m,this.paintUniforms);this.paintMaterials.push(m);}}});
+        this.root.add(group);this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);if(entry.modular)this.createModuleSign(group);else this.createShopSign(group,entry.sign,size.y*scale);
+        this.textureStatus.shop=countTexturedMeshes(asset.scene);this.canPaint=this.paintMaterials.length>0||!!parts?.length;this.paintUniforms.roofY.value=group.position.y+size.y*scale*([.55,.55,.67,.67,.82,.90][level]);this.previewPartName=null;this.paintUniforms.preview.value=0;this.sync();return [group,this.shopSign,this.signBoard].filter(Boolean);
+      },{onReveal});
+      let completed;try{completed=await this.upgradeEffect.promise;}finally{this.upgradeEffect=null;}
+      if(this.shopModel===group){oldObjects.forEach(disposeAsset);this.materials=this.materials.filter(m=>!oldMaterials.has(m));this.texturePixels?.clear();this.renderer.shadowMap.needsUpdate=true;this.render();}else disposeAsset(group);return completed;
+    };
+    this.upgradePromise=run();try{return await this.upgradePromise;}finally{this.upgradePromise=null;}
   }
   createModuleSign(shop){
     shop.updateMatrixWorld(true);let face=null;shop.traverse(o=>{if(o.isMesh&&o.material?.name.replace(/\.\d+$/,'')==='sign')face=o;});if(!face)return;
@@ -293,8 +316,8 @@ export class ShopScene{
   render(immediate=false){if(this.disposed)return;this.dirty=true;if(immediate)this.draw();}
   draw(){if(this.disposed||document.hidden)return;if(this.selected)this.selection.setFromObject(this.items.get(this.selected));const started=performance.now();this.renderer.render(this.scene,this.camera);this.framesDrawn++;this.dirty=false;this.frameCost+=performance.now()-started;this.costSamples++;if(this.costSamples>=120){if(this.quality.mode==='auto'){const next=globalThis.EmcRenderQuality.nextRatio(this.currentRatio,this.frameCost/this.costSamples);if(next!==this.currentRatio){this.currentRatio=next;this.renderer.setPixelRatio(next);this.dirty=true;}}this.frameCost=0;this.costSamples=0;}}
   performanceSummary(){return {tier:this.quality.tier,mode:this.quality.mode,pixel_ratio:this.currentRatio,shadow_size:this.quality.shadowSize,frames:this.framesDrawn,draw_calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures};}
-  loop(){if(this.disposed)return;this.frame=requestAnimationFrame(()=>this.loop());if(this.container.hidden||document.hidden){this.lastFrame=performance.now();return;}const now=performance.now();if(now-(this.lastFrame||0)<1000/this.quality.fps-1)return;const dt=Math.min(.1,(now-(this.lastFrame||now))/1000);this.lastFrame=now;if(!this.options.readOnly)this.controls.update();if(this.guide){this.guide.update(dt);this.dirty=true;}if(this.dirty)this.draw();}
-  dispose(){this.loadController.abort(new Error('场景已关闭'));clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.guide?.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.texturePixels?.clear();this.surfaceCache?.clear();this.environmentTarget?.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+  loop(){if(this.disposed)return;this.frame=requestAnimationFrame(()=>this.loop());if(this.container.hidden||document.hidden){this.lastFrame=performance.now();return;}const now=performance.now();if(now-(this.lastFrame||0)<1000/this.quality.fps-1)return;const dt=Math.min(.1,(now-(this.lastFrame||now))/1000);this.lastFrame=now;if(!this.options.readOnly)this.controls.update();this.upgradeEffect?.update(dt);if(this.guide){this.guide.update(dt);this.dirty=true;}if(this.dirty)this.draw();}
+  dispose(){this.upgradeEffect?.cancel();this.loadController.abort(new Error('场景已关闭'));clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.guide?.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.texturePixels?.clear();this.surfaceCache?.clear();this.environmentTarget?.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
