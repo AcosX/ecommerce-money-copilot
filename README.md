@@ -54,7 +54,7 @@ python -m http.server 5189 --bind 127.0.0.1
 
 新版六级建筑发布资源统一位于 `assets/models/buildings/`，由 `assets/models/manifest.json` 指向；低级原模型与后三级模块建筑均保留几何，按设备选择 web/lite 贴图。39 个废弃发布资产与旧生成脚本（约 146 MiB）已移出项目，位于本机 `../_archive/ecommerce-assets-retired-20261022/`，不随站点部署。当前岛屿原始源网格、角色与模块制作源文件继续保留。
 
-`tools/island-buildings-preview.html` 可逐级检查浮岛实装和升级演出；正式升级在当前画布旋转建筑，以轻微金色泛光和淡入淡出换模，揭开新建筑时播放音效。下载失败保留原模型。
+`tools/island-buildings-preview.html` 可逐级检查浮岛实装和升级演出；正式升级在当前画布快速旋转建筑并微幅缩放回弹，以金色泛光和淡入淡出换模，揭开新建筑时播放音效。下载失败保留原模型。
 
 ## 说明
 
