@@ -7,3 +7,13 @@ test('历史白名单、容量、非法日期与旧存档兼容',()=>{const sour
 test('真实 AI 接入点校验输出，失败不伪装成本地回复',async()=>{const r=await C.reply('问',{}, {transport:async()=>({text:' AI 回复 '})});assert.deepEqual(r,{text:'AI 回复',source:'ai'});await assert.rejects(C.reply('问',{}, {transport:async()=>({text:''})}),/没有返回/);await assert.rejects(C.reply('问',{}, {transport:async()=>{throw Error('offline')}}),/offline/);const controller=new AbortController();controller.abort();await assert.rejects(C.reply('问',{}, {signal:controller.signal,transport:async()=>({text:'迟到回复'})}),/取消/);});
 
 test('经营副驾使用当前交付要求和类目方法，不把收材料当作通过',async()=>{const context={companion_name:'小商',journey:{platform:'pinduoduo'},task:{name:'把商品摆上货架',required_evidence:['工具使用记录','上架成功']},skill_instructions:'先检查市场空间、竞争和用户资源'};assert.match(C.systemPrompt(context),/先检查市场空间、竞争和用户资源/);assert.match(C.systemPrompt(context),/接收材料不代表审核通过/);const answer=await C.reply('如何提交截图',context);assert.match(answer.text,/工具使用记录和上架成功/);assert.match(answer.text,/等待确认/);});
+
+
+test('history normalization and labels preserve unknown legacy provenance',()=>{
+  const rows=C.history([{role:'assistant',text:'旧记录',source:'history'}]);
+  assert.equal(rows[0].source,'history');
+  assert.equal(C.sourceLabel(rows[0].source),'历史回复 · 来源未记录');
+  assert.equal(C.sourceLabel('ai'),'AI 副驾');
+  assert.equal(C.sourceLabel('local-guide'),'本地规则引导');
+  const g=G.create();g.npc_chat=rows;assert.deepEqual(G.normalize(g).npc_chat,rows);
+});

@@ -3,7 +3,7 @@ const { test } = require('node:test'), assert = require('node:assert/strict');
 const vm = require('node:vm'), fs = require('node:fs'), path = require('node:path');
 
 function setup() {
-  let user = 'alice', online = true, fail = false, provider = 'ai_gateway_live';
+  let user = 'alice', online = true, fail = false, provider = 'ai_gateway_live', historyProvider = null;
   const calls = [];
   const root = {
     EmcSession: {
@@ -18,7 +18,7 @@ function setup() {
           memory: { intimacy_score: 27, interactions_count: 2, current_focus_level: 'L2' },
           recent_conversation: [
             { session_id: 'proj_other', user_message: '秘密', reply: '不应显示' },
-            { session_id: 'proj_1', user_message: '问题', reply: '服务端回答' }
+            { session_id: 'proj_1', user_message: '问题', reply: '服务端回答', provider: historyProvider }
           ]
         };
       },
@@ -35,7 +35,8 @@ function setup() {
     setUser: value => { user = value; },
     setOnline: value => { online = value; },
     setFail: value => { fail = value; },
-    setProvider: value => { provider = value; }
+    setProvider: value => { provider = value; },
+    setHistoryProvider: value => { historyProvider = value; }
   };
 }
 
@@ -76,7 +77,7 @@ test('history is filtered by project session id and avoids cross-project exposur
   assert.equal(history.items.length, 1);
   assert.equal(history.items[0].message, '问题');
   assert.equal(history.items[0].reply.text, '服务端回答');
-  assert.equal(history.items[0].reply.source, 'local-guide'); // 旧审计不提供模型来源
+  assert.equal(history.items[0].reply.source, 'history'); // 旧审计不提供模型来源
   assert.equal(t.client.snapshot('proj_1').server_version, 2);
   assert.equal(t.calls.length, 1);
 });
@@ -112,4 +113,13 @@ test('fallback is labeled local guide; failed requests cannot be presented as AI
   assert.equal(result.source, 'local-guide');
   t.setFail(true);
   await assert.rejects(t.client.transport({ message: '问题', context: { project_id: 'proj_1' } }));
+});
+
+
+test('restored history distinguishes recorded AI, fallback and unrecorded sources', async () => {
+  const t = setup();
+  for (const [provider, source] of [['ai_gateway_live','ai'],['ai_gateway','ai'],['local_copilot_fallback','local-guide'],['local_copilot','local-guide'],[null,'history'],['future-provider','history']]) {
+    t.setHistoryProvider(provider);
+    assert.equal((await t.client.history('proj_1')).items[0].reply.source,source);
+  }
 });

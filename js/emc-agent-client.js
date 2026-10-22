@@ -49,7 +49,7 @@
     return {
       items: rows.map(turn => ({
         message: turn.user_message || '',
-        reply: { text: turn.reply || '', source: 'local-guide' },
+        reply: { text: turn.reply || '', source: ['ai_gateway_live','ai_gateway'].includes(turn.provider) ? 'ai' : ['local_copilot','local_copilot_fallback'].includes(turn.provider) ? 'local-guide' : 'history' },
         time: turn.occurred_at
       })),
       next_before: null
