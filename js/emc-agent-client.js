@@ -23,7 +23,7 @@
     const score = clamp(memory?.intimacy_score ?? 20);
     return {
       version: 1, source: 'server', server_version: Number(memory?.interactions_count || 0),
-      affinity: score, patience: 80, streak: 0, perks: [],
+      affinity: score, patience: clamp(memory?.patience_score ?? 80), streak: 0, perks: [],
       level: memory?.current_focus_level || 'L1', emotion: null
     };
   }
@@ -76,6 +76,8 @@
         companion_name: String(context.companion_name || '小商').slice(0, 24),
         platform: String(context.platform || '').slice(0, 32),
         category: String(context.category || '').slice(0, 64),
+        conversation: (context.history || []).filter(t => ['user','assistant'].includes(t.role)).slice(-12).map(t => ({role:t.role,text:String(t.text || '').slice(0,4000)})),
+        companion_state: snapshot(project),
         active_project: project && loggedIn() ? {
           id: project,
           platform: String(context.platform || '').slice(0, 32),
@@ -87,8 +89,7 @@
     const result = await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
     if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');
     if (requester !== keyFor(project)) throw new Error('账号或经营项目已切换');
-    const old = cache.get(requester);
-    if (old) cache.set(requester, { ...old, affinity: Math.min(100, old.affinity + 3), server_version: old.server_version + 1 });
+    if (result.memory) cache.set(requester, view(result.memory));
     return {
       text: result.reply,
       source: result.provider === 'ai_gateway_live' || result.provider === 'ai_gateway' ? 'ai' : 'local-guide',
@@ -101,8 +102,7 @@
       knowledge_citations: Array.isArray(result.knowledge_citations) ? result.knowledge_citations : [],
       roi_calculation: result.roi_calculation && typeof result.roi_calculation === 'object' ? result.roi_calculation : null,
       saved_artifact: result.saved_artifact && typeof result.saved_artifact === 'object' ? result.saved_artifact : null,
-      // The server does not have a project-level patience/perks model.
-      // Leave result.state absent so UI keeps the local practice state.
+      state: result.memory ? view(result.memory) : undefined,
     };
   }
   return {
