@@ -26,7 +26,7 @@
     body.replaceChildren();const groups=[];let page;
     const fresh=()=>{page=document.createElement('div');page.className='mail-page';body.append(page);groups.push(page);};fresh();
     for(const block of blocks){page.append(block);if(page.scrollHeight>body.clientHeight+1&&page.children.length>1){block.remove();fresh();page.append(block);}}
-    const show=index=>{index=Math.max(0,Math.min(groups.length-1,index));pages.set(key,index);groups.forEach((p,i)=>p.hidden=i!==index);nav.querySelector('span').textContent=(index+1)+' / '+groups.length;nav.firstElementChild.disabled=index===0;nav.lastElementChild.disabled=index===groups.length-1;};
+    const show=index=>{index=Math.max(0,Math.min(groups.length-1,index));pages.set(key,index);groups.forEach((p,i)=>p.hidden=i!==index);nav.hidden=letter.classList.contains('mail-welcome')&&groups.length<=1;nav.querySelector('span').textContent=(index+1)+' / '+groups.length;nav.firstElementChild.disabled=index===0;nav.lastElementChild.disabled=index===groups.length-1;};
     nav.onclick=e=>{const button=e.target.closest('[data-letter-page]');if(button){show((pages.get(key)||0)+Number(button.dataset.letterPage));if(!reduced())track(body.animate([{opacity:.45,transform:'translateX(6px)'},{opacity:1,transform:'none'}],{duration:180,easing:'ease-out'}));}};
     show(pages.get(key)||0);
   }
@@ -73,6 +73,7 @@
       const target=host.querySelector('.mail-attachment.primary'),dest=target?.getBoundingClientRect();if(!dest)return;
       const ghost=move.ghost,r=move.rect;ghost.classList.add('mail-transition-ghost');Object.assign(ghost.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',boxSizing:'border-box',overflow:'hidden',zIndex:24,pointerEvents:'none',transformOrigin:'center'});document.body.append(ghost);
       const dx=dest.x+dest.width/2-r.x-r.width/2,dy=dest.y+dest.height/2-r.y-r.height/2;
+      setTimeout(()=>ghost.remove(),330);
       track(ghost.animate([{transform:'none',opacity:1},{transform:`translate(${dx}px,${dy}px) scale(${dest.width/r.width},${dest.height/r.height}) rotate(-4deg)`,opacity:0}],{duration:330,easing:'cubic-bezier(.3,0,.3,1)'})).finished.catch(()=>{}).finally(()=>ghost.remove());
     }else if(sheet){
       const dest=sheet.getBoundingClientRect(),r=move.rect,dx=r.x+r.width/2-dest.x-dest.width/2,dy=r.y+r.height/2-dest.y-dest.height/2;

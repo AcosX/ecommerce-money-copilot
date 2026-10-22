@@ -11,13 +11,13 @@
     let welcomed=false,firstPrepared=false,firstNote={idea:'',budget:'',time:''};try{welcomed=localStorage.getItem('emc-journey-welcome-v1')==='1';}catch(_){}
     if(!welcomed)view='welcome';
     const demo=global.EmcJourneyDemo.create({host:options.container,isOpen:options.isOpen,update:()=>options.onUpdate(),sound:options.sound,workspace:id=>workspace(id),shopName:options.shopName,resetWorkspace:()=>global.EmcPractice.clear('demo')});
-    const host=options.container,blobURLs=new Map(),deliveryDrafts=new Map();
+    const host=options.container,blobURLs=new Map(),deliveryDrafts=new Map(),aiReviews=new Map();
     const workspaceScope=()=>demo.enabled()?'demo':String(Session.current()?.player?.id||'guest')+':'+String(project?.id||'entry')+':formal';
     function workspace(id){return global.EmcPractice.render(workspaceScope(),id,busy);}
     global.EmcPractice.bind(host,{scope:workspaceScope,onChange:()=>options.onPracticeChange?.()});
 
     function selectLevel(id){if(active===id)return;deliveryDrafts.set(active,{files,notes,attempt,confirmed});active=id;const saved=deliveryDrafts.get(id);files=saved?.files||{};notes=saved?.notes||'';attempt=saved?.attempt||null;confirmed=saved?.confirmed||false;}
-    function clearPrivateDrafts(){for(const url of blobURLs.values())URL.revokeObjectURL(url);blobURLs.clear();deliveryDrafts.clear();files={};notes='';attempt=null;confirmed=false;firstPrepared=false;firstNote={idea:'',budget:'',time:''};}
+    function clearPrivateDrafts(){for(const url of blobURLs.values())URL.revokeObjectURL(url);blobURLs.clear();deliveryDrafts.clear();aiReviews.clear();files={};notes='';attempt=null;confirmed=false;firstPrepared=false;firstNote={idea:'',budget:'',time:''};}
     const profile=()=>demo.enabled()?{...demo.profile(),partner_name:options.partnerName()}:({...draft,platform:project?.platform||draft.platform,category:project?.category||draft.category,shop_name:project?.name||draft.shop_name});
     const progress=()=>demo.enabled()?demo.progress():J.progress(project,artifacts,verifications),task=()=>progress().levels.find(l=>l.id===(demo.enabled()?demo.summary().active:active))||progress().levels[0];
     const badge=l=>`<span class="j-status ${l.status}">${STATUS[l.status]}</span>`;
@@ -42,7 +42,8 @@
         if(previousProject===project.id&&next.completed>previous.completed){
           celebration={levels:next.levels.filter(l=>l.status==='approved'&&previous.levels.find(old=>old.id===l.id)?.status!=='approved').map(l=>l.id),from:previous.stage,to:next.stage,xp:next.xp-previous.xp};
           if(view!=='submit'&&view!=='setup'){selectLevel(celebration.levels.at(-1));view='reward';host.scrollTop=0;options.sound(celebration.to>celebration.from?'upgrade':'reward');requestAnimationFrame(()=>options.celebrate?.());}
-        }else if(!['submit','setup','supplies','certificate','reward'].includes(view))selectLevel(next.current?.id||'L6');
+        }else if(celebration&&view==='reward')options.sound(celebration.to>celebration.from?'upgrade':'reward');
+        else if(!previousProject&&!['submit','setup','supplies','certificate','reward'].includes(view))selectLevel(next.current?.id||'L6');
       }catch(e){if(token===epoch&&!silent)error=e.message||'暂时没能同步经营进度。';}
       finally{if(token===epoch){loading=false;options.onUpdate();renderIfOpen();}}
     }
@@ -71,7 +72,7 @@
     }
     function taskCard(){
       const l=task(),p=profile(),story=Story.get(l.id,{platform:p.platform,completed:progress().completed});
-      if(l.status==='pending')return `<article class="mail-attachment-sheet"><header class="mail-attachment-heading"><span>成果回执 / ${l.id}</span>${button('roadmap','任务路线','quiet')}</header><h3 class="j-task-title">成果已收到，正在确认。</h3><p class="j-description">${esc(l.title)}的材料已经交回。审核正在进行，你现在就可以继续下一关。</p>${receipt(l)}${l.id==='L6'?button('roadmap','查看结业进度','primary'):button('next','下一关已解锁 →','primary')}<p class="j-muted">审核结果会另行通知，不妨碍继续学习。</p></article>`;
+      if(l.status==='pending')return `<article class="mail-attachment-sheet"><header class="mail-attachment-heading"><span>成果回执 / ${l.id}</span>${button('roadmap','任务路线','quiet')}</header><h3 class="j-task-title">成果已收到，正在确认。</h3><p class="j-description">${esc(l.title)}的材料已经交回。审核正在进行，你现在就可以继续下一关，也可以请${esc(options.partnerName())}先做 AI 预审。</p>${receipt(l)}<div data-emc-review-slot>${(l.submission?.id&&aiReviews.get(l.submission.id))||''}</div><div class="j-inline-actions">${l.submission?.id?button('ai-review','请'+esc(options.partnerName())+'立即预审','quiet'):''}${button('refresh','查看最新进度','quiet')}</div>${l.id==='L6'?button('roadmap','查看结业进度','primary'):button('next','下一关已解锁 →','primary')}<p class="j-muted">审核结果会另行通知，不妨碍继续学习。</p></article>`;
       const state=l.status==='pending'?`<section class="j-review-state"><b>成果已收到，正在确认。</b>${receipt(l)}${button('refresh','查看最新进度','quiet')}</section>`:l.status==='rejected'?`<section class="j-return-state"><b>这份材料还需要补充</b><p>${esc(l.submission?.rejection_reason||'补充与本关要求对应的清晰证据，再交给我。')}</p></section>`:l.status==='approved'?`<p class="mail-story-resolution">${esc(story.resolved)}</p>${button('next',l.id==='L6'?'查看结业与破零挑战':'继续下一关 →','primary')}`:l.status==='locked'?'<p class="j-muted">完成前一步后，再来拆这封信。</p>':'';
       return `<article class="mail-letter-sheet" data-story="${l.id}"><header class="mail-correspondence"><span>${esc(options.partnerName())}的手写便笺<b>${esc(story.scene)}</b></span></header><span class="j-label">${l.id} · ${l.topic}</span><h3 class="j-task-title">${l.title}</h3>${state}<p class="mail-salutation">店主，见信好。</p><div class="mail-story-copy">${story.paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div><p class="mail-learning"><b>这次你会学到</b>${esc(story.learn)}</p><section class="j-goal"><h4>现在，先做这一小步</h4><p>${esc(story.firstAction)}</p></section><button class="j-button mail-reply" data-j-action="ask">和${esc(options.partnerName())}聊这一步 ↗</button><footer class="mail-signature">先做成眼前这一步。<b>${esc(options.partnerName())}</b></footer></article><section class="mail-enclosures"><div class="mail-attachment-grid">${l.status==='locked'?'':button('deliver',l.status==='rejected'?'取出附件，补充材料 ↗':'取出实践附件 ↗')}${story.support?kit(l):''}</div></section><nav class="mail-tools" aria-label="来信工具">${button('supplies','我的锦囊','quiet')}${button('roadmap','任务路线','quiet')}${button('profile','小店资料','quiet')}</nav>`;
     }
@@ -93,7 +94,7 @@
       const state=progress();
       return `<div class="j-intro"><span class="j-label">六关经营训练</span><h3>每做成一步，<br>小店就向前一点。</h3>
       <p>已提交 ${state.submittedCount} / 6 关成果，<br>审核通过 ${state.completed} / 6 关。<br>提交即可继续，六关通过后获得训练结业资格。</p></div>
-      <ol class="j-roadmap">${state.levels.map(l=>`<li class="${l.status}"><button data-j-level="${l.id}" ${l.status==='locked'?'disabled':''}><span class="j-road-node">${l.status==='approved'?'✓':l.id.slice(1)}</span><span><small>${l.id} · ${l.topic}</small><b>${l.title}</b></span>${badge(l)}</button></li>`).join('')}
+      <ol class="j-roadmap">${state.levels.map(l=>`<li class="${l.status}"><button data-j-level="${l.id}"><span class="j-road-node">${l.status==='approved'?'✓':l.id.slice(1)}</span><span><small>${l.id} · ${l.topic}</small><b>${l.title}</b></span>${badge(l)}</button></li>`).join('')}
       <li class="final"><button data-j-action="final"><span class="j-road-node">✦</span><span><small>独立荣誉（可选）</small><b>真实第一单 · 破零挑战</b></span><span class="j-status">可预览</span></button></li></ol>
       <div class="j-growth-strip">${J.GROWTH.map((name,i)=>`<span class="${state.stage===i+1?'current':''}">${name}</span>`).join('')}</div>`;
     }
@@ -106,7 +107,7 @@
       const p=progress(),graduationReady=p.completed===6;
       return `<span class="j-label">额外荣誉 · 破零挑战</span><h3 class="j-task-title">你的第一笔生意，<br>值得被记住。</h3>
       <p class="j-description">真实第一单是毕业后的可选挑战，<b>不是六关训练结业的必要条件</b>。即使还没有订单，只要六关成果全部认可且一致，你也能正式结业。</p>
-      <section class="j-goal"><h4>训练结业状态</h4><p>成果已提交 ${p.submittedCount} / 6；审核通过 ${p.completed} / 6。${graduationReady?'六关成果均已认可；正式结业核验与颁发功能尚待完成。':'继续完善待审核或需修改的材料。'}</p></section>
+      <section class="j-goal"><h4>训练结业状态</h4><p>成果已提交 ${p.submittedCount} / 6；审核通过 ${p.completed} / 6。${graduationReady?'六关成果均已认可；正式结业与首单核验功能尚未开放。':'继续完善待审核或需修改的材料。'}</p></section>
       <div class="j-final-stamp" aria-hidden="true">01<span>FIRST ORDER</span></div>
       <section class="j-goal"><h4>独立破零挑战（可选）</h4><ul><li>□ 脱敏的成交/付款凭证</li><li>□ 对应店铺、商品与成交时间</li><li>□ 必要的辅助说明，保护买家隐私</li></ul></section>
       <p class="j-callout">破零凭证提交与徽章发放仍在开发中；这里不会把预览当作真实认证。</p>
@@ -163,6 +164,7 @@
       else if(b.dataset.jAction==='profile'){if(project){draft.platform=project.platform;draft.category=project.category;draft.shop_name=project.name;}view='setup';}
       else if(b.dataset.jAction==='next'){celebration=null;const index=J.LEVELS.findIndex(l=>l.id===active);if(index===5)view='final';else{selectLevel(J.LEVELS[index+1].id);view='task';kitOpen=false;}}
       else if(b.dataset.jAction==='refresh'){await refresh();return;}
+      else if(b.dataset.jAction==='ai-review'){const subId=task().submission?.id,slot=host.querySelector('[data-emc-review-slot]')||host;if(subId&&global.EmcAvatarAgent?.runDeliverablePreReview){await global.EmcAvatarAgent.runDeliverablePreReview(subId,slot);if(slot!==host)aiReviews.set(subId,slot.innerHTML);}return;}
       else if(b.dataset.jAction==='copy'){await copyBrief();return;}
       else if(b.dataset.jAction==='companion'){options.openCompanion?.();return;}
       else if(b.dataset.jAction==='ask'){await ask();return;}
@@ -182,7 +184,7 @@
       if(!remember()){render();return;}options.onProfile(draft);view='task';selectLevel(progress().current?.id||'L6');kitOpen=false;error='';notice='';render();options.onUpdate();host.scrollTop=0;global.toast?.('小店方向已记好，我们先从你自己的想法聊起。');
     });
     setInterval(()=>{if(!document.hidden&&options.isOpen()&&!busy&&!loading&&view==='task'&&progress().levels.some(l=>l.status==='pending'))void refresh({silent:true});},15000);
-    const api={openLevel:id=>{if(demo.enabled()){demo.openLevel(id);return;}selectLevel(id==='first_order'?'L6':id);view=!welcomed&&progress().submittedCount===0?'welcome':id==='first_order'?'final':'task';kitOpen=false;celebration=null;render();host.scrollTop=0;},demoSettings:demo.settings,practiceRecords:()=>global.EmcPractice.records(workspaceScope()),isDemo:demo.enabled,setDemo:demo.setEnabled,open,render,refresh,prepareContext,profile,progress,isEditing:()=>view==='submit'||view==='setup',context:()=>({journey:{platform:profile().platform,category:profile().category,agent:profile().agent,completed:progress().completed,status:task().status},task:{id:task().id,name:task().title,topic:task().topic,deliverable:task().deliverable,required_evidence:task().slots.filter(s=>s.required).map(s=>s.label)},skill_ids:J.kitIds(task().id,profile().platform),...(advisorText?{skill_instructions:advisorText}:{})}),summary:()=>demo.enabled()?demo.summary():({project_id:project?.id||null,view,active,loading,busy,error,profile:profile(),completed:progress().completed,stage:progress().stage,status:task().status,files:Object.fromEntries(Object.entries(files).map(([k,v])=>[k,v.length]))})};
+    const api={openLevel:(id,entry)=>{if(demo.enabled()){demo.openLevel(id);return;}if(entry==='submit'){welcomed=true;firstPrepared=true;}selectLevel(id==='first_order'?'L6':id);view=!welcomed&&progress().submittedCount===0?'welcome':id==='first_order'?'final':entry==='submit'&&!['pending','locked','approved'].includes(task().status)?'submit':entry==='roadmap'?'roadmap':entry==='supplies'?'supplies':entry==='profile'?'setup':'task';kitOpen=entry==='kit';celebration=null;render();host.scrollTop=0;},demoSettings:demo.settings,practiceRecords:()=>global.EmcPractice.records(workspaceScope()),isDemo:demo.enabled,setDemo:demo.setEnabled,open,render,refresh,prepareContext,profile,progress,isEditing:()=>view==='submit'||view==='setup',context:()=>({journey:{platform:profile().platform,category:profile().category,agent:profile().agent,completed:progress().completed,status:task().status},task:{id:task().id,name:task().title,topic:task().topic,deliverable:task().deliverable,required_evidence:task().slots.filter(s=>s.required).map(s=>s.label)},skill_ids:J.kitIds(task().id,profile().platform),...(advisorText?{skill_instructions:advisorText}:{})}),summary:()=>demo.enabled()?demo.summary():({project_id:project?.id||null,view,active,loading,busy,error,profile:profile(),completed:progress().completed,stage:progress().stage,status:task().status,files:Object.fromEntries(Object.entries(files).map(([k,v])=>[k,v.length]))})};
     return api;
   }
   global.EmcJourneyUI={create};

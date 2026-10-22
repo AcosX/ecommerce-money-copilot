@@ -91,8 +91,16 @@
     if (old) cache.set(requester, { ...old, affinity: Math.min(100, old.affinity + 3), server_version: old.server_version + 1 });
     return {
       text: result.reply,
-      source: result.provider === 'ai_gateway_live' ? 'ai' : 'local-guide',
+      source: result.provider === 'ai_gateway_live' || result.provider === 'ai_gateway' ? 'ai' : 'local-guide',
       provider: result.provider || 'unknown',
+      model: result.model || 'xiaoshang-v1',
+      emotion: result.emotion || null,
+      pose: result.pose || result.avatar_state || 'speak',
+      tool_calls: Array.isArray(result.tool_calls) ? result.tool_calls : (Array.isArray(result.tool_traces) ? result.tool_traces : []),
+      ui_actions: Array.isArray(result.ui_actions) ? result.ui_actions : [],
+      knowledge_citations: Array.isArray(result.knowledge_citations) ? result.knowledge_citations : [],
+      roi_calculation: result.roi_calculation && typeof result.roi_calculation === 'object' ? result.roi_calculation : null,
+      saved_artifact: result.saved_artifact && typeof result.saved_artifact === 'object' ? result.saved_artifact : null,
       // The server does not have a project-level patience/perks model.
       // Leave result.state absent so UI keeps the local practice state.
     };

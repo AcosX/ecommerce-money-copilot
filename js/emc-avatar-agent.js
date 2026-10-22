@@ -130,6 +130,9 @@
     stage.id = 'emcAvatarStage';
     stage.setAttribute('aria-label', '向导小商 3D 数字人伴学舱');
 
+    var mainRow = make('div', 'emc-avatar-main-row');
+    var sideCol = make('div', 'emc-avatar-side');
+
     var bubble = make('div', 'emc-avatar-bubble');
     bubble.id = 'emcAvatarBubble';
     bubble.style.cursor = 'pointer';
@@ -139,7 +142,7 @@
       openCopilotPanel();
       if (els.cpInput) els.cpInput.focus();
     });
-    stage.appendChild(bubble);
+    sideCol.appendChild(bubble);
 
     var holo = make('div', 'emc-avatar-holo');
     holo.id = 'emcAvatarHolo';
@@ -200,15 +203,15 @@
     botHud.appendChild(wave);
     holo.appendChild(botHud);
 
-    stage.appendChild(holo);
+    mainRow.appendChild(holo);
 
     // 底部操作入口：打开 3D 副驾控制台 (#cpFab) 与 真实经营核验工作台 ([data-emc-gate="真实经营"])
     var actions = make('div', 'emc-avatar-actions');
     if (!doc.getElementById('cpFab')) {
-      var fab = make('button', 'emc-avatar-fab', '和小商聊聊');
+      var fab = make('button', 'emc-avatar-fab', '3D 控制台');
       fab.type = 'button';
       fab.id = 'cpFab';
-      fab.setAttribute('aria-label', '和小商聊天');
+      fab.setAttribute('aria-label', '打开 3D 数字人控制台');
       fab.addEventListener('click', function () {
         toggleCopilotPanel();
       });
@@ -223,10 +226,18 @@
       });
       actions.appendChild(gateBtn);
     }
-    stage.appendChild(actions);
+    sideCol.appendChild(actions);
+    mainRow.appendChild(sideCol);
+    stage.appendChild(mainRow);
 
-    var hostEl = doc.querySelector('.game-shell') || doc.querySelector('.app') || doc.body;
-    hostEl.appendChild(stage);
+    var dock = doc.querySelector('.copilot-dock');
+    var statusEl = doc.getElementById('copilotStatus');
+    if (dock) {
+      dock.insertBefore(stage, statusEl || null);
+    } else {
+      var hostEl = doc.querySelector('.game-shell') || doc.querySelector('.app') || doc.body;
+      hostEl.appendChild(stage);
+    }
 
     els.stage = stage;
     els.holo = holo;
@@ -282,6 +293,13 @@
       setPreset(select.value);
     });
     row1.appendChild(select);
+    var closeBtn = make('button', 'emc-agent-mini-btn', '收起');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', '关闭 AI 副驾');
+    closeBtn.addEventListener('click', function () {
+      closeCopilotPanel();
+    });
+    row1.appendChild(closeBtn);
     deck.appendChild(row1);
 
     var row2 = make('div', 'emc-agent-deck-row');
@@ -370,17 +388,25 @@
       var dock=doc.querySelector('.copilot-dock');
       if (dock && global.innerWidth<=700) dock.classList.add('mobile-chat-open');
     }
+    var cfg = doc.getElementById('emcAvatarConfig');
+    if (cfg) cfg.open = true;
     if (els.stage) els.stage.classList.add('panel-open');
     setPose('interactive');
   }
 
   function closeCopilotPanel() {
+    var cfg = doc.getElementById('emcAvatarConfig');
+    if (cfg) cfg.open = false;
     var dock=doc.querySelector('.copilot-dock');
     if (dock && global.innerWidth<=700) dock.classList.remove('mobile-chat-open');
     if (els.stage) els.stage.classList.remove('panel-open');
   }
 
-  function toggleCopilotPanel() { openCopilotPanel(); }
+  function toggleCopilotPanel() {
+    var cfg = doc.getElementById('emcAvatarConfig');
+    if (cfg && cfg.open) closeCopilotPanel();
+    else openCopilotPanel();
+  }
 
   async function openFormalWorkbench(gateName) {
     if (global.EmcSession && typeof global.EmcSession.isLoggedIn === 'function' && !global.EmcSession.isLoggedIn()) {
@@ -637,7 +663,7 @@
     ctx.restore();
 
     // 同步渲染矢量 3D 全息 SVG 节点
-    if (els.svgScene) {
+    if (els.svgScene && (agentState.animFrame <= 2 || agentState.animFrame % 2 === 0)) {
       var deg = (headTilt * 180) / Math.PI;
       var earsSvg = preset.kind === 'otter_mascot'
         ? '<circle cx="-22" cy="-38" r="9" fill="' + preset.hairColor + '" stroke="#0a1326" stroke-width="2"/>' +
@@ -735,34 +761,23 @@
     }
   }
 
-  function appendAgentCard(resp) {
-    ensureCopilotPanelDom();
-    var body = els.cpBody || doc.getElementById('cpBody');
-    if (!body || !resp) return;
-
-    if (resp.reply) {
-      var replyEl = make('div', 'emc-cp-msg', resp.reply);
-      body.appendChild(replyEl);
-    }
-
+  function buildAgentCardElement(resp) {
+    if (!resp) return null;
     var toolList = Array.isArray(resp.tool_calls)
       ? resp.tool_calls
       : (Array.isArray(resp.tool_traces) ? resp.tool_traces : []);
     var hasTools = toolList.length > 0;
     var hasRoi = resp.roi_calculation && typeof resp.roi_calculation === 'object';
-    var hasArtifact = resp.saved_artifact && resp.saved_artifact.id;
+    var hasArtifact = resp.saved_artifact && (resp.saved_artifact.id || resp.saved_artifact.artifact_id);
     var hasCitations = Array.isArray(resp.knowledge_citations) && resp.knowledge_citations.length > 0;
-    if (!hasTools && !hasRoi && !hasArtifact && !hasCitations) {
-      body.scrollTop = body.scrollHeight;
-      return;
-    }
+    if (!hasTools && !hasRoi && !hasArtifact && !hasCitations) return null;
 
     var card = make('div', 'emc-agent-card');
     card.setAttribute('data-emc-agent-card', '');
 
     var head = make('div', 'emc-agent-card-head');
     head.appendChild(make('span', '', '小商 Agent 工具链与推演'));
-    var prov = make('span', '', (resp.provider === 'ai_gateway' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || 'xiaoshang-v1'));
+    var prov = make('span', '', (resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || 'xiaoshang-v1'));
     head.appendChild(prov);
     card.appendChild(head);
 
@@ -804,13 +819,29 @@
     }
 
     if (hasArtifact) {
+      var artId = resp.saved_artifact.id || resp.saved_artifact.artifact_id;
       var artBox = make('div', 'emc-agent-roi');
-      artBox.setAttribute('data-emc-saved-draft', resp.saved_artifact.id);
-      artBox.textContent = '已自动保存正式草稿：' + resp.saved_artifact.title + ' (' + resp.saved_artifact.id + ')';
+      artBox.setAttribute('data-emc-saved-draft', artId);
+      artBox.setAttribute('data-emc-draft-card', artId);
+      artBox.textContent = '已自动保存正式草稿：' + resp.saved_artifact.title + ' (' + artId + ')';
       card.appendChild(artBox);
     }
 
-    body.appendChild(card);
+    return card;
+  }
+
+  function appendAgentCard(resp) {
+    ensureCopilotPanelDom();
+    var body = els.cpBody || doc.getElementById('cpBody');
+    if (!body || !resp) return;
+
+    if (resp.reply) {
+      var replyEl = make('div', 'emc-cp-msg', resp.reply);
+      body.appendChild(replyEl);
+    }
+
+    var card = buildAgentCardElement(resp);
+    if (card) body.appendChild(card);
     body.scrollTop = body.scrollHeight;
   }
 
@@ -866,7 +897,7 @@
     try {
       var data = await global.EmcApi.post('/api/agent/reviews/' + submissionId, {});
       speakText(
-        'AI 预审完成：' + (data.recommendation_label || '') + '（得分 ' + data.score + ' 分）。' + (data.summary || ''),
+        'AI 预审完成：' + (data.recommendation_label || data.recommendation || '') + '（得分 ' + data.score + ' 分）。' + (data.summary || data.feedback || ''),
         data.recommendation === 'approve_candidate' ? 'happy' : 'think'
       );
       if (containerEl) {
@@ -878,7 +909,7 @@
         head.appendChild(make('span', '', '小商 AI 预审结论：' + (data.recommendation_label || data.recommendation)));
         head.appendChild(make('span', '', '得分 ' + data.score + ' / 100'));
         box.appendChild(head);
-        box.appendChild(make('div', '', data.summary || ''));
+        box.appendChild(make('div', '', data.summary || data.feedback || ''));
         if (Array.isArray(data.rework_instructions) && data.rework_instructions.length) {
           box.appendChild(make('div', '', '整改建议：' + data.rework_instructions.join('；')));
         }
@@ -926,6 +957,7 @@
     connectXingyunSession: connectXingyunSession,
     askBackend: requestBackendChat,
     runDeliverablePreReview: runDeliverablePreReview,
+    buildAgentCardElement: buildAgentCardElement,
     openCopilot: openCopilotPanel,
     closeCopilot: closeCopilotPanel,
     openFormalWorkbench: openFormalWorkbench,
