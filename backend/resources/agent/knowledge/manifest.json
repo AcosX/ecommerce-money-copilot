@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "source_document": "https://my.feishu.cn/wiki/JxLawXNnpihFonkD723chE1an4f",
+  "downloaded_at": "2026-10-22T01:41:29.146007+00:00",
+  "archives": {
+    "xiaohongshu": {
+      "file": "xiaohongshu.zip",
+      "name": "小红书电商知识库.zip",
+      "file_token": "VobsbVTLSowJZ2xzsqbcNrFtnBe",
+      "sha256": "f056748a1b0f8f91dc2a4d4cf835116648b0383fa5a122df83249085c18c201b",
+      "bytes": 402696,
+      "text_files": 57
+    },
+    "pinduoduo": {
+      "file": "pinduoduo.zip",
+      "name": "拼多多知识库.zip",
+      "file_token": "DtAxbRQX5oVG7Zxq6p4cygwXnEg",
+      "sha256": "0f74abef8d8a10f3f71e098e9763c5fae70cab42bf67e9a634e03c45d8b96da1",
+      "bytes": 2684517,
+      "text_files": 849
+    }
+  },
+  "skills": {
+    "category-business-advisor": {
+      "sha256": "fb81e08ca8314cb5e7b8701f0fc44cd52a1c33cf97b4ad7cb4891ecd70434b8c",
+      "file_token": "JSM4bQlpioIb9LxHf5Dc4VaVnOd",
+      "matches_existing": true
+    },
+    "xhs-product-scout": {
+      "sha256": "2753bbab53acbf55c3079786796d6e4440e18cc87034f6db1db6c0f1beae7c9a",
+      "file_token": "JNajbZbRXoOYSVxCY5wctk79nuw",
+      "matches_existing": true
+    },
+    "pdd-product-scout": {
+      "sha256": "9aa59068f275a7bd1a3bc98588848b7fd5146226c64282a236e9fd693788b685",
+      "file_token": "HG90bP8VEoZr7bxR0GIc4zfqnge",
+      "matches_existing": true
+    },
+    "xhs-competitor-analyzer": {
+      "sha256": "735e52a5a81a6c0ba5188aae04be50a5a8379501d5c33143d60a74cf8acdeb1c",
+      "file_token": "MSS2bQt8mokQ2zxh7QfcIJo0nkc",
+      "matches_existing": true
+    },
+    "pdd-listing-optimizer": {
+      "sha256": "b6ea55c4e5964d219ea07815f1284bec542424591e981cc7fc0eb90bc84a13d0",
+      "file_token": "VgoVbMaIqoh34lxWmGzc5FoQn1e",
+      "matches_existing": true
+    },
+    "xhs-visual-material": {
+      "sha256": "3cb0c8c02248487649ff943057a51fe092023a8bae46e8273ff9b091c6289df1",
+      "file_token": "Oi4IbedLGoIMnUxo1KPc36WFn1e",
+      "matches_existing": true
+    },
+    "pdd-keyword-title": {
+      "sha256": "65a940a18cc9756680a55bd36960d39a940eee5b64c2e6337f41d9d559f003e9",
+      "file_token": "Tb4GbC1qsoRoKEx0VhacMWQanke",
+      "matches_existing": true
+    },
+    "xhs-keyword-topic": {
+      "sha256": "39ca1754bc616ddc504d200236dd87074ae43353f994da789a7b28c72f798af6",
+      "file_token": "ZFIrbZbZYohRFExjIgWc1R3xnFc",
+      "matches_existing": true
+    },
+    "pdd-video-script": {
+      "sha256": "8fba91d07fed6d8ef3011f41377b088f9377b162ff9a5b5cddcd1bb5722d62fd",
+      "file_token": "Udsvb6Eryoy1IKxQOnFcqs6bnMd",
+      "matches_existing": true
+    },
+    "xhs-video-script": {
+      "sha256": "b4765273578d19bf2e90c03aa920cbc0a7b6db2a314dad876b6dc1919150ac6e",
+      "file_token": "KIXHboj8uovI7xxdv0ScZsXKnlf",
+      "matches_existing": true
+    },
+    "xhs-note-optimizer": {
+      "sha256": "6d36cc8b22d842e0c9b9b372f26478051bcfeaa8f9017431cd2292c8f1b04f2c",
+      "file_token": "Kj0qbHYp8oQcEYxZZhncZXidnpc",
+      "matches_existing": true
+    },
+    "xhs-ads-doctor": {
+      "sha256": "9e0d92970176bcf24f0be2b794488e078d2436ab8ed17431fb75dc729022c7c8",
+      "file_token": "Z9kTbfQqAo361exywa8cwhMdn5e",
+      "matches_existing": true
+    },
+    "pdd-ads-doctor": {
+      "sha256": "2a68fbc39ff1994f94e1da3bcd166258aec2fd969d3f52fb8cdf79a5871bde07",
+      "file_token": "DI6gbhF27orbApxxaWTcmHsOnjh",
+      "matches_existing": true
+    }
+  }
+}

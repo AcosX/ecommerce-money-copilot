@@ -2,6 +2,8 @@
 
 对外约定见 [`docs/backend-contract.md`](../docs/backend-contract.md)。以下命令都在 `backend/` 目录执行。
 
+新增引导 Agent 的配置、接口、Skill/知识库扩展见 [Agent 接入文档](../docs/agent.md)。
+
 ## 本地启动
 
 ```bash
