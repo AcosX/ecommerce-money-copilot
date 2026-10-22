@@ -4,7 +4,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-flat-island2';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-island-relief3';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
