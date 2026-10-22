@@ -5,7 +5,7 @@ export const CHARACTER_MOTIONS={
  wave:{label:'招手',loop:false},talk:{label:'说话手势',loop:true},
  turn:{label:'转身张望',loop:false},window:{label:'看橱窗',loop:false},
  lookout:{label:'眺望',loop:false},inspect:{label:'观察装饰',loop:false},
- nod:{label:'点头',loop:false},letter:{label:'举起信封',loop:false},
+ nod:{label:'点头',loop:false},letter:{label:'新消息！',loop:false},
  shop_hips:{label:'叉腰看店铺',loop:false},sit_cross:{label:'盘腿坐下',loop:false},
  sit_cliff:{label:'崖边晃腿',loop:false}
 };

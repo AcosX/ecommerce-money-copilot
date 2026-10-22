@@ -259,19 +259,26 @@ def cross_fold(t,side):
     keys=[(0,0),(.32,0),(.43,1),(.79,1),(.87,0),(1,0)] if side==1 else [(0,0),(.44,0),(.55,1),(.70,1),(.78,0),(1,0)]
     return curve(t,keys)
 
-def letter_palm(t):
-    hand_name='tripo::1_Left_Limb_2';lower_name='tripo::1_Left_Limb_1'
+letter_frames={}
+def letter_palm(t,side):
+    prefix='tripo::0_Right_Limb_' if side==1 else 'tripo::1_Left_Limb_'
+    hand_name=prefix+'2';lower_name=prefix+'1'
     elbow=world@rig.pose.bones[lower_name].head
     wrist=world@rig.pose.bones[hand_name].head
     along=(wrist-elbow).normalized()
-    shoulder=world@rig.pose.bones['tripo::1_Left_Limb_0'].head
-    # Use the stable arm bend plane and a small authored presentation roll.
-    # A world-facing normal has a singularity as the forearm points forward.
-    normal=-(elbow-shoulder).cross(along).normalized()
+    shoulder=world@rig.pose.bones[prefix+'0'].head
+    # Parallel transport the palm frame through the raised-arm arc; a fixed
+    # world normal becomes singular when the forearm passes that direction.
+    if t==0 or side not in letter_frames:
+        normal=Vector((1,0,0));normal=(normal-along*normal.dot(along)).normalized()
+    else:
+        previous_along,previous_normal=letter_frames[side]
+        normal=previous_along.rotation_difference(along)@previous_normal
+    letter_frames[side]=(along.copy(),normal.copy())
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
-    normal=Quaternion(along,-.80*w)@normal
+    normal=Quaternion(along,.12*side*w)@normal
     across=along.cross(normal).normalized()
-    delta=Matrix((tuple(across),tuple(-along),tuple(-normal))).transposed().to_quaternion()
+    delta=Matrix((tuple(-side*across),tuple(side*along),tuple(-normal))).transposed().to_quaternion()
     pose_world(lower_name,elbow,delta@rest[lower_name])
     pose_world(hand_name,wrist,delta@rest[hand_name])
 
@@ -279,14 +286,29 @@ def daily_pose(name,t):
     if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
     if name=='letter':
-        axis_world('Xiaoshang_Head',(1,0,0),-.045*w)
-        prefix='tripo::1_Left_Limb_'
-        start=world@rig.pose.bones[prefix+'2'].head
-        elbow=world@rig.pose.bones[prefix+'1'].head
-        target=start.lerp(Vector((.16,-.28,1.40)),w)
-        target.x+=.16*math.sin(math.pi*w)
-        pole=Vector((.12,-.65,1.00))
-        solve_limb([prefix+str(i) for i in range(3)],target,pole)
+        # Anticipation, a buoyant hop, soft landing and a smaller rebound.
+        # Feet and pelvis share the ballistic flight; bent knees absorb landings.
+        def flight(a,b,height):
+            u=(t-a)/(b-a)
+            return 4*height*u*(1-u) if 0<u<1 else 0
+        lift=flight(.23,.44,.16)+flight(.54,.71,.075)
+        crouch=curve(t,[(0,0),(.08,0),(.18,.065),(.23,0),(.44,0),(.48,.045),(.54,0),(.71,0),(.76,.025),(.85,0),(1,0)])
+        root=rig.pose.bones['tripo::Root'];m=root.matrix.copy()
+        m.translation+=inverse.to_3x3()@Vector((0,0,lift-crouch));root.matrix=m
+        bpy.context.view_layer.update()
+        axis_world('tripo::Spine_0',(0,1,0),crouch*.8-.035*w)
+        axis_world('Xiaoshang_Head',(0,1,0),-.05*w)
+        for side,prefix in [(1,'tripo::0_Left_Limb_'),(-1,'tripo::1_Right_Limb_')]:
+            ankle=rest_positions[prefix+'2'].copy();ankle.z+=lift
+            solve_limb([prefix+str(i) for i in range(3)],ankle,Vector((.55,side*.17,.45+lift)))
+        for hand,side in hand_specs:
+            reach=curve(t,[(0,0),(.09 if side==1 else .06,0),(.26 if side==1 else .23,1),(.72,1),(.95,0),(1,0)])
+            prefix=hand[:-1];start=world@rig.pose.bones[hand].head
+            elbow=world@rig.pose.bones[prefix+'1'].head
+            target=start.lerp(Vector((.13,side*(.37+.025*math.sin(t*math.pi*4)),1.76+lift-crouch)),reach)
+            target.x+=.30*math.sin(math.pi*reach)
+            pole=elbow.lerp(Vector((.16,side*.64,1.36+lift-crouch)),reach)
+            solve_limb([prefix+str(i) for i in range(3)],target,pole)
     elif name in ('shop_hips','lookout'):
         # Hands settle independently before the hip hinge. Keep feet planted
         # while the pelvis shifts back to counterbalance the forward torso.
@@ -357,7 +379,7 @@ def daily_palms(name,t):
     if name not in ('letter','shop_hips','lookout','sit_cross','sit_cliff'):return
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
     for hand,side in hand_specs:
-        if name=='letter' and side==-1:letter_palm(t)
+        if name=='letter':letter_palm(t,side)
         elif name in ('shop_hips','lookout'):
             reach=curve(t,[(0,0),(.03 if side==1 else .08,0),(.24 if side==1 else .30,1),(.82 if side==1 else .78,1),(.98,0),(1,0)])
             orient_hand(hand,(.1,0,-1),(0,-side,0),reach)
@@ -506,7 +528,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'seat-v7: cliff sitting calibrated against the posed trouser underside, palms solved at surface height',
+    'motion_revision':'letter-v8: two raised hands, anticipatory hop and rebound, soft grounded landings',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
                            'sit_cross':{'hold_phase':[.56,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},
