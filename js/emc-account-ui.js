@@ -191,7 +191,9 @@
           fillPrompt();
         }                                // 已登录的情况由 session-changed 关闭提示
       } else {
-        S.login(returnTo(ctx.action));
+        var destination = returnTo(ctx.action);
+        closePrompt();
+        S.login(destination);
       }
     } finally {
       busy = false;

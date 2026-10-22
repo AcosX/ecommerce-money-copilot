@@ -3,7 +3,7 @@
   "source": "Tripo H-series v3.1 Ultra, detailed textures",
   "shops": {
     "1": {
-      "model_url": "assets/models/shop-1-detail.glb",
+      "model_url": "assets/models/shop-1-web.glb",
       "wall_materials": [],
       "rotation_y": -1.5707963267948966,
       "wall_mask": "cream",
@@ -24,11 +24,19 @@
       "sign": {
         "height_ratio": 0.5584,
         "width": 2.4,
-        "height": 0.3
+        "height": 0.3,
+        "paint_back_depth": -0.028
+      },
+      "delivery": {
+        "bytes": 2977472,
+        "original_bytes": 8538124,
+        "texture_max_dimension": 2048,
+        "texture_format": "webp",
+        "geometry_sha256": "e4bd076b8da144c155ee386fae3f3f009eb2ae44eae354d1f76c2bf74d2ef1bf"
       }
     },
     "2": {
-      "model_url": "assets/models/shop-2-detail.glb",
+      "model_url": "assets/models/shop-2-web.glb",
       "wall_materials": [],
       "rotation_y": -1.5707963267948966,
       "wall_mask": "cream",
@@ -50,10 +58,17 @@
         "height_ratio": 0.4096,
         "width": 2.55,
         "height": 0.24
+      },
+      "delivery": {
+        "bytes": 3096812,
+        "original_bytes": 9058684,
+        "texture_max_dimension": 2048,
+        "texture_format": "webp",
+        "geometry_sha256": "df8ba520a3d14df0a6321f60d57703ca952525ce3819048bb009ac63ead29228"
       }
     },
     "3": {
-      "model_url": "assets/models/shop-3-detail.glb",
+      "model_url": "assets/models/shop-3-web.glb",
       "wall_materials": [],
       "rotation_y": 0,
       "wall_mask": "cream",
@@ -77,10 +92,17 @@
         "height": 0.24,
         "depth_offset": 0.018,
         "x": 0.25
+      },
+      "delivery": {
+        "bytes": 3804508,
+        "original_bytes": 10917460,
+        "texture_max_dimension": 2048,
+        "texture_format": "webp",
+        "geometry_sha256": "cb342001cb703d89faf56392d247ccb0af94099e7dee3f9ff08b7ba743e64458"
       }
     },
     "4": {
-      "model_url": "assets/models/shop-4-detail.glb",
+      "model_url": "assets/models/shop-4-web.glb",
       "wall_materials": [],
       "rotation_y": 0,
       "wall_mask": "cream",
@@ -109,10 +131,17 @@
           "height": 0.64,
           "depth": 1.7
         }
+      },
+      "delivery": {
+        "bytes": 3939220,
+        "original_bytes": 11543020,
+        "texture_max_dimension": 2048,
+        "texture_format": "webp",
+        "geometry_sha256": "f1d3b8ff8aa945b64f5eb09cd634427f2f7758b04011c005f632ca1bd9fd87e0"
       }
     },
     "5": {
-      "model_url": "assets/models/shop-5-detail.glb",
+      "model_url": "assets/models/shop-5-web.glb",
       "wall_materials": [],
       "rotation_y": -1.5707963267948966,
       "wall_mask": "cream",
@@ -134,11 +163,18 @@
         "height_ratio": 0.2222,
         "width": 2.3,
         "height": 0.3
+      },
+      "delivery": {
+        "bytes": 4258420,
+        "original_bytes": 11792972,
+        "texture_max_dimension": 2048,
+        "texture_format": "webp",
+        "geometry_sha256": "1bddce42f4773eaedd8a42f1d6c5035d60723a685229c5e0a45e0dfae4417d21"
       }
     }
   },
   "island": {
-    "model_url": "assets/models/island-detail.glb",
+    "model_url": "assets/models/island-web.glb",
     "rotation_y": -1.5707963267948966,
     "surface_ratio": 0.9,
     "generation": {
@@ -153,6 +189,13 @@
       "triangles": 46958,
       "bytes": 9958316
     },
-    "preview_url": "assets/models/previews/island-detail.webp"
+    "preview_url": "assets/models/previews/island-detail.webp",
+    "delivery": {
+      "bytes": 3373020,
+      "original_bytes": 9958316,
+      "texture_max_dimension": 2048,
+      "texture_format": "webp",
+      "geometry_sha256": "13bac261429e7e175d0b3e184d0a755a27d50ac8b5295c40e293d22a3964c7a9"
+    }
   }
 }
