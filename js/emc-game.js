@@ -43,7 +43,7 @@
   ].map(task=>({...task,xp:20,level:'side',topic:'支线探索'}));
   const COLORS=['#eee0c5','#a6c4b0','#a8bdd4','#d4b8a2','#c4b6d8'];
   const PALETTES={wall:COLORS,sign:['#9c531e','#407766','#426a9c','#805284','#cc9741'],roof:['#bd3f23','#517b61','#4c6e97','#715589','#806453']};
-  function create(){return {schema_version:1,theme:'auto',main:[],side:[],placements:[],npc_chat:[],wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店'};}
+  function create(){return {schema_version:1,theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'阿策',companion_named:false};}
   function normalize(value){
     const s=create();if(!value||value.schema_version!==1)return s;
     s.theme=['day','night','auto'].includes(value.theme)?value.theme:'auto';
@@ -54,12 +54,26 @@
     s.wall_color=COLORS.includes(value.wall_color)?value.wall_color:COLORS[0];
     for(const part of ['sign','roof'])s[part+'_color']=PALETTES[part].includes(value[part+'_color'])?value[part+'_color']:PALETTES[part][0];
     s.npc_chat=typeof EmcCopilot!=='undefined'?EmcCopilot.history(value.npc_chat):(typeof require==='function'?require('./emc-copilot.js').history(value.npc_chat):[]);
+    const copilot=typeof EmcCopilot!=='undefined'?EmcCopilot:require('./emc-copilot.js');
+    s.companion_name=copilot.companionName(value.companion_name);s.companion_named=value.companion_named===true&&!!copilot.validName(value.companion_name);
     s.shop_name=typeof value.shop_name==='string'?value.shop_name.trim().slice(0,12)||s.shop_name:s.shop_name;
     if(Array.isArray(value.placements)){
       const seen=new Set();
       s.placements=value.placements.slice(0,6).filter(p=>p&&DECOR.some(d=>d.id===p.id)&&s.side.some(id=>SIDE.find(t=>t.id===id).reward===p.id)&&!seen.has(p.id)&&seen.add(p.id)).map(p=>({id:p.id,anchor:p.anchor==='roof'?'roof':'ground',x:clamp(p.x,-4,4),y:clamp(p.y,p.anchor==='roof'?-3:0,12),z:clamp(p.z,-3.5,3.5),rotation:clamp(p.rotation,-Math.PI*2,Math.PI*2)}));
     }
+    const available=inventoryItems(s).map(item=>item.key),valid=new Set(available);
+    // 旧存档已有物品作为已读迁移，避免把历史奖励都误报成新获得。
+    s.inventory_seen=Array.isArray(value.inventory_seen)?[...new Set(value.inventory_seen.filter(key=>typeof key==='string'&&valid.has(key)))]:available;
     return s;
+  }
+  function inventoryItems(s){
+    const colors=Object.entries(PALETTES).flatMap(([category,values])=>values.map(color=>({key:category+':'+color,category,color})));
+    return colors.concat(DECOR.filter(d=>s.side.some(id=>SIDE.find(t=>t.id===id)?.reward===d.id)).map(d=>({key:'decor:'+d.id,category:'decor',id:d.id})));
+  }
+  function unreadInventory(s){const seen=new Set(s.inventory_seen);return inventoryItems(s).filter(item=>!seen.has(item.key));}
+  function markInventorySeen(s,key){
+    if(!inventoryItems(s).some(item=>item.key===key)||s.inventory_seen.includes(key))return false;
+    s.inventory_seen.push(key);return true;
   }
   function clamp(v,min,max){return typeof v==='number'&&Number.isFinite(v)?Math.max(min,Math.min(max,v)):0;}
   function xp(s){return s.main.length*80+s.side.length*20;}
@@ -74,5 +88,5 @@
     if(answer!==task.answer)return {ok:false,reason:'再想一想。'+task.why};
     collection.push(id);return {ok:true,xp:task.xp,reward:task.reward,why:task.why};
   }
-  return {STAGES,MAIN,SIDE,DECOR,COLORS,PALETTES,create,normalize,xp,stage,current,complete};
+  return {STAGES,MAIN,SIDE,DECOR,COLORS,PALETTES,create,normalize,xp,stage,current,complete,inventoryItems,unreadInventory,markInventorySeen};
 });

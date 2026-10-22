@@ -101,3 +101,34 @@ body{position:fixed;inset:0}
 .sky .cloud-a{opacity:calc(.22 + var(--sky-daylight,1)*.40)}
 .sky .cloud-b{opacity:calc(.16 + var(--sky-daylight,1)*.50)}
 .sky .cloud-c{opacity:calc(.10 + var(--sky-daylight,1)*.20)}
+
+/* 对话云边固定弧度，文字与操作留在中间安全区。 */
+.npc-anchor{--cloud-fill:rgb(255 253 243 / .92)}
+[data-theme="night"] .npc-anchor{--cloud-fill:rgb(231 229 255 / .92)}
+.npc-bubble{padding:39px 32px 34px}
+.npc-bubble header{gap:6px;min-height:24px}
+.npc-bubble header small{font-size:9px;line-height:1.5}
+.npc-bubble header button{flex:none;width:24px;height:24px;background:transparent}
+.npc-bubble p{font-size:12px;line-height:22px;max-height:154px;margin:9px 0 12px;white-space:pre-wrap;scrollbar-width:thin;padding-right:3px}
+.npc-bubble-actions{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:28px}
+.npc-bubble-actions>small{font-size:10px;line-height:1.4;color:var(--muted);white-space:nowrap}
+.npc-continue{display:block;margin-left:auto;min-height:28px;padding:4px 9px;border-radius:12px;background:#ffffff50;font-size:12px;font-weight:600;line-height:20px;text-decoration:none;white-space:nowrap;color:var(--ink)}
+.npc-continue:hover{background:#ffffffa0}
+@media(max-width:700px){
+  .npc-bubble{bottom:40px;padding:30px 27px 26px}
+  .npc-bubble header{min-height:20px}
+  .npc-bubble header small{font-size:8px}
+  .npc-bubble header button{width:20px;height:20px;font-size:16px}
+  .npc-bubble p{font-size:11px;line-height:20px;margin:6px 0 8px;max-height:var(--npc-text-max,100px)}
+  .npc-continue{font-size:11px;padding:4px 7px}
+  .npc-bubble:after{bottom:-5px;width:8px;height:8px}
+  .npc-bubble:before{bottom:-15px;width:5px;height:5px}
+}
+@media(max-width:370px){.npc-bubble{padding:30px 24px 26px}}
+
+/* 新物品红点按入口、分类、物品汇总；仅查看具体物品时清除。 */
+.bag-tabs>button,.paint-item,.bag-decor{position:relative}
+.bag-new-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;background:#ef6468;border:1.5px solid var(--surface);box-shadow:0 0 0 1px #c34f5940;pointer-events:none}
+.paint-item>.bag-new-dot,.bag-decor>.bag-new-dot{top:7px;right:7px;width:9px;height:9px}
+.audio-settings{border-top:1px solid #7e91ad30;padding-top:20px}.audio-row{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12px;margin-top:16px}.audio-row button{min-width:74px}.audio-row button[aria-pressed=true]{background:var(--gold);color:#16274a}.setting-field .audio-volume{margin:12px 0 18px}.audio-volume>span{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.setting-field .audio-volume input{accent-color:var(--ink);min-height:36px;padding:0;border:0;background:transparent;box-shadow:none}
+.npc-interact>span{flex-shrink:0;max-width:152px;overflow:hidden;text-overflow:ellipsis}.npc-bubble header b{min-width:0;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.npc-bubble header small{flex-shrink:0}#partnerNameError:not(:empty){color:var(--ink);border-left:3px solid #d7aa48;padding-left:8px}
