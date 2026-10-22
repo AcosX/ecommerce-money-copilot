@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+const context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>{localStorage.setItem('emc-journey-welcome-v1','1');localStorage.setItem('emc-journey-entry-v1',JSON.stringify({saved:true,shop_name:'AI实测小店',partner_name:'小商',category:'收纳',platform:'xiaohongshu',agent:'Codex'}));});
+await page.goto(process.env.EMC_TEST_URL||'http://127.0.0.1:5188/');
+await page.waitForFunction(()=>window.EmcAgentClient?.guestAvailable()&&window.render_game_to_text&&JSON.parse(render_game_to_text()).npc?.visible,null,{timeout:60000});
+await page.waitForFunction(()=>!document.querySelector('#copilotInput').disabled,null,{timeout:60000});
+const responsePromise=page.waitForResponse(r=>r.url().endsWith('/api/agent/guest/messages'),{timeout:65000});
+await page.locator('#copilotInput').fill('你好，我预算2000元，每周10小时，有收纳货源。现在第一关应该先做什么？');
+await page.locator('#copilotSend').click();
+const response=await responsePromise,result=await response.json();
+assert.equal(response.status(),200,JSON.stringify(result));assert.equal(result.source,'ai');assert.ok(result.skill_ids.includes('category-business-advisor'));
+await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);
+assert.match(await page.locator('#socialMessages').innerText(),new RegExp(result.text.slice(0,8).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+assert.equal(await page.evaluate(()=>JSON.parse(render_game_to_text()).chat.reply_source),'ai');
+await page.screenshot({path:require('node:path').join(require('node:os').tmpdir(),'emc-agent-live.png')});
+await page.reload();await page.waitForFunction(()=>document.querySelector('#socialMessages')?.innerText.includes('每周10小时'),null,{timeout:60000});
+assert.deepEqual(errors,[]);
+console.log(JSON.stringify({source:result.source,skills:result.skill_ids,state:result.state,reply:result.text,screenshot:'emc-agent-live.png',reload:true}));
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
