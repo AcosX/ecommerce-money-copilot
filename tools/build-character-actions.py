@@ -282,7 +282,7 @@ def letter_palm(t,side):
         normal=previous_along.rotation_difference(along)@previous_normal
     letter_frames[side]=(along.copy(),normal.copy())
     w=curve(t,[(0,0),(.06,0),(.29,1),(.72,1),(.97,0),(1,0)])
-    normal=Quaternion(along,.12*side*w)@normal
+    normal=Quaternion(along,(math.pi-.12 if side==-1 else .12)*w)@normal
     across=along.cross(normal).normalized()
     delta=Matrix((tuple(-side*across),tuple(side*along),tuple(-normal))).transposed().to_quaternion()
     pose_world(lower_name,elbow,delta@rest[lower_name])
@@ -534,7 +534,7 @@ output.with_suffix('.json').write_text(json.dumps({
     'clips':[{'name':n,'duration':d,'loop':loop} for n,_,d,loop in library],
     'bones':len(rig.data.bones),'morphs':26,'forward':'+X','in_place':True,
     'character_source':source.name,
-    'motion_revision':'letter-grip-v9: opposed thumb and curled fingers pinch the envelope during the cheer',
+    'motion_revision':'letter-facing-v10: turn the pinched envelope toward the player with coordinated forearm roll',
     'interaction_anchors':{'letter':{'hand':'tripo::1_Left_Limb_2','prop':'envelope','visible_phase':[.16,.86]},
                            'sit_cross':{'hold_phase':[.56,.70],'surface_y':0},
                            'sit_cliff':{'hold_phase':[.30,.70],'surface_y':0,'edge_forward_x':.12}},

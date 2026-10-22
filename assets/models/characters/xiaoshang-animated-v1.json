@@ -71,7 +71,7 @@
   "forward": "+X",
   "in_place": true,
   "character_source": "xiaoshang-expressive-v2.blend",
-  "motion_revision": "letter-grip-v9: opposed thumb and curled fingers pinch the envelope during the cheer",
+  "motion_revision": "letter-facing-v10: turn the pinched envelope toward the player with coordinated forearm roll",
   "interaction_anchors": {
     "letter": {
       "hand": "tripo::1_Left_Limb_2",
@@ -1402,9 +1402,9 @@
           1.813246250152588
         ],
         "tripo::1_Left_Limb_2": [
-          0.12797479331493378,
-          -0.3677900731563568,
-          1.8093793392181396
+          0.12797485291957855,
+          -0.3677901029586792,
+          1.8093794584274292
         ],
         "tripo::0_Left_Limb_2": [
           -0.06513816863298416,
@@ -1429,8 +1429,8 @@
           1.7244443893432617
         ],
         "tripo::1_Left_Limb_2": [
-          0.1292797327041626,
-          -0.3691616356372833,
+          0.1292797476053238,
+          -0.3691616654396057,
           1.7222777605056763
         ],
         "tripo::0_Left_Limb_2": [
@@ -1456,8 +1456,8 @@
           1.718000888824463
         ],
         "tripo::1_Left_Limb_2": [
-          0.14489752054214478,
-          -0.3683576285839081,
+          0.14489750564098358,
+          -0.36835765838623047,
           1.7179970741271973
         ],
         "tripo::0_Left_Limb_2": [
