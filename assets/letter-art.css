@@ -39,3 +39,50 @@
 .mail-art-content .mail-letter-sheet,.mail-art-content .mail-attachment-sheet,.mail-transition-ghost{background-color:transparent;background-image:none}.mail-art-content:not(.mail-paper-ready) .mail-letter-sheet,.mail-art-content:not(.mail-paper-ready) .mail-attachment-sheet{background:#fff9e9;border:2px solid #213b55}.mail-art-content .mail-attachment:focus-visible{outline:3px solid #fff8ce;outline-offset:5px}
 @media(max-width:700px){.keyboard-open .drawer.journey-card{height:calc(100svh - var(--keyboard-offset,0px) - 20px);top:calc((100svh - var(--keyboard-offset,0px))/2)}}
 .journey-card .drawer-header .icon-button{right:58px;top:82px}@media(max-width:700px){.journey-card .drawer-header .icon-button{right:24px;top:68px}}
+
+/* First letter: improve hierarchy and balance inside envelope paper without hiding actions. */
+.mail-art-content .mail-letter-sheet.mail-welcome{
+  display:flex;flex-direction:column;box-sizing:border-box;min-width:0;
+}
+.mail-art-content .mail-welcome .mail-correspondence{
+  height:auto;min-height:50px;display:block;margin:0 0 10px;
+  font-size:12px;line-height:1.65;color:#587187;
+}
+.mail-art-content .mail-welcome .mail-correspondence>span:first-child{
+  display:block;max-width:none;overflow-wrap:anywhere;
+}
+.mail-art-content .mail-welcome .mail-correspondence b{
+  display:block;font-size:19px;line-height:1.5;color:#214b66;letter-spacing:.4px;
+}
+.mail-art-content .mail-welcome .j-task-title{
+  margin:10px 0 17px;max-width:100%;font-size:30px;line-height:1.45;
+}
+.mail-art-content .mail-welcome .mail-story-copy{
+  font-size:13px;line-height:1.85;overflow-wrap:anywhere;
+}
+.mail-art-content .mail-welcome .mail-story-copy p{margin:13px 0;}
+.mail-art-content .mail-welcome .mail-welcome-note{
+  font-size:12px;line-height:1.7;margin:14px 0 8px;
+}
+.mail-art-content .mail-welcome .mail-signature{
+  margin-top:auto;padding-top:14px;color:#274e68;
+}
+@media(max-width:700px){
+  .mail-art-content .mail-letter-sheet.mail-welcome{padding:35px 39px 38px;}
+  .mail-art-content .mail-welcome .mail-correspondence{min-height:48px;margin-bottom:8px;font-size:11px;}
+  .mail-art-content .mail-welcome .mail-correspondence b{font-size:17px;line-height:1.4;}
+  .mail-art-content .mail-welcome .j-task-title{font-size:25px;line-height:1.35;margin:8px 0 13px;}
+  .mail-art-content .mail-welcome .mail-story-copy{font-size:12px;line-height:1.75;}
+  .mail-art-content .mail-welcome .mail-story-copy p{margin:11px 0;}
+  .mail-art-content .mail-welcome .mail-signature{padding-top:8px;}
+}
+@media(max-width:360px){
+  .mail-art-content .mail-letter-sheet.mail-welcome{padding:27px 32px 31px;}
+  .mail-art-content .mail-welcome .mail-correspondence b{font-size:15px;}
+  .mail-art-content .mail-welcome .j-task-title{font-size:23px;}
+}
+@media(max-height:660px) and (max-width:700px){
+  .mail-art-content .mail-welcome .mail-story-copy{font-size:11px;line-height:1.55;}
+  .mail-art-content .mail-welcome .mail-story-copy p{margin:7px 0;}
+  .mail-art-content .mail-welcome .mail-welcome-note{margin:8px 0;}
+}
