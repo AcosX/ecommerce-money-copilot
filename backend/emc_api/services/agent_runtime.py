@@ -1912,6 +1912,8 @@ def run_companion_chat(
             "提交认证",
             "查看成果",
             "打开抽屉",
+            "我来交成果",
+            "交成果",
         )
     ):
         card_act = execute_agent_tool(
@@ -1928,6 +1930,34 @@ def run_companion_chat(
                 "tool": "open_game_card",
                 "status": "ok",
                 "summary": "已触发打开正式经营成果抽屉",
+            }
+        )
+        ui_actions.append(card_act["ui_action"])
+    elif any(
+        k in clean_msg
+        for k in (
+            "打开任务卡",
+            "拆开来信",
+            "查看任务卡",
+            "打开本关锦囊",
+            "打开锦囊",
+        )
+    ):
+        is_kit = "锦囊" in clean_msg
+        card_act = execute_agent_tool(
+            db,
+            player_id=player_id,
+            tool_name="open_game_card",
+            arguments={
+                "card_id": "kit" if is_kit else "level_letter",
+                "level_id": target_level,
+            },
+        )
+        tool_traces.append(
+            {
+                "tool": "open_game_card",
+                "status": "ok",
+                "summary": "已触发打开本关来信与任务卡",
             }
         )
         ui_actions.append(card_act["ui_action"])

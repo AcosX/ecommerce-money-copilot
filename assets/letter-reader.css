@@ -55,4 +55,10 @@
 
 /* 阅读层保持平面文字栅格；景深只留给信封背板和附件。 */
 .mail-art-content .mail-envelope-stage{perspective:none}
-.mail-art-content .mail-letter-sheet{transform:none;filter:none;will-change:auto;box-shadow:2px 3px 0 #fff5dc,6px 9px 0 #1b385028,12px 17px 18px -6px #10253b35}
+.mail-art-content .mail-letter-sheet{transform:none;box-shadow:none;filter:drop-shadow(0 8px 14px rgba(16,37,59,.22));will-change:auto}
+.mail-art-content .mail-letter-sheet.mail-welcome{padding:44px 52px 24px}
+.mail-art-content .mail-welcome .mail-correspondence{height:auto;min-height:48px;padding-right:118px;margin-bottom:10px}
+.mail-art-content .mail-welcome .mail-correspondence b{font-size:16px;line-height:1.35;margin-top:3px}
+.mail-art-content>.j-message{background:#fff9e9;color:#1f3e58;border:2px solid #203652;border-left:5px solid #2b9fa3;border-radius:4px;margin:0 28px 6px;padding:8px 12px;box-shadow:2px 3px 0 #17233b40;font-weight:700;flex-shrink:0}
+.mail-art-content>.j-message.error{border-left-color:#d96b43;background:#fff4ee}
+@media(max-width:700px){.mail-art-content .mail-letter-sheet.mail-welcome{padding:38px 34px 18px}.mail-art-content .mail-welcome .mail-correspondence{min-height:44px;padding-right:88px}.mail-art-content .mail-welcome .mail-correspondence b{font-size:15px}.mail-art-content>.j-message{margin:0 12px 6px}}
