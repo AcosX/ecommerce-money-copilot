@@ -6,7 +6,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-sign9';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-terrain10';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -41,7 +41,7 @@ export class ShopScene{
     try{
       this.options.onLoadProgress?.({phase:'manifest'});
       const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.buildings?.[String(this.options.modelLevel??[0,2,3,4,5][stage-1])]||manifest.shops?.[String(stage)];if(this.disposed)return;if(!entry?.model_url||!manifest.island?.model_url)throw new Error('当前等级的模型清单不完整');
-      const assets=await Promise.allSettled([loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{revision:entry.revision,signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(this.quality.lite&&manifest.island.lite?.model_url||manifest.island.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
+      const assets=await Promise.allSettled([loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{revision:entry.revision,signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(this.quality.lite&&manifest.island.lite?.model_url||manifest.island.model_url,{revision:manifest.island.revision,signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
       const failed=assets.find(result=>result.status==='rejected');
       if(this.disposed||failed){assets.forEach(result=>{if(result.status==='fulfilled')disposeAsset(result.value.scene);});if(failed)throw failed.reason;return;}
       const model=pendingShop=assets[0].value,island=pendingIsland=assets[1].value;this.buildingEntry=entry;this.modelLevel=entry.level;if(entry.modular){this.buildingParts=bindBuildingParts(model.scene);this.environmentTarget=createBuildingEnvironment(this.renderer);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.7;}
