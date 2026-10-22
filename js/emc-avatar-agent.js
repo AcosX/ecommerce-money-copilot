@@ -1,766 +1,71 @@
-/*!
- * EmcAvatarAgent: 右下角 3D 具身数字人「向导·小商」舞台与自建 Agent Runtime 桥接（#62）。
- *
- * 架构方案：星云 3D 具身渲染底座 (XmovAvatar / WebGL + 全息 3D 双模) + 自建 FastAPI Agent Runtime。
- * 安全约束：
- *   - 绝不在前端暴露星云 AppSecret 或大模型 API Key，全部经由同源 /api/agent/* 代理。
- *   - 绝不向 localStorage / sessionStorage / document.cookie 写入任何数据。
- *   - 默认零外部站点请求；仅在点击「连接星云 3D 实时流」时按需同源握手。
- */
+/* One island companion, one chat, with an optional real Xingyun avatar. */
 (function (global) {
   'use strict';
-
-  var doc = global.document;
-  if (!doc) return;
-
-  var SVG_NS = 'http://www.w3.org/2000/svg';
-
-  var PRESETS = {
-    yingyi: {
-      id: 'yingyi',
-      name: '盈怡 · 电商带教顾问 (3D)',
-      shortName: '小商·盈怡 3D',
-      look_name: 'yingyi_250717_clean_294922_loop',
-      voice_name: '思雨 (温柔御姐)',
-      hairColor: '#25335a',
-      suitColor: '#38d9a9',
-      accentColor: '#ffd94a',
-      skinColor: '#ffe4d0',
-      kind: 'human_advisor'
-    },
-    xingya: {
-      id: 'xingya',
-      name: '星芽 · 元气学姐 (3D)',
-      shortName: '小商·星芽 3D',
-      look_name: 'xingya_sitting_clean_250929_loop',
-      voice_name: '聆小琪 (元气少女)',
-      hairColor: '#5c3c92',
-      suitColor: '#ff9f43',
-      accentColor: '#ff6b81',
-      skinColor: '#ffe7d6',
-      kind: 'human_sister'
-    },
-    huahua: {
-      id: 'huahua',
-      name: '水獭花花 · 陪伴萌宠 (3D)',
-      shortName: '小商·花花 3D',
-      look_name: 'shuita_idle_250529_clean_285483_loop',
-      voice_name: '萌小新 (可爱萌宠)',
-      hairColor: '#8d5b4c',
-      suitColor: '#5b8def',
-      accentColor: '#ffd94a',
-      skinColor: '#e6b89c',
-      kind: 'otter_mascot'
-    }
-  };
-
-  var POSE_LABELS = {
-    idle: '待机 Idle',
-    listen: '倾听 Listen',
-    think: '思考 Think',
-    interactive: '互动 Gesture',
-    speak: '播报 Speak'
-  };
-
-  var agentState = {
-    presetId: 'yingyi',
-    pose: 'idle',
-    mode: 'canvas3d', // 'canvas3d' | 'rtc'
-    rtcSession: null,
-    speakingUntil: 0,
-    lastSpeechText: '你好，我是向导小商（3D 具身副驾）。点击右下角随时问我六关实操与选品算账！',
-    lastToolCalls: [],
-    lastRoi: null,
-    animFrame: 0,
-    rafId: null,
-    formalStarted: false
-  };
-
-  var els = {
-    stage: null,
-    holo: null,
-    canvas: null,
-    offscreenCanvas: null,
-    svgScene: null,
-    mount: null,
-    bubble: null,
-    modePill: null,
-    poseLabel: null,
-    cpPanel: null,
-    cpBody: null,
-    cpInput: null,
-    deck: null,
-    presetSelect: null,
-    rtcBtn: null,
-    statusText: null
-  };
-
-  function make(tag, cls, text) {
-    var n = doc.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
+  const doc=global.document;
+  const agentState={presetId:'yingyi',pose:'idle',mode:'island',lastSpeechText:'',sdk:null,connecting:null,autoAttempted:false,generation:0,lastError:null,messages:[]};
+  const els={};
+  function make(tag,cls,text){const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
+  function status(text){if(els.status)els.status.textContent=text;}
+  function setPose(pose){agentState.pose=pose;const sdk=agentState.sdk;if(agentState.mode!=='rtc')return;try{if(pose==='think')sdk.think?.();else if(pose==='listen')sdk.listen?.();else if(pose==='idle')sdk.idle?.();}catch(_){}}
+  function setBubble(text){status(text);}
+  function speech(text){return global.EmcMarkdown?.plain(text)||String(text||'');}
+  function speakText(text){agentState.lastSpeechText=speech(text);agentState.pose='speak';if(agentState.mode==='rtc')try{agentState.sdk.speak(agentState.lastSpeechText,true,true);}catch(_){status('语音暂时不可用，文字对话可以继续。');}}
+  function interruptSpeech(){try{agentState.sdk?.interrupt?.();}catch(_){}setPose('idle');}
+  function openCopilotPanel(){return global.EmcOpenCompanionChat?.('',{send:false});}
+  function closeCopilotPanel(){doc.getElementById('closeMobileChat')?.click();}
+  function openFormalWorkbench(){global.EmcOpenCompanionChat?.('我想查看当前关卡的成果要求',{send:true});}
+  function requestBackendChat(message){global.EmcOpenCompanionChat?.(message,{send:true});return Promise.resolve({delegated:true});}
+  function loadSdk(){if(global.XmovAvatar)return Promise.resolve();return new Promise((resolve,reject)=>{const script=doc.createElement('script');script.src='js/vendor/xmovAvatar.min.js';script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('数字人资源加载失败'));};doc.head.append(script);});}
+  async function disconnect(){agentState.generation++;const sdk=agentState.sdk;agentState.sdk=null;agentState.mode='island';els.screen.hidden=true;els.connect.textContent='连接数字人';if(sdk)try{await sdk.destroy();}catch(_){}els.mount.replaceChildren();}
+  function connectXingyunSession(presetId){
+    if(agentState.connecting)return agentState.connecting;
+    if(agentState.mode==='rtc')return Promise.resolve(agentState.sdk);
+    const generation=++agentState.generation;
+    agentState.connecting=(async()=>{
+      agentState.lastError=null;agentState.messages=[];els.connect.disabled=true;status('正在邀请数字人小商…');
+      let sdk,timer;
+      try{
+        const config=await global.EmcApi.get('/api/agent/config');
+        if(!config.xingyun?.app_id)throw new Error('数字人暂未准备好');
+        await loadSdk();if(generation!==agentState.generation)return null;
+        agentState.presetId=presetId||config.xingyun.default_preset||'yingyi';els.select.value=agentState.presetId;
+        els.screen.hidden=false;
+        let ready,failed;
+        const loaded=new Promise((resolve,reject)=>{ready=resolve;failed=reject;});
+        timer=setTimeout(()=>failed(new Error('数字人连接超时')),30000);
+        sdk=new global.XmovAvatar({containerId:'#emcXingyunSdkMount',appId:config.xingyun.app_id,appSecret:'',gatewayServer:'/api/agent/xingyun/session?preset='+encodeURIComponent(agentState.presetId),enableLogger:false,
+          onMessage:message=>{agentState.messages.push({code:message.code,message:String(message.message||'').slice(0,200)});agentState.messages=agentState.messages.slice(-20);if([3101,3102,3103,3105,3504,3605,3606].includes(Number(message.code)))failed(new Error('数字人连接暂时不可用'));},
+          onStateChange:pose=>{agentState.pose=pose;},onStatusChange:value=>{if([0,5].includes(value))ready();}
+        });
+        agentState.sdk=sdk;
+        await Promise.all([sdk.init({onDownloadProgress:progress=>{if(generation!==agentState.generation)return;status('正在准备小商的形象… '+Math.round(progress)+'%');if(progress>=100)ready();}}),loaded]);
+        if(generation!==agentState.generation){await sdk.destroy();return null;}
+        agentState.mode='rtc';els.connect.textContent='断开数字人';status('数字人已连接 · 小商会为你读出回复。');
+        if(agentState.lastSpeechText)speakText(agentState.lastSpeechText);
+        return sdk;
+      }catch(error){agentState.lastError={name:error?.name||'ConnectionError',message:error?.message||'数字人连接失败'};if(generation===agentState.generation){await disconnect();status('小商继续在岛上陪你，数字人暂时没连上，可以重试。');}return null;}
+      finally{clearTimeout(timer);agentState.connecting=null;els.connect.disabled=false;}
+    })();return agentState.connecting;
   }
-
-  function currentLevelCode() {
-    if (global.state && typeof global.state.lv === 'number' && global.LEVELS && global.LEVELS[global.state.lv]) {
-      return global.LEVELS[global.state.lv].lv;
-    }
-    var stageEl = doc.getElementById('stageCount');
-    if (stageEl && stageEl.textContent) {
-      var m = stageEl.textContent.match(/(\d+)/);
-      if (m) return 'L' + m[1];
-    }
-    var curLvEl = doc.getElementById('curLv');
-    return (curLvEl && curLvEl.textContent) || 'L1';
+  function autoConnect(){if(agentState.autoAttempted)return agentState.connecting;agentState.autoAttempted=true;return connectXingyunSession();}
+  async function setPreset(id){if(!['yingyi','xingya','huahua'].includes(id))return;const connected=agentState.mode==='rtc';await disconnect();agentState.presetId=id;if(connected)await connectXingyunSession(id);}
+  function start(){
+    if(els.stage)return;
+    const stage=make('section','emc-avatar-stage');stage.id='emcAvatarStage';stage.setAttribute('aria-label','小商数字人');
+    const row=make('div','avatar-toolbar');row.append(make('b','','和小商一起经营'));
+    const connect=make('button','','连接数字人');connect.id='emcAvatarConnect3dBtn';connect.type='button';connect.onclick=()=>agentState.mode==='rtc'?disconnect().then(()=>status('小商继续在岛上陪你。')):connectXingyunSession(els.select.value);row.append(connect);
+    const stop=make('button','','暂停播报');stop.type='button';stop.id='emcAvatarInterruptBtn';stop.onclick=interruptSpeech;row.append(stop);stage.append(row);
+    const screen=make('div','avatar-screen');screen.hidden=true;const mount=make('div');mount.id='emcXingyunSdkMount';screen.append(mount);stage.append(screen);
+    const line=make('p','avatar-status','开始聊天后，小商会自动尝试连接数字人。');line.setAttribute('role','status');stage.append(line);
+    const settings=make('details');settings.append(make('summary','','伙伴与常用操作'));
+    const select=make('select');select.id='emcAvatarPresetSelect';select.setAttribute('aria-label','数字人形象');[['yingyi','盈怡 · 带教伙伴'],['xingya','星芽 · 元气学姐'],['huahua','花花 · 陪伴萌宠']].forEach(([id,name])=>{const option=make('option','',name);option.value=id;select.append(option);});select.onchange=()=>setPreset(select.value);settings.append(select);
+    const actions=make('div','avatar-actions');[['这关怎么做','请帮我梳理当前关卡目标和下一步'],['帮我算账','请告诉我算利润需要哪些成本'],['查看成果要求','请打开当前关卡成果要求']].forEach(([label,prompt])=>{const b=make('button','',label);b.type='button';b.onclick=()=>requestBackendChat(prompt);actions.append(b);});settings.append(actions);stage.append(settings);
+    doc.querySelector('.copilot-dock')?.insertBefore(stage,doc.getElementById('copilotStatus'));
+    Object.assign(els,{stage,screen,mount,connect,status:line,select});
+    global.addEventListener('emc:companion-reply',event=>{const answer=event.detail?.text;if(answer)speakText(answer);});
+    global.addEventListener('emc:companion-thinking',()=>setPose('think'));
+    global.addEventListener('pagehide',()=>{void disconnect();});
   }
-
-  function currentViewName() {
-    if (global.EmcRoute && typeof global.EmcRoute.read === 'function') {
-      var r = global.EmcRoute.read();
-      if (r && r.view) return r.view;
-    }
-    return 'town';
-  }
-
-  function buildStageDom() {
-    if (els.stage) return;
-
-    var stage = make('aside', 'emc-avatar-stage');
-    stage.id = 'emcAvatarStage';
-    stage.setAttribute('aria-label', '向导小商 3D 数字人伴学舱');
-
-    var mainRow = make('div', 'emc-avatar-main-row');
-    var sideCol = make('div', 'emc-avatar-side');
-
-    var bubble = make('div', 'emc-avatar-bubble');
-    bubble.id = 'emcAvatarBubble';
-    bubble.style.cursor = 'pointer';
-    bubble.title = '点击打开向导小商 3D 副驾对话舱';
-    bubble.textContent = '小商 3D：点击我随时对话、推演选品毛利与六关核验';
-    bubble.addEventListener('click', function () {
-      openCopilotPanel();
-      if (els.cpInput) els.cpInput.focus();
-    });
-    sideCol.appendChild(bubble);
-
-    var holo = make('div', 'emc-avatar-holo');
-    holo.id = 'emcAvatarHolo';
-    holo.style.cursor = 'pointer';
-    holo.title = '点击打开向导小商 3D 副驾对话舱';
-    holo.setAttribute('data-pose', 'idle');
-    holo.setAttribute('data-preset', agentState.presetId);
-    holo.addEventListener('click', function () {
-      openCopilotPanel();
-      if (els.cpInput) els.cpInput.focus();
-    });
-
-    var topHud = make('div', 'emc-avatar-hud-top');
-    var modePill = make('span', 'emc-avatar-pill');
-    modePill.id = 'emcAvatarModePill';
-    modePill.setAttribute('data-mode', 'canvas3d');
-    var dot = make('span', 'dot');
-    var modeTx = make('span', '', '小商·盈怡 3D');
-    modeTx.id = 'emcAvatarPresetBadge';
-    modePill.appendChild(dot);
-    modePill.appendChild(modeTx);
-    topHud.appendChild(modePill);
-    holo.appendChild(topHud);
-
-    // 使用 SVG 容器 + 离屏 Canvas 双缓冲：既保证 DOM 中唯一主场景 <canvas>，又支持像素级采样与矢量高分屏渲染
-    var offscreen = doc.createElement('canvas');
-    offscreen.width = 176;
-    offscreen.height = 196;
-
-    var svgCanvas = doc.createElementNS(SVG_NS, 'svg');
-    svgCanvas.setAttribute('id', 'emcAvatarCanvas');
-    svgCanvas.setAttribute('class', 'emc-avatar-canvas');
-    svgCanvas.setAttribute('viewBox', '0 0 176 196');
-    svgCanvas.setAttribute('aria-hidden', 'true');
-    Object.defineProperty(svgCanvas, 'width', { value: 176, writable: true, configurable: true });
-    Object.defineProperty(svgCanvas, 'height', { value: 196, writable: true, configurable: true });
-    svgCanvas.getContext = function (type) {
-      return offscreen.getContext(type);
-    };
-    var svgScene = doc.createElementNS(SVG_NS, 'g');
-    svgCanvas.appendChild(svgScene);
-    holo.appendChild(svgCanvas);
-
-    var mount = make('div', 'emc-xingyun-mount');
-    mount.id = 'emcXingyunSdkMount';
-    mount.hidden = true;
-    holo.appendChild(mount);
-
-    var botHud = make('div', 'emc-avatar-hud-bottom');
-    var poseLabel = make('span', '', POSE_LABELS.idle);
-    poseLabel.id = 'emcAvatarPoseLabel';
-    var wave = make('span', 'emc-avatar-wave');
-    wave.id = 'emcAvatarWave';
-    for (var i = 0; i < 4; i++) {
-      wave.appendChild(doc.createElement('i'));
-    }
-    botHud.appendChild(poseLabel);
-    botHud.appendChild(wave);
-    holo.appendChild(botHud);
-
-    mainRow.appendChild(holo);
-
-    // 底部操作入口：打开 3D 副驾控制台 (#cpFab) 与 真实经营核验工作台 ([data-emc-gate="真实经营"])
-    var actions = make('div', 'emc-avatar-actions');
-    if (!doc.getElementById('cpFab')) {
-      var fab = make('button', 'emc-avatar-fab', '3D 控制台');
-      fab.type = 'button';
-      fab.id = 'cpFab';
-      fab.setAttribute('aria-label', '打开 3D 数字人控制台');
-      fab.addEventListener('click', function () {
-        toggleCopilotPanel();
-      });
-      actions.appendChild(fab);
-    }
-    if (!doc.querySelector('[data-emc-gate="真实经营"]')) {
-      var gateBtn = make('button', 'emc-avatar-fab secondary', '📋 真实经营');
-      gateBtn.type = 'button';
-      gateBtn.setAttribute('data-emc-gate', '真实经营');
-      gateBtn.addEventListener('click', function () {
-        openFormalWorkbench('真实经营');
-      });
-      actions.appendChild(gateBtn);
-    }
-    sideCol.appendChild(actions);
-    mainRow.appendChild(sideCol);
-    stage.appendChild(mainRow);
-
-    var dock = doc.querySelector('.copilot-dock');
-    var statusEl = doc.getElementById('copilotStatus');
-    if (dock) {
-      dock.insertBefore(stage, statusEl || null);
-    } else {
-      var hostEl = doc.querySelector('.game-shell') || doc.querySelector('.app') || doc.body;
-      hostEl.appendChild(stage);
-    }
-
-    els.stage = stage;
-    els.holo = holo;
-    els.canvas = svgCanvas;
-    els.offscreenCanvas = offscreen;
-    els.svgScene = svgScene;
-    els.mount = mount;
-    els.bubble = bubble;
-    els.modePill = modePill;
-    els.poseLabel = poseLabel;
-  }
-
-  function ensureCopilotPanelDom() {
-    els.cpPanel = doc.querySelector('.copilot-dock');
-    els.cpBody = doc.getElementById('socialMessages');
-    els.cpInput = doc.getElementById('copilotInput');
-  }
-
-  function dispatchChat(message, autoSend) {
-    if (typeof global.EmcOpenCompanionChat === 'function') {
-      return global.EmcOpenCompanionChat(message, {send: autoSend !== false});
-    }
-    var input = doc.getElementById('copilotInput');
-    var form = doc.getElementById('copilotForm');
-    if (!input || !form) return false;
-    input.value = String(message || '').slice(0, 240);
-    input.dispatchEvent(new Event('input', {bubbles:true}));
-    if (autoSend !== false) form.requestSubmit();
-    return true;
-  }
-
-  function buildCopilotDeckDom() {
-    ensureCopilotPanelDom();
-    if (!els.stage || els.deck) return;
-
-    var deck = make('div', 'emc-agent-deck');
-    deck.id = 'emcAvatarDeck';
-
-    var row1 = make('div', 'emc-agent-deck-row');
-    var archTag = make('span', 'emc-agent-arch-tag', '星云 3D 具身底座 + 自建 Agent Runtime');
-    archTag.id = 'emcAgentArchBadge';
-    row1.appendChild(archTag);
-
-    var select = make('select', 'emc-agent-select');
-    select.id = 'emcAvatarPresetSelect';
-    select.setAttribute('aria-label', '切换 3D 数字人形象');
-    Object.keys(PRESETS).forEach(function (k) {
-      var opt = make('option', '', PRESETS[k].name);
-      opt.value = k;
-      select.appendChild(opt);
-    });
-    select.addEventListener('change', function () {
-      setPreset(select.value);
-    });
-    row1.appendChild(select);
-    var closeBtn = make('button', 'emc-agent-mini-btn', '收起');
-    closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', '关闭 AI 副驾');
-    closeBtn.addEventListener('click', function () {
-      closeCopilotPanel();
-    });
-    row1.appendChild(closeBtn);
-    deck.appendChild(row1);
-
-    var row2 = make('div', 'emc-agent-deck-row');
-    var btnGroup = make('div', 'emc-agent-btn-group');
-
-    var poses = [
-      { id: 'idle', label: '待机' },
-      { id: 'listen', label: '倾听' },
-      { id: 'think', label: '思考' },
-      { id: 'interactive', label: '打招呼' }
-    ];
-    poses.forEach(function (p) {
-      var b = make('button', 'emc-agent-mini-btn' + (p.id === 'idle' ? ' active' : ''), p.label);
-      b.type = 'button';
-      b.setAttribute('data-avatar-pose-btn', p.id);
-      b.addEventListener('click', function () {
-        setPose(p.id);
-        if (p.id === 'interactive') {
-          speakText('店主好！我是你的 3D 具身副驾小商，今天想攻克哪一关？', 'happy', 2600);
-        }
-      });
-      btnGroup.appendChild(b);
-    });
-
-    var stopBtn = make('button', 'emc-agent-mini-btn', '打断播报');
-    stopBtn.type = 'button';
-    stopBtn.id = 'emcAvatarInterruptBtn';
-    stopBtn.addEventListener('click', function () {
-      interruptSpeech();
-    });
-    btnGroup.appendChild(stopBtn);
-    row2.appendChild(btnGroup);
-
-    var rtcBtn = make('button', 'emc-agent-mini-btn rtc', '连接星云 3D 实时流');
-    rtcBtn.type = 'button';
-    rtcBtn.id = 'emcAvatarConnect3dBtn';
-    rtcBtn.addEventListener('click', function () {
-      connectXingyunSession(agentState.presetId);
-    });
-    row2.appendChild(rtcBtn);
-
-    deck.appendChild(row2);
-
-    var statusLine = make('div', '', '当前引擎：3D 全息伴学舱（支持一键握手魔珐星云 WebGL 实时流）');
-    statusLine.id = 'emcAvatarEngineStatus';
-    statusLine.style.color = 'var(--av-sub)';
-    deck.appendChild(statusLine);
-
-    var quickRow = make('div', 'emc-agent-btn-group');
-    quickRow.style.marginTop = '4px';
-    var quickPrompts = [
-      { label: '💰 算账：拿货35售价99', q: '小商，拿货成本 35 元、售价 99 元，帮我算下毛利率和保本 ROI', draft: false },
-      { label: '📋 本关怎么过？', q: '当前关卡过关重点和必填交付物是什么？', draft: false },
-      { label: '✨ 生成本关草稿', q: '帮我保存草稿：当前关卡初始经营方案', draft: true }
-    ];
-    quickPrompts.forEach(function (qp) {
-      var qb = make('button', 'emc-agent-mini-btn', qp.label);
-      qb.type = 'button';
-      qb.addEventListener('click', function () {
-        // A suggested draft must be confirmed within the single game conversation.
-        dispatchChat(qp.draft ? '先跟我讨论本关草稿，确认后再保存。' : qp.q, true);
-      });
-      quickRow.appendChild(qb);
-    });
-    deck.appendChild(quickRow);
-
-    // Configuration only; the primary #copilotForm is the single chat surface.
-    var advanced = make('details', 'emc-avatar-config');
-    advanced.id = 'emcAvatarConfig';
-    var caption = make('summary', '', '3D 形象与语音设置');
-    advanced.appendChild(caption);
-    advanced.appendChild(deck);
-    els.stage.appendChild(advanced);
-    els.deck = deck;
-    els.presetSelect = select;
-    els.rtcBtn = rtcBtn;
-    els.statusText = statusLine;
-  }
-
-  function openCopilotPanel() {
-    if (typeof global.EmcOpenCompanionChat === 'function') {
-      global.EmcOpenCompanionChat();
-    } else {
-      var input=doc.getElementById('copilotInput');
-      if (input) input.focus();
-      var dock=doc.querySelector('.copilot-dock');
-      if (dock && global.innerWidth<=700) dock.classList.add('mobile-chat-open');
-    }
-    var cfg = doc.getElementById('emcAvatarConfig');
-    if (cfg) cfg.open = true;
-    if (els.stage) els.stage.classList.add('panel-open');
-    setPose('interactive');
-  }
-
-  function closeCopilotPanel() {
-    var cfg = doc.getElementById('emcAvatarConfig');
-    if (cfg) cfg.open = false;
-    var dock=doc.querySelector('.copilot-dock');
-    if (dock && global.innerWidth<=700) dock.classList.remove('mobile-chat-open');
-    if (els.stage) els.stage.classList.remove('panel-open');
-  }
-
-  function toggleCopilotPanel() {
-    var cfg = doc.getElementById('emcAvatarConfig');
-    if (cfg && cfg.open) closeCopilotPanel();
-    else openCopilotPanel();
-  }
-
-  async function openFormalWorkbench(gateName) {
-    if (global.EmcSession && typeof global.EmcSession.isLoggedIn === 'function' && !global.EmcSession.isLoggedIn()) {
-      var ok = await global.EmcSession.requireLogin(gateName || '真实经营');
-      if (!ok) return;
-    }
-    var wb = doc.getElementById('emcRealWorkbench');
-    if (!wb) {
-      wb = make('div', 'emc-workbench-modal');
-      wb.id = 'emcRealWorkbench';
-      doc.body.appendChild(wb);
-    }
-    if (global.EmcFormalUI) {
-      if (!agentState.formalStarted && typeof global.EmcFormalUI.start === 'function') {
-        global.EmcFormalUI.start();
-        agentState.formalStarted = true;
-      }
-      if (typeof global.EmcFormalUI.openWorkbench === 'function') {
-        global.EmcFormalUI.openWorkbench(gateName || '真实经营');
-      }
-    }
-  }
-
-  function setPreset(presetId) {
-    if (!PRESETS[presetId]) return;
-    agentState.presetId = presetId;
-    var p = PRESETS[presetId];
-    if (els.holo) els.holo.setAttribute('data-preset', presetId);
-    var badge = doc.getElementById('emcAvatarPresetBadge');
-    if (badge) badge.textContent = p.shortName;
-    if (els.presetSelect && els.presetSelect.value !== presetId) {
-      els.presetSelect.value = presetId;
-    }
-    if (els.statusText) {
-      els.statusText.textContent = '已切换形象：' + p.name + ' · 音色：' + p.voice_name;
-    }
-    setBubble('已切换 3D 形象：' + p.shortName);
-    drawAvatarFrame();
-  }
-
-  function setPose(pose) {
-    if (!POSE_LABELS[pose]) pose = 'idle';
-    agentState.pose = pose;
-    if (els.holo) els.holo.setAttribute('data-pose', pose);
-    if (els.poseLabel) els.poseLabel.textContent = POSE_LABELS[pose];
-    if (els.deck) {
-      var btns = els.deck.querySelectorAll('[data-avatar-pose-btn]');
-      for (var i = 0; i < btns.length; i++) {
-        var b = btns[i];
-        if (b.getAttribute('data-avatar-pose-btn') === pose) {
-          b.classList.add('active');
-        } else {
-          b.classList.remove('active');
-        }
-      }
-    }
-    drawAvatarFrame();
-  }
-
-  function setBubble(text) {
-    if (!els.bubble) return;
-    var clean = String(text || '').replace(/<[^>]+>/g, '').trim();
-    if (clean.length > 44) clean = clean.slice(0, 44) + '…';
-    els.bubble.textContent = clean;
-  }
-
-  function speakText(text, emotion, durationMs) {
-    var clean = String(text || '').replace(/<[^>]+>/g, '').trim();
-    if (!clean) return;
-    agentState.lastSpeechText = clean;
-    var dur = durationMs || Math.min(4500, Math.max(1400, clean.length * 55));
-    agentState.speakingUntil = Date.now() + dur;
-    setPose('speak');
-    setBubble(clean);
-  }
-
-  function interruptSpeech() {
-    agentState.speakingUntil = 0;
-    setPose('idle');
-    setBubble('已打断播报，等待店主新指令');
-    if (els.statusText) {
-      els.statusText.textContent = '状态：已执行 interrupt() 打断当前语音与动作队列';
-    }
-  }
-
-  function drawAvatarFrame() {
-    if (!els.offscreenCanvas) return;
-    var ctx = els.offscreenCanvas.getContext('2d');
-    if (!ctx) return;
-
-    var w = els.offscreenCanvas.width;
-    var h = els.offscreenCanvas.height;
-    var t = agentState.animFrame * 0.06;
-    var preset = PRESETS[agentState.presetId] || PRESETS.yingyi;
-
-    if (agentState.pose === 'speak' && Date.now() > agentState.speakingUntil) {
-      setPose('idle');
-    }
-
-    ctx.clearRect(0, 0, w, h);
-
-    // 1. 底部 3D 全息底座光环
-    var ringPulse = Math.sin(t * 1.4) * 3;
-    ctx.save();
-    ctx.strokeStyle = preset.suitColor;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.65;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h - 22, 54 + ringPulse, 11, 0, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = preset.accentColor;
-    ctx.globalAlpha = 0.45;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h - 22, 38 - ringPulse * 0.5, 7, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-
-    // 2. 3D 呼吸与姿态位移
-    var breathY = Math.sin(t) * 2.5;
-    var headTilt = agentState.pose === 'think' ? 0.08 : (agentState.pose === 'listen' ? -0.05 : Math.sin(t * 0.5) * 0.03);
-    var centerX = w / 2;
-    var baseY = 104 + breathY;
-
-    ctx.save();
-    ctx.translate(centerX, baseY);
-
-    // 3. 身体 / 3D 职业装与立体阴影
-    var bodyGrad = ctx.createLinearGradient(-34, 10, 34, 68);
-    bodyGrad.addColorStop(0, preset.suitColor);
-    bodyGrad.addColorStop(1, '#102040');
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.moveTo(-34, 62);
-    ctx.quadraticCurveTo(-30, 14, -14, 10);
-    ctx.lineTo(14, 10);
-    ctx.quadraticCurveTo(30, 14, 34, 62);
-    ctx.closePath();
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0a1326';
-    ctx.stroke();
-
-    // 领口徽章与高光
-    ctx.fillStyle = preset.accentColor;
-    ctx.beginPath();
-    ctx.moveTo(-8, 12);
-    ctx.lineTo(0, 28);
-    ctx.lineTo(8, 12);
-    ctx.closePath();
-    ctx.fill();
-
-    // 4. 互动手势（打招呼 / 思考 / 播报）
-    var waveAngle = Math.sin(t * 3.2) * 8;
-    if (agentState.pose === 'interactive' || agentState.pose === 'speak') {
-      ctx.fillStyle = preset.skinColor;
-      ctx.beginPath();
-      ctx.arc(36, 18 + waveAngle, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    } else if (agentState.pose === 'think') {
-      ctx.fillStyle = preset.skinColor;
-      ctx.beginPath();
-      ctx.arc(14, 6, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // 5. 头部 3D 旋转
-    ctx.rotate(headTilt);
-
-    // 后发 / 萌宠耳廓
-    ctx.fillStyle = preset.hairColor;
-    if (preset.kind === 'otter_mascot') {
-      ctx.beginPath();
-      ctx.arc(-22, -38, 9, 0, Math.PI * 2);
-      ctx.arc(22, -38, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.arc(0, -24, 31, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 脸部立体明暗
-    var faceGrad = ctx.createRadialGradient(-6, -28, 4, 0, -22, 28);
-    faceGrad.addColorStop(0, '#fff5ec');
-    faceGrad.addColorStop(1, preset.skinColor);
-    ctx.fillStyle = faceGrad;
-    ctx.beginPath();
-    ctx.arc(0, -22, 24, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0a1326';
-    ctx.stroke();
-
-    // 刘海与发饰
-    ctx.fillStyle = preset.hairColor;
-    ctx.beginPath();
-    ctx.arc(0, -28, 24, Math.PI * 1.05, Math.PI * 1.95);
-    ctx.fill();
-
-    // 全息耳机 / 顾问金饰
-    ctx.fillStyle = preset.accentColor;
-    ctx.fillRect(-27, -26, 5, 12);
-    ctx.fillRect(22, -26, 5, 12);
-
-    // 6. 眨眼与视线
-    var blink = (agentState.animFrame % 90) < 4;
-    ctx.fillStyle = '#0a1326';
-    if (blink) {
-      ctx.fillRect(-13, -24, 7, 2);
-      ctx.fillRect(6, -24, 7, 2);
-    } else {
-      ctx.beginPath();
-      ctx.arc(-9.5, -23, 3.3, 0, Math.PI * 2);
-      ctx.arc(9.5, -23, 3.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(-10.5, -24.2, 1.2, 0, Math.PI * 2);
-      ctx.arc(8.5, -24.2, 1.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 腮红
-    ctx.fillStyle = 'rgba(255, 107, 129, 0.35)';
-    ctx.beginPath();
-    ctx.ellipse(-14, -17, 4, 2.2, 0, 0, Math.PI * 2);
-    ctx.ellipse(14, -17, 4, 2.2, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 7. 实时口型驱动 (Lip-Sync)
-    var mouthOpen = 2 + Math.abs(Math.sin(t * 4.5)) * 5.5;
-    ctx.strokeStyle = '#0a1326';
-    ctx.lineWidth = 2;
-    if (agentState.pose === 'speak') {
-      ctx.fillStyle = '#ff6b81';
-      ctx.beginPath();
-      ctx.ellipse(0, -12, 5.2, mouthOpen, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    } else if (agentState.pose === 'think') {
-      ctx.beginPath();
-      ctx.arc(2, -12, 2.5, 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.arc(0, -14, 5, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-
-    // 同步渲染矢量 3D 全息 SVG 节点
-    if (els.svgScene && (agentState.animFrame <= 2 || agentState.animFrame % 2 === 0)) {
-      var deg = (headTilt * 180) / Math.PI;
-      var earsSvg = preset.kind === 'otter_mascot'
-        ? '<circle cx="-22" cy="-38" r="9" fill="' + preset.hairColor + '" stroke="#0a1326" stroke-width="2"/>' +
-          '<circle cx="22" cy="-38" r="9" fill="' + preset.hairColor + '" stroke="#0a1326" stroke-width="2"/>'
-        : '<circle cx="0" cy="-24" r="31" fill="' + preset.hairColor + '"/>';
-      var handSvg = (agentState.pose === 'interactive' || agentState.pose === 'speak')
-        ? '<circle cx="36" cy="' + (18 + waveAngle).toFixed(1) + '" r="7" fill="' + preset.skinColor + '" stroke="#0a1326" stroke-width="2"/>'
-        : (agentState.pose === 'think'
-          ? '<circle cx="14" cy="6" r="6" fill="' + preset.skinColor + '" stroke="#0a1326" stroke-width="2"/>'
-          : '');
-      var eyesSvg = blink
-        ? '<rect x="-13" y="-24" width="7" height="2" fill="#0a1326"/><rect x="6" y="-24" width="7" height="2" fill="#0a1326"/>'
-        : '<circle cx="-9.5" cy="-23" r="3.3" fill="#0a1326"/><circle cx="9.5" cy="-23" r="3.3" fill="#0a1326"/>' +
-          '<circle cx="-10.5" cy="-24.2" r="1.2" fill="#fff"/><circle cx="8.5" cy="-24.2" r="1.2" fill="#fff"/>';
-      var mouthSvg = agentState.pose === 'speak'
-        ? '<ellipse cx="0" cy="-12" rx="5.2" ry="' + mouthOpen.toFixed(1) + '" fill="#ff6b81" stroke="#0a1326" stroke-width="2"/>'
-        : (agentState.pose === 'think'
-          ? '<circle cx="2" cy="-12" r="2.5" fill="none" stroke="#0a1326" stroke-width="2"/>'
-          : '<path d="M -4.5 -12.5 Q 0 -8.5 4.5 -12.5" fill="none" stroke="#0a1326" stroke-width="2"/>');
-
-      els.svgScene.innerHTML =
-        '<ellipse cx="' + (w / 2) + '" cy="' + (h - 22) + '" rx="' + (54 + ringPulse).toFixed(1) + '" ry="11" fill="none" stroke="' + preset.suitColor + '" stroke-width="2" opacity="0.65"/>' +
-        '<ellipse cx="' + (w / 2) + '" cy="' + (h - 22) + '" rx="' + (38 - ringPulse * 0.5).toFixed(1) + '" ry="7" fill="none" stroke="' + preset.accentColor + '" stroke-width="2" opacity="0.45"/>' +
-        '<g transform="translate(' + centerX + ',' + baseY.toFixed(1) + ')">' +
-          '<path d="M -34 62 Q -30 14 -14 10 L 14 10 Q 30 14 34 62 Z" fill="' + preset.suitColor + '" stroke="#0a1326" stroke-width="2"/>' +
-          '<polygon points="-8,12 0,28 8,12" fill="' + preset.accentColor + '"/>' +
-          handSvg +
-          '<g transform="rotate(' + deg.toFixed(2) + ')">' +
-            earsSvg +
-            '<circle cx="0" cy="-22" r="24" fill="' + preset.skinColor + '" stroke="#0a1326" stroke-width="2"/>' +
-            '<path d="M -23 -28 A 24 24 0 0 1 23 -28 Z" fill="' + preset.hairColor + '"/>' +
-            '<rect x="-27" y="-26" width="5" height="12" fill="' + preset.accentColor + '"/>' +
-            '<rect x="22" y="-26" width="5" height="12" fill="' + preset.accentColor + '"/>' +
-            eyesSvg +
-            '<ellipse cx="-14" cy="-17" rx="4" ry="2.2" fill="rgba(255,107,129,0.35)"/>' +
-            '<ellipse cx="14" cy="-17" rx="4" ry="2.2" fill="rgba(255,107,129,0.35)"/>' +
-            mouthSvg +
-          '</g>' +
-        '</g>';
-    }
-  }
-
-  function startAnimationLoop() {
-    if (agentState.rafId) return;
-    function tick() {
-      agentState.animFrame += 1;
-      drawAvatarFrame();
-      agentState.rafId = global.requestAnimationFrame
-        ? global.requestAnimationFrame(tick)
-        : setTimeout(tick, 50);
-    }
-    tick();
-  }
-
-  async function connectXingyunSession(presetId) {
-    var targetPreset = presetId || agentState.presetId || 'yingyi';
-    if (els.statusText) {
-      els.statusText.textContent = '正在向同源后端请求星云 3D 签名会话 (/api/agent/xingyun/session)…';
-    }
-    setPose('think');
-    try {
-      var res = await global.fetch('/api/agent/xingyun/session', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'startSession',
-          preset_id: targetPreset
-        })
-      });
-      var data = await res.json();
-      agentState.rtcSession = data;
-      var detail = (data && data.data) || {};
-      var sessionId = detail.session_id || 'xy_live_session';
-      agentState.mode = 'rtc';
-      if (els.modePill) els.modePill.setAttribute('data-mode', 'rtc');
-      if (els.statusText) {
-        els.statusText.textContent =
-          '星云 3D 会话已就绪：session_id=' + sessionId.slice(0, 24) +
-          ' · look=' + (PRESETS[targetPreset] ? PRESETS[targetPreset].look_name : targetPreset);
-      }
-      speakText(
-        '星云 3D 具身会话已握手成功！当前加载形象：' +
-          (PRESETS[targetPreset] ? PRESETS[targetPreset].name : targetPreset),
-        'happy',
-        2600
-      );
-      return data;
-    } catch (e) {
-      if (els.statusText) {
-        els.statusText.textContent = '星云 3D 实时流已自动降级为本地 3D 全息伴学舱';
-      }
-      setPose('idle');
-      return null;
-    }
-  }
-
   function buildAgentCardElement(resp) {
     if (!resp) return null;
     var toolList = Array.isArray(resp.tool_calls)
@@ -776,8 +81,8 @@
     card.setAttribute('data-emc-agent-card', '');
 
     var head = make('div', 'emc-agent-card-head');
-    head.appendChild(make('span', '', '小商 Agent 工具链与推演'));
-    var prov = make('span', '', (resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || 'xiaoshang-v1'));
+    head.appendChild(make('span', '', '小商的参考与计算'));
+    var prov = make('span', '', resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? '经营建议' : '参考引导');
     head.appendChild(prov);
     card.appendChild(head);
 
@@ -830,66 +135,6 @@
     return card;
   }
 
-  function appendAgentCard(resp) {
-    ensureCopilotPanelDom();
-    var body = els.cpBody || doc.getElementById('cpBody');
-    if (!body || !resp) return;
-
-    if (resp.reply) {
-      var replyEl = make('div', 'emc-cp-msg', resp.reply);
-      body.appendChild(replyEl);
-    }
-
-    var card = buildAgentCardElement(resp);
-    if (card) body.appendChild(card);
-    body.scrollTop = body.scrollHeight;
-  }
-
-  function buildLocalFallbackResponse(question) {
-    var lv = currentLevelCode();
-    var q = String(question || '').trim();
-    var nums = q.match(/\d+(?:\.\d+)?/g);
-    var roiCalc = null;
-    if (nums && nums.length >= 2 && /拿货|进货|成本|售价|卖|定价|毛利|算账|利润|roi/i.test(q)) {
-      var a = parseFloat(nums[0]);
-      var b = parseFloat(nums[1]);
-      var price = Math.max(a, b);
-      var cost = Math.min(a, b);
-      var profit = +(price - cost).toFixed(2);
-      var margin = price > 0 ? +(profit / price * 100).toFixed(1) : 0;
-      var roi = margin > 0 ? +(100 / margin).toFixed(2) : 99.9;
-      roiCalc = {
-        retail_price_yuan: price,
-        supply_price_yuan: cost,
-        estimated_net_profit_yuan: profit,
-        margin_rate_pct: margin,
-        breakeven_roi: roi,
-        score_4d: { weighted_total: margin >= 40 ? 84.5 : 62.0 },
-        verdict: margin >= 40 ? '毛利率充足（≥40%），推荐小步测款' : '毛利偏薄，建议优化供应链或组合提客单'
-      };
-    }
-    var reply = roiCalc
-      ? ('小商帮你把账算好啦：售价 ¥' + roiCalc.retail_price_yuan + '、综合成本 ¥' + roiCalc.supply_price_yuan +
-         '，单笔毛利 ¥' + roiCalc.estimated_net_profit_yuan + '（毛利率 ' + roiCalc.margin_rate_pct +
-         '%），保本 ROI = ' + roiCalc.breakeven_roi + '。' + roiCalc.verdict)
-      : ('店主你好！当前聚焦 ' + lv + ' 阶段。建议先明确细分人群痛点与保本 ROI（公式：保本 ROI = 1 ÷ 毛利率），' +
-         '你也可以直接发我「拿货 35 售价 99 帮我算账」或点击下方「真实经营」提交成果认证！');
-    return {
-      reply: reply,
-      emotion: 'happy',
-      pose: 'speak',
-      provider: 'local_copilot',
-      model: 'xiaoshang-fallback-v1',
-      tool_calls: [{ tool: 'get_level_guide', summary: '已加载 ' + lv + ' 阶段实操指南' }],
-      roi_calculation: roiCalc
-    };
-  }
-
-  async function requestBackendChat(question) {
-    if (dispatchChat(String(question || ''), true)) return {delegated:true};
-    throw new Error('伙伴聊天窗口尚未就绪');
-  }
-
   async function runDeliverablePreReview(submissionId, containerEl) {
     if (!submissionId) return null;
     setPose('think');
@@ -925,42 +170,7 @@
     }
   }
 
-  function hookCopilotFunctions() {
-    // Only the primary island chat calls /api/agent/chat; avatar observes its reply.
-    global.addEventListener('emc:companion-reply', function (event) {
-      var answer=String(event.detail?.text || '').trim();
-      if (answer) speakText(answer, 'happy');
-    });
-    global.addEventListener('emc:companion-thinking', function () { setPose('think'); });
-  }
 
-  function start() {
-    buildStageDom();
-    buildCopilotDeckDom();
-    hookCopilotFunctions();
-    drawAvatarFrame();
-    startAnimationLoop();
-  }
-
-  if (doc.readyState === 'loading') {
-    doc.addEventListener('DOMContentLoaded', start);
-  } else {
-    start();
-  }
-
-  global.EmcAvatarAgent = {
-    start: start,
-    setPreset: setPreset,
-    setPose: setPose,
-    speakText: speakText,
-    interrupt: interruptSpeech,
-    connectXingyunSession: connectXingyunSession,
-    askBackend: requestBackendChat,
-    runDeliverablePreReview: runDeliverablePreReview,
-    buildAgentCardElement: buildAgentCardElement,
-    openCopilot: openCopilotPanel,
-    closeCopilot: closeCopilotPanel,
-    openFormalWorkbench: openFormalWorkbench,
-    _state: agentState
-  };
+  global.EmcAvatarAgent={start,setPreset,setPose,speakText,interrupt:interruptSpeech,connectXingyunSession,autoConnect,disconnect,askBackend:requestBackendChat,runDeliverablePreReview,buildAgentCardElement,openCopilot:openCopilotPanel,closeCopilot:closeCopilotPanel,openFormalWorkbench,_state:agentState};
+  if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start);else start();
 })(window);
