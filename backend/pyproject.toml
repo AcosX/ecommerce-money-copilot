@@ -11,12 +11,12 @@ dependencies = [
     "pymysql==1.2.3",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.1",
+    "httpx==0.28.1",
 ]
 
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
-    "httpx==0.28.1",
     "ruff==0.17.1",
 ]
 
