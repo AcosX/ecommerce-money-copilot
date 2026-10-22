@@ -60,10 +60,15 @@
       "wall_materials": [],
       "roof_ratio": 1,
       "sign": {
-        "height_ratio": 0.59,
-        "width": 1.7,
-        "height": 0.28,
-        "board": true
+        "height_ratio": 0.465,
+        "width": 1.6,
+        "height": 0.19,
+        "axis": "x",
+        "conform": true,
+        "paint_width": 1.82,
+        "paint_height": 0.29,
+        "depth_offset": 0.008,
+        "paint_back_depth": -0.055
       },
       "model_url": "assets/models/buildings/level-2-web.glb",
       "bytes": 4194604,
@@ -173,10 +178,15 @@
       "wall_materials": [],
       "roof_ratio": 1,
       "sign": {
-        "height_ratio": 0.59,
-        "width": 1.7,
-        "height": 0.28,
-        "board": true
+        "height_ratio": 0.465,
+        "width": 1.6,
+        "height": 0.19,
+        "axis": "x",
+        "conform": true,
+        "paint_width": 1.82,
+        "paint_height": 0.29,
+        "depth_offset": 0.008,
+        "paint_back_depth": -0.055
       },
       "model_url": "assets/models/buildings/level-2-web.glb",
       "bytes": 4194604,
