@@ -157,6 +157,18 @@ class Handler(BaseHTTPRequestHandler):
             if not self._session_id():
                 return self._error(401, "unauthenticated", "请先登录")
             return self._json(200, {"items": list(self.state.verifications), "next_cursor": None})
+        if path == "/api/agent/config":
+            self.state.record(method="GET", path=path)
+            return self._json(200, {
+                "selected_architecture": "xingyun_3d_avatar_plus_custom_fastapi_agent_runtime",
+                "default_preset": "yingyi",
+                "presets": [
+                    {"preset_id": "yingyi", "name": "盈怡 · 电商带教顾问 (3D)", "look_name": "yingyi_250717_clean_294922_loop"},
+                    {"preset_id": "xingya", "name": "星芽 · 元气学姐 (3D)", "look_name": "xingya_sitting_clean_250929_loop"},
+                    {"preset_id": "huahua", "name": "水獭花花 · 陪伴萌宠 (3D)", "look_name": "shuita_idle_250529_clean_285483_loop"},
+                ],
+                "xingyun": {"app_id_configured": True, "sdk_session_proxy_path": "/api/agent/xingyun/session"},
+            })
         if path == "/auth/login":
             target = safe_return_to((parse_qs(url.query).get("return_to") or [""])[0])
             self.state.record(method="GET", path=path, query=url.query, location=target)
@@ -252,6 +264,70 @@ class Handler(BaseHTTPRequestHandler):
             }
             self.state.verifications.insert(0, sub)
             return self._json(201, sub)
+        if path == "/api/agent/xingyun/session":
+            body = self._body()
+            preset_id = body.get("preset_id") or "yingyi"
+            self.state.record(method="POST", path=path, preset_id=preset_id)
+            return self._json(200, {
+                "error_code": 0,
+                "error_reason": "",
+                "data": {
+                    "session_id": f"xy_mock_{preset_id}_001",
+                    "look_name": f"{preset_id}_3d_loop",
+                    "sdk_config": {"pose": "2:3"},
+                },
+            })
+        if path == "/api/agent/chat":
+            body = self._body()
+            msg = str(body.get("message") or "")
+            self.state.record(method="POST", path=path, message=msg, preset_id=body.get("preset_id"))
+            roi = {
+                "supply_price_yuan": 32.0,
+                "retail_price_yuan": 79.0,
+                "estimated_net_profit_yuan": 24.48,
+                "margin_rate_pct": 30.99,
+                "score_4d": {"weighted_total": 81.3},
+                "verdict": "净利润率 31.0%（≥25%），符合女装细分类目破零安全线。",
+            } if any(k in msg for k in ("算账", "毛利", "79", "32", "值不值得")) else None
+            return self._json(200, {
+                "reply": f"【小商 3D 参谋】针对「{msg[:24]}」：已结合 {body.get('current_level', 'L1')} 关卡要求完成推演。",
+                "ssml": f"<speak>{msg[:24]}</speak>",
+                "emotion": "happy",
+                "pose": "interactive",
+                "mood": int(body.get("mood") or 0) + 2,
+                "mood_delta": 2,
+                "quality_tier": "high",
+                "provider": "ai_gateway",
+                "model": "gemini-2.5-flash",
+                "tool_calls": [
+                    {"tool": "get_player_progress", "status": "ok", "summary": "读取当前关卡进度"},
+                    {"tool": "get_level_guide", "status": "ok", "summary": "加载关卡实操指南"},
+                ],
+                "roi_calculation": roi,
+                "saved_artifact": None,
+                "suggested_Dynamic_chips": ["选品评估怎么算权重？", "帮我算账：拿货32元售价79元"],
+            })
+        if path.startswith("/api/agent/reviews/"):
+            sid = self._session_id()
+            ok_csrf = self._csrf_ok()
+            sub_id = path.rsplit("/", 1)[-1]
+            self.state.record(method="POST", path=path, submission_id=sub_id, authed=bool(sid), csrf_ok=ok_csrf)
+            if not sid:
+                return self._error(401, "unauthenticated", "请先登录")
+            if not ok_csrf:
+                return self._error(403, "csrf_failed", "CSRF 校验失败")
+            return self._json(200, {
+                "submission_id": sub_id,
+                "level_code": "L2",
+                "recommendation": "approve_candidate",
+                "recommendation_label": "建议通过（待人工复核）",
+                "score": 92,
+                "summary": "选品单毛利与四维评分完整，凭证 SHA-256 校验通过，建议进入人工复核通过。",
+                "passed_checks": ["关联证据物理文件与 SHA-256 指纹核验通过", "L2 选品单包含有效毛利测算"],
+                "issues": [],
+                "rework_instructions": [],
+                "human_audit_focus": ["人工抽检 1688 货源链接有效性"],
+            })
         return self._error(404, "not_found", "不存在")
 
     # ---- 静态文件 ----

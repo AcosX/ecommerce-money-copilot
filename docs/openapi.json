@@ -1116,6 +1116,402 @@
         }
       }
     },
+    "/api/agent/config": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get Agent Config",
+        "description": "返回小商 3D 数字人 SDK 配置、候选角色预设、工具清单及当前玩家记忆。",
+        "operationId": "get_agent_config_api_agent_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Agent Config Api Agent Config Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/memory": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Read Agent Memory",
+        "description": "读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。",
+        "operationId": "read_agent_memory_api_agent_memory_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Read Agent Memory Api Agent Memory Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/tools/execute": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Execute Tool Endpoint",
+        "description": "执行受控 Agent 工具（强制以服务端会话 player.id 为准，忽略客户端伪造的 player_id）。",
+        "operationId": "execute_tool_endpoint_api_agent_tools_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolExecuteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Execute Tool Endpoint Api Agent Tools Execute Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/reviews/{submission_id}": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Trigger Ai Deliverable Review",
+        "description": "触发小商 L1–L6 结构化成果审核（仅申请人本人或审核员可触发）。",
+        "operationId": "trigger_ai_deliverable_review_api_agent_reviews__submission_id__post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Trigger Ai Deliverable Review Api Agent Reviews  Submission Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Get Ai Deliverable Review",
+        "description": "查询指定认证申请的最新 AI 审核报告（仅申请人本人或审核员可读）。",
+        "operationId": "get_ai_deliverable_review_api_agent_reviews__submission_id__get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Ai Deliverable Review Api Agent Reviews  Submission Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/session": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Start Xingyun Session",
+        "description": "代理魔珐星云 `POST /user/v1/ttsa/session`：服务端计算 X-TOKEN 签名并注入 3D 角色配置。",
+        "operationId": "start_xingyun_session_api_agent_xingyun_session_post",
+        "parameters": [
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Xingyun Session Api Agent Xingyun Session Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Stop Xingyun Session",
+        "description": "代理魔珐星云 `DELETE /user/v1/ttsa/session`。",
+        "operationId": "stop_xingyun_session_api_agent_xingyun_session_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Xingyun Session Api Agent Xingyun Session Delete"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/e2e-session": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Start Xingyun E2E Session",
+        "description": "代理魔珐星云 `POST /user/v1/ttsa_v2/session`（XingyunAvatarAgent 端到端 SDK 对比验证）。",
+        "operationId": "start_xingyun_e2e_session_api_agent_xingyun_e2e_session_post",
+        "parameters": [
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Xingyun E2E Session Api Agent Xingyun E2E Session Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Stop Xingyun E2E Session",
+        "description": "代理魔珐星云 `DELETE /user/v1/ttsa_v2/session`。",
+        "operationId": "stop_xingyun_e2e_session_api_agent_xingyun_e2e_session_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Xingyun E2E Session Api Agent Xingyun E2E Session Delete"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/chat": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Companion Chat",
+        "description": "小商伴随对话主入口。\n\n- 若玩家已登录（有效 `emc_session`），强制校验 CSRF，并开启个人成果/草稿/记忆读写。\n- 若为未登录游客，以只读沙盘陪伴模式运行（不写入个人数据库草稿，随时可体验 3D 数字人互动）。",
+        "operationId": "companion_chat_api_agent_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionChatIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Companion Chat Api Agent Chat Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Openai Compatible Agent Bridge",
+        "description": "OpenAI Chat Completions 兼容桥接接口（供星云控制台『自定义对话模型』或外部客户端接入）。",
+        "operationId": "openai_compatible_agent_bridge_api_agent_v1_chat_completions_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Openai Compatible Agent Bridge Api Agent V1 Chat Completions Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "get": {
         "tags": [
@@ -1372,6 +1768,70 @@
         ],
         "title": "ArtifactUpdateIn"
       },
+      "CompanionChatIn": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "level_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level Id"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "client_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Context"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "CompanionChatIn"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1537,6 +1997,39 @@
           "decision"
         ],
         "title": "ReviewDecisionIn"
+      },
+      "ToolExecuteIn": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tool Name"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          },
+          "client_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Context"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_name"
+        ],
+        "title": "ToolExecuteIn"
       },
       "ValidationError": {
         "properties": {

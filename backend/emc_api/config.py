@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -67,6 +67,47 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    # 魔珐星云 3D 数字人网关配置（小商具身驱动）
+    xingyun_app_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMC_XINGYUN_APP_ID", "XINGYUN_APP_ID"),
+    )
+    xingyun_app_secret: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("EMC_XINGYUN_APP_SECRET", "XINGYUN_APP_SECRET"),
+    )
+    xingyun_gateway_url: str = Field(
+        default="https://nebula-agent.xingyun3d.com",
+        validation_alias=AliasChoices("EMC_XINGYUN_GATEWAY_URL", "XINGYUN_GATEWAY_URL"),
+    )
+    xingyun_default_preset: str = Field(
+        default="yingyi",
+        validation_alias=AliasChoices("EMC_XINGYUN_DEFAULT_PRESET", "XINGYUN_DEFAULT_PRESET"),
+    )
+
+    # AI 大模型网关配置（支持 GOOGLE_GEMINI_BASE_URL / GEMINI_API_KEY）
+    ai_base_url: str = Field(
+        default="https://ai.acosx.xyz",
+        validation_alias=AliasChoices("EMC_AI_BASE_URL", "GOOGLE_GEMINI_BASE_URL"),
+    )
+    ai_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("EMC_AI_API_KEY", "GEMINI_API_KEY"),
+    )
+    ai_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("EMC_AI_MODEL", "GEMINI_MODEL"),
+    )
+    ai_review_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("EMC_AI_REVIEW_MODEL", "GEMINI_REVIEW_MODEL"),
+    )
+    ai_timeout_seconds: float = Field(
+        default=8.0,
+        gt=0,
+        validation_alias=AliasChoices("EMC_AI_TIMEOUT_SECONDS", "GEMINI_TIMEOUT_SECONDS"),
+    )
 
     @field_validator("public_origin")
     @classmethod
