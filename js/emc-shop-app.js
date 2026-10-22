@@ -265,7 +265,7 @@
   function renderJournalPanel(){
     const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${journey.isDemo()?'DEMO · 演示手帐':'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">工作纸是你的个人草稿，保存在当前浏览器。试玩与正式记录分开，填写或勾选都不会自动通关。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的工作纸</h4>${j.records.length?j.records.filter(r=>journey.isDemo()||Number(r.id.slice(1))<=j.state.completed+1).map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${r.filled} 处记录 · 从来信附件继续整理</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有草稿。取出信里的实践附件，写下的想法会自动留在这里。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.external?m.url:'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
   }
-  function openMission(entry,level){if(mail.state().opening)return;closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level);else journey.open(entry);$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');});}
+  function openMission(entry,level){if(mail.state().opening)return;document.querySelector('.copilot-dock')?.classList.remove('mobile-chat-open');closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level,entry);else journey.open(entry);$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');const firstBtn=$('panelBody').querySelector('[data-j-action="begin"],.mail-attachment.primary,.j-button.primary');if(firstBtn)firstBtn.focus({preventScroll:true});});}
   function startMain(){openMission();}
 
   function showTask(id){
@@ -353,7 +353,7 @@
     const scope=companionScope();if(scope!==visibleCompanionScope){if(chatWasCloud)game.npc_chat=localChatHistory;if(serverAgentProject()){if(!chatWasCloud)localChatHistory=game.npc_chat;game.npc_chat=[];chatWasCloud=true;}else chatWasCloud=false;agentScopes.delete(scope);visibleCompanionScope=scope;companionFeedback=null;companionQuote='';perkExpanded=false;}
     const level=currentCompanionTask()?.id||'first_order';if(level!==visibleCompanionLevel){visibleCompanionLevel=level;companionFeedback=null;companionQuote='';perkExpanded=false;}
     if(serverAgentProject()){syncServerCompanion();const practice=M.enter(companionStore.read(),level),live=window.EmcAgentClient?.snapshot(serverAgentProject());return {...practice,affinity:live?.affinity??practice.affinity,source:live?'server':'local-practice'};}
-    const previous=companionStore.read(),next=M.enter(previous,level);if(previous.level!==next.level)companionSaveOk=companionStore.save(next);return next;
+    const previous=companionStore.read(),next=M.enter(previous,level);if(previous.level!==next.level)companionSaveOk=window.EmcSession?.isLoggedIn()?true:companionStore.save(next);return next;
   }
   function openCompanion(introduce=false){
     openPanel('companion');
@@ -394,14 +394,20 @@
     $('panelBody').scrollTop=$('panelBody').scrollHeight;
   }
   function companionBrief(task,status,name){const state=serverAgentProject()?window.EmcAgentClient?.snapshot(serverAgentProject()):null;const prefix=state?.emotion&&state.patience<55&&!state.emotion.paused?state.emotion.example+' ':'';return prefix+(journey?.summary().view==='welcome'?'我是'+name+'，会陪你从零学习电商。先拆开我的第一封信，认识一下这间小店；不用急着准备成果。':M.brief(task,status,name));}
+  const chatTurnMeta=new Map();let chatMetaEpoch=0;
   function renderSocialChat(){
     const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
     $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
     const rows=C.history(game.npc_chat,chatWasCloud?8000:400).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
-    const markup=rows.length?rows.map(row=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
-    if(host.innerHTML!==markup){host.innerHTML=markup;if(nearBottom)host.scrollTop=host.scrollHeight;}
+    const markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
+    const renderKey=markup+'::'+chatMetaEpoch;
+    if(host.dataset.renderKey!==renderKey){
+      host.dataset.renderKey=renderKey;host.innerHTML=markup;
+      rows.forEach((row,idx)=>{if(row.role!=='user'){const meta=chatTurnMeta.get(String(row.text||'').trim()),card=meta&&window.EmcAvatarAgent?.buildAgentCardElement?.(meta);if(card)host.querySelector(`[data-chat-idx="${idx}"]`)?.appendChild(card);}});
+      if(nearBottom)host.scrollTop=host.scrollHeight;
+    }
   }
-  function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:400);save();renderSocialChat();if(panel==='history')renderChatHistory();}
+  function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:400);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
   window.EmcOpenCompanionChat=(message,{send=false}={})=>{
     const dock=document.querySelector('.copilot-dock');
     if(panel) closePanel();
@@ -444,9 +450,13 @@
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},40000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
-      const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=result.state?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
-      appendChat('assistant',result.text,result.source);
-      window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{text:result.text,source:result.source}}));
+      const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=(result.state||window.EmcSession?.isLoggedIn())?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
+      appendChat('assistant',result.text,result.source,result);
+      window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{...result,text:result.text,source:result.source}}));
+      if(result.saved_artifact&&journey)void journey.refresh({silent:true});
+      if(Array.isArray(result.ui_actions)){
+        result.ui_actions.forEach(act=>{if(act?.type==='open_game_card')openMission(act.card_id==='formal_drawer'?'submit':act.card_id==='kit'?'kit':null,act.level_id||null);});
+      }
       if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();
       if(change.unlocked){audio.play('reward');toast('连问三次有依据的问题 · 本关验证锦囊已解锁');}
 
@@ -560,7 +570,7 @@
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
-  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>{if(name!=='upgrade')audio.play(name);},celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),ask:text=>{openCompanion();askCompanion(text);}});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),ask:text=>{openCompanion();askCompanion(text);}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();

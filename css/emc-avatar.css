@@ -1,4 +1,8 @@
 /* ===== 向导小商 · 3D 具身数字人舞台、副驾面板与工作台样式 (#62) ===== */
+:root,
+.copilot-dock,
+.emc-agent-card,
+.emc-ai-review-box,
 .emc-avatar-stage,
 .emc-cp-panel,
 .emc-workbench-modal {
@@ -483,5 +487,152 @@
     left: 12px;
     bottom: 80px;
     width: auto;
+  }
+}
+
+/* 统一内嵌于右侧/底部 .copilot-dock 对话舱 */
+.copilot-dock .emc-avatar-stage {
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  grid-column: 1 / -1;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 0 4px;
+  border-top: 1px solid rgba(126, 145, 173, 0.25);
+}
+
+.copilot-dock .emc-avatar-main-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copilot-dock .emc-avatar-holo {
+  width: 80px;
+  height: 88px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border-width: 2px;
+  pointer-events: auto;
+}
+
+.copilot-dock .emc-avatar-hud-top {
+  top: 3px;
+  left: 3px;
+  right: 3px;
+}
+
+.copilot-dock .emc-avatar-pill {
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.copilot-dock .emc-avatar-hud-bottom {
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.copilot-dock .emc-avatar-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.copilot-dock .emc-avatar-bubble {
+  pointer-events: auto;
+  max-width: 100%;
+  padding: 5px 8px;
+  font-size: 10px;
+  line-height: 1.35;
+  display: block;
+}
+
+.copilot-dock .emc-avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.copilot-dock .emc-avatar-fab {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.copilot-dock .emc-avatar-fab.secondary {
+  background: rgba(10, 19, 38, 0.92);
+  color: var(--av-mint);
+  border-color: var(--av-mint);
+}
+
+.copilot-dock .emc-agent-mini-btn {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+  background: var(--av-panel-l);
+  color: var(--av-ink);
+  border: 1px solid rgba(169, 189, 228, 0.35);
+}
+
+.copilot-dock .emc-agent-mini-btn.active {
+  background: var(--av-gold);
+  color: var(--av-panel-d);
+}
+
+.copilot-dock .emc-agent-mini-btn.rtc {
+  background: rgba(56, 217, 169, 0.16);
+  color: var(--av-mint);
+  border-color: var(--av-mint);
+}
+
+.copilot-dock .emc-avatar-config {
+  width: 100%;
+  font-size: 10px;
+  color: var(--av-sub);
+}
+
+.copilot-dock .emc-avatar-config > summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #5c6f8c);
+  padding: 2px 0;
+  list-style: none;
+}
+
+.copilot-dock .emc-avatar-config > summary::-webkit-details-marker {
+  display: none;
+}
+
+.copilot-dock .emc-agent-deck {
+  border-radius: 8px;
+  margin-top: 4px;
+  padding: 7px 9px;
+  max-height: 165px;
+  overflow-y: auto;
+}
+
+@media (max-width: 700px) {
+  .copilot-dock:not(.mobile-chat-open) .emc-avatar-stage {
+    display: none;
   }
 }
