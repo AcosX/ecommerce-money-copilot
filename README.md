@@ -29,29 +29,29 @@
 
 ## 快速开始
 
-无需构建、无需依赖安装，直接浏览器打开 `index.html` 即可体验：
+前端无需构建。推荐通过本地 HTTP 服务运行（3D 模型使用 ES modules，不建议直接打开 file://）：
 
-```bash
-open index.html
+```powershell
+cd C:\Dev\ACC\ecommerce-money-copilot
+python -m http.server 5189 --bind 127.0.0.1
 ```
 
-## 技术栈
+浏览器打开 `http://127.0.0.1:5189/`。此命令仅提供静态前端，账号和持久化接口需启动后端，见 [backend/README.md](backend/README.md)。已有 Docker 静态部署见 [deploy/README.md](deploy/README.md)。
 
-- 纯原生 HTML / CSS / JavaScript（无框架、无构建步骤）
-- 像素风 UI（Press Start 2P 字体 + 自定义 CSS 变量主题）
-- 单文件结构，便于二次开发与部署
+## 技术栈与目录
 
-## 目录结构
+- 原生 HTML / CSS / JavaScript，Three.js 3D 场景，无前端构建步骤。
+- `index.html`：页面入口；`js/`：业务、场景和角色模块；`assets/`：样式、素材、模型与浏览器依赖；`css/`：公共样式。
+- `backend/`：FastAPI、数据库迁移和后端测试。
+- `js/tests/`、`tests/frontend/`：前端单元和浏览器检查。
+- `tools/`：模型生成、压缩、角色制作及独立预览工具；命令行工具可能不被页面直接引用，仍是制作流程的一部分。
+- `docs/`：接口契约、开发与运维文档；`deploy/`：部署配置。
 
-```
-.
-├── index.html      # 应用主体（结构 + 样式 + 逻辑）
-├── assets/
-│   └── npc.png     # 向导 NPC 头像
-└── README.md
-```
+## 清理与归档
+
+2026-10-22 核对引用后，将 7 张未使用的成就设计稿移入工作区 `../_archive/cleanup-20261022/unused-achievements/`，保留页面使用的 `first-order-certificate-v5.png`。归档是本机文件，不属于仓库，也不随站点部署。
+当前业务模块均有引用，角色制作源文件、模型生成脚本及预览验收入口继续保留。
 
 ## 说明
 
 - 当前为 Demo 版本：游客模式可完整体验教学流程，绑定平台 / 真实选品单等实操环节预留了「引导注册」入口。
-- 页面背景 `assets/town.png` 为预留资源位（Demo 未包含该图，缺图时自动回退到纯色背景）。
