@@ -1,0 +1,49 @@
+/* Mobile island composition: one compact HUD, one playfield, one action dock.
+   This file owns the <=700px layout after the feature stylesheets. */
+@media (max-width:700px){
+  .game-shell{--mobile-gutter:12px;--mobile-top:max(12px,env(safe-area-inset-top));--mobile-floor:max(12px,env(safe-area-inset-bottom));}
+  .topbar{inset:var(--mobile-top) var(--mobile-gutter) auto;height:44px;gap:8px;align-items:center;}
+  .brand{width:100px;min-width:0;}.brand-cn{font-size:28px;letter-spacing:0;}.brand-spark{font-size:13px;margin-left:2px;}.brand-en{font-size:6px;letter-spacing:1.8px;margin-top:5px;gap:5px;}.brand-en i{width:15px;height:4px;}
+  .top-controls{gap:6px;min-width:0;}.theme-switch{padding:3px;gap:1px;border-radius:6px;box-shadow:1px 2px var(--shadow);}.theme-switch button{width:27px;height:28px;}.theme-switch svg{width:15px;height:15px;}
+  .settings-button{width:36px;height:36px;padding:8px;box-shadow:1px 2px var(--shadow);}.settings-button svg{width:18px;height:18px;}
+  .emc-acct .px-btn{min-height:36px;padding:6px 7px;font-size:10px;white-space:nowrap;box-shadow:1px 2px var(--shadow);}
+  .player-card{top:calc(var(--mobile-top) + 56px);left:var(--mobile-gutter);right:var(--mobile-gutter);width:auto;height:60px;grid-template-columns:32px minmax(0,1fr) minmax(74px,26%);gap:10px;padding:8px 10px;align-items:center;border-top-width:3px;box-shadow:2px 3px var(--shadow);}
+  .player-avatar{height:32px;}.player-avatar svg{width:22px;height:22px;}.player-avatar span{font-size:7px;bottom:-5px;right:-4px;}
+  .player-identity{min-width:0;}.player-identity h1{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 5px;}.player-identity p{font-size:9px;}.player-identity p>span{display:none;}
+  .experience{min-width:0;padding-left:10px;border-left:1px solid #7e91ad40;}.experience p{font-size:8px;margin:0 0 7px;gap:3px;white-space:nowrap;}.xp-track{height:6px;}
+  .shop-journal{top:calc(var(--mobile-top) + 126px);left:var(--mobile-gutter);right:auto;width:84px;padding:0;transform:none;}
+  .shop-journal>button{height:36px;width:84px;min-height:36px;padding:0 8px;margin:0;gap:5px;font-size:10px;box-shadow:2px 2px var(--shadow);}
+  .shortcuts{top:calc(var(--mobile-top) + 126px);left:calc(var(--mobile-gutter) + 92px);right:auto;gap:8px;}
+  .shortcut{height:36px;min-width:70px;padding:0 8px;flex-direction:row;gap:5px;font-size:10px;border:1.5px solid var(--line);border-radius:2px;background:var(--surface);box-shadow:2px 2px var(--shadow);}
+  .shortcut svg{width:20px;height:20px;padding:0;border:0;background:transparent;box-shadow:none;}.shortcut b{right:-3px;top:-4px;}
+  .scene-framing{top:calc(var(--mobile-top) + 172px);bottom:calc(var(--mobile-floor) + 158px);left:50%;width:100%;height:auto;max-height:none;transform:translateX(-50%);}
+  .scene-framing-content{inset:0 -3%;}
+  .quest-peek{top:auto;left:var(--mobile-gutter);right:calc(var(--mobile-gutter) + 68px);bottom:calc(var(--mobile-floor) + 86px);width:auto;height:60px;min-height:60px;padding:8px 10px;gap:9px;border-left-width:3px;box-shadow:2px 3px var(--shadow);}
+  .quest-peek small{font-size:8px;margin-bottom:3px;}.quest-peek b{font-size:12px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}.quest-peek em{display:none;}.quest-peek .peek-arrow{width:12px;}.peek-icon svg{width:21px;height:21px;}
+  .main-actions.mail-actions{top:auto;left:auto;right:var(--mobile-gutter);bottom:calc(var(--mobile-floor) + 86px);width:58px;height:60px;transform:none;display:block;}
+  .mail-actions .mail-button{width:58px;height:60px;padding:7px 0 5px;gap:5px;border:1.5px solid var(--line);border-radius:3px;background:var(--gold);box-shadow:2px 3px var(--shadow);filter:none;justify-content:center;}
+  .mail-actions .mail-button:after{content:'拆信';font-size:10px;font-weight:800;line-height:12px;}.mail-actions .mail-envelope{width:34px;height:24px;border-width:1px;border-radius:2px;box-shadow:1px 1px var(--ink);animation:none;}.mail-actions .mail-envelope:after{left:12px;top:7px;width:10px;height:10px;font-size:7px;line-height:8px;}.mail-actions .mail-spark{font-size:12px;right:-6px;top:-6px;}
+  .copilot-dock{left:var(--mobile-gutter);right:var(--mobile-gutter);top:auto;bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px));width:auto;transform:none;grid-template-columns:minmax(0,1fr) 44px;gap:5px 8px;}
+  .copilot-dock .copilot-status{min-height:12px;font-size:9px;margin:0 2px;line-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .copilot-dock form{height:48px;min-height:48px;padding:5px 6px 5px 10px;gap:7px;box-shadow:2px 3px var(--shadow);border-radius:3px;}.copilot-dock form>svg{width:16px;height:16px;}.copilot-dock input{font-size:16px;padding:5px 0;}.copilot-dock input::placeholder{font-size:12px;}.copilot-dock #copilotSend{width:34px;height:34px;}.copilot-dock button.copilot-history{width:44px;height:48px;border-radius:3px;box-shadow:2px 3px var(--shadow);}
+  .npc-bubble{bottom:28px;width:min(242px,calc(100vw - 28px));padding:24px 24px 22px;}.npc-bubble header{min-height:24px;gap:6px;}.npc-bubble header b{font-size:11px;}.npc-bubble header small{font-size:8px;}.npc-bubble header button{width:28px;height:28px;font-size:19px;}.npc-bubble p{font-size:12px;line-height:20px;max-height:var(--npc-text-max,60px);margin:4px 0 6px;padding-right:2px;}.npc-bubble .companion-bubble-actions{display:none;}.npc-bubble-actions{min-height:28px;}.npc-bubble-actions>small{font-size:9px;}.npc-continue{min-height:28px;font-size:11px;padding:3px 7px;}
+  .drawer.centered-panel,.drawer.journey-card{width:calc(100vw - 24px);height:calc(100svh - var(--keyboard-offset,0px) - 24px);max-height:calc(100svh - var(--keyboard-offset,0px) - 24px);top:calc((100svh - var(--keyboard-offset,0px))/2);left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);}
+  .drawer.companion-panel.centered-panel{top:calc((100svh - var(--keyboard-offset,0px))/2)!important;left:50%!important;right:auto!important;bottom:auto!important;width:calc(100vw - 24px)!important;}
+  .drawer-header{padding:14px 16px 12px;}.drawer-header h2{font-size:19px;}.drawer-header .icon-button{width:36px;height:36px;}.drawer-body,.centered-panel .drawer-body{padding:16px;}
+  .backpack{left:12px;right:12px;top:auto;bottom:var(--mobile-floor);width:auto;height:min(286px,46svh);max-height:min(286px,46svh);}.backpack:has(.bag-decor-grid){height:min(320px,48svh);max-height:min(320px,48svh);}.backpack .drawer-header{padding:10px 12px;}.backpack .drawer-body{padding:10px 12px 12px;}.backpack .bag-tabs button{min-height:34px;}
+  body:has(.backpack:not([hidden])) .quest-peek,body:has(.backpack:not([hidden])) .main-actions,body:has(.backpack:not([hidden])) .copilot-dock{visibility:hidden;pointer-events:none;}
+  body:has(.backpack:not([hidden])) .player-card,body:has(.backpack:not([hidden])) .shortcuts,body:has(.backpack:not([hidden])) .shop-journal{visibility:hidden;pointer-events:none;}
+  body:has(.backpack:not([hidden])) .scene-framing{top:calc(var(--mobile-top) + 52px);bottom:calc(var(--mobile-floor) + min(286px,46svh) + 8px);}
+  body:has(.backpack .bag-decor-grid) .scene-framing{bottom:calc(var(--mobile-floor) + min(320px,48svh) + 8px);}
+  .copilot-dock.mobile-chat-open{left:12px;right:12px;bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px));height:min(620px,72svh);max-height:calc(100svh - var(--keyboard-offset,0px) - 84px);grid-template-columns:minmax(0,1fr);gap:0;padding:12px;border-radius:5px;}
+  .mobile-chat-open .social-heading{grid-template-columns:44px minmax(0,1fr) 36px;}.mobile-chat-open .social-heading button.social-close{width:36px;height:36px;}.mobile-chat-open .copilot-status{white-space:normal;min-height:30px;padding:8px 0;}.mobile-chat-open .social-messages{min-height:0;}.mobile-chat-open form{box-shadow:none;}
+  .keyboard-open .player-card,.keyboard-open .shortcuts,.keyboard-open .shop-journal{visibility:hidden;}.keyboard-open .scene-framing{top:calc(var(--mobile-top) + 55px);bottom:calc(var(--mobile-floor) + var(--keyboard-offset,0px) + 90px);height:auto;}
+  .toast{bottom:calc(var(--mobile-floor) + 165px);max-width:calc(100vw - 32px);}
+}
+@media(max-width:370px){
+  .brand{width:88px;}.brand-cn{font-size:26px;}.brand-en{font-size:6px;letter-spacing:1.5px;}.brand-en i{width:12px;}.top-controls{gap:5px;}.theme-switch button{width:23px;}.emc-acct .px-btn{font-size:9px;padding-inline:5px;}.settings-button{width:34px;}
+  .player-card{grid-template-columns:28px minmax(0,1fr) 76px;gap:8px;}.player-avatar{height:30px;}.player-identity h1{font-size:11px;}.experience{padding-left:8px;}.quest-peek b{font-size:11px;}.npc-bubble{width:224px;}
+}
+@media(max-width:700px) and (max-height:650px){
+  .game-shell{--mobile-top:8px;--mobile-floor:8px;}.player-card{top:60px;height:54px;}.shop-journal,.shortcuts{top:124px;}.scene-framing{top:166px;bottom:146px;}.quest-peek,.main-actions.mail-actions{bottom:80px;height:54px;min-height:54px;}.mail-actions .mail-button{height:54px;gap:3px;}.copilot-dock form,.copilot-dock button.copilot-history{height:44px;min-height:44px;}.npc-bubble{padding-top:18px;padding-bottom:14px;}.npc-bubble p{max-height:min(var(--npc-text-max,40px),40px);}
+}
