@@ -140,16 +140,27 @@ def test_xingyun_signature_and_preset_injection_resolves_1008(
 def test_companion_chat_guest_and_authenticated_roi_and_draft(
     client: TestClient, make_player, login_as
 ) -> None:
-    # 1. 游客模式可直接算账与对话（只读陪伴）
+    # 1. 游客模式可直接算账与对话（只读陪伴，兼容前端 emc-avatar-agent.js 请求体）
     guest_resp = client.post(
         "/api/agent/chat",
-        json={"message": "小商，我的宠物饮水机售价 120 元，拿货成本 60 元，帮我算下保本 ROI"},
+        json={
+            "message": "小商，我的宠物饮水机售价 120 元，拿货成本 60 元，帮我算下保本 ROI",
+            "current_level": "L2",
+            "current_view": "town",
+            "mood": 0,
+            "preset_id": "yingyi",
+            "save_as_draft": False,
+        },
     )
     assert guest_resp.status_code == 200
     g_data = guest_resp.json()
     assert g_data["roi_calculation"] is not None
     assert g_data["roi_calculation"]["gross_margin_pct"] == 50.0
     assert g_data["roi_calculation"]["breakeven_roi"] == 2.0
+    assert g_data["roi_calculation"]["retail_price_yuan"] == 120.0
+    assert g_data["roi_calculation"]["supply_price_yuan"] == 60.0
+    assert "score_4d" in g_data["roi_calculation"]
+    assert isinstance(g_data["tool_calls"], list)
     assert "<speak>" in g_data["ssml"]
     assert "<ue4event>" in g_data["ssml"]
 

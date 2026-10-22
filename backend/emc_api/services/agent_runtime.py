@@ -1501,7 +1501,8 @@ def _try_calculate_roi_from_message(msg: str) -> dict[str, Any] | None:
     """若玩家在对话中给出售价与成本，自动做精确毛利与保本 ROI 验算。"""
     nums = [float(x) for x in re.findall(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)", msg)]
     if len(nums) >= 2 and any(
-        k in msg.lower() for k in ("售价", "卖", "成本", "拿货", "毛利", "roi", "保本")
+        k in msg.lower()
+        for k in ("售价", "卖", "成本", "拿货", "毛利", "roi", "保本", "算账", "利润", "值不值得")
     ):
         price = max(nums[0], nums[1])
         cost = min(nums[0], nums[1])
@@ -1510,13 +1511,30 @@ def _try_calculate_roi_from_message(msg: str) -> dict[str, Any] | None:
             total_cost = cost + extra_ship
             profit = round(price - total_cost, 2)
             margin = round(profit / price, 4)
+            margin_pct = round(margin * 100, 1)
             breakeven_roi = round(1.0 / margin, 2) if margin > 0 else 99.9
+            verdict = (
+                f"毛利率 {margin_pct}%（≥40%），保本 ROI={breakeven_roi}，安全垫充足"
+                if margin >= 0.4
+                else (
+                    f"毛利率 {margin_pct}%，保本 ROI={breakeven_roi}，"
+                    "建议优先优化供应链或组合提客单"
+                )
+            )
             return {
                 "selling_price": price,
                 "total_cost": total_cost,
                 "unit_profit": profit,
-                "gross_margin_pct": round(margin * 100, 1),
+                "gross_margin_pct": margin_pct,
                 "breakeven_roi": breakeven_roi,
+                "retail_price_yuan": price,
+                "supply_price_yuan": cost,
+                "estimated_net_profit_yuan": profit,
+                "margin_rate_pct": round(margin * 100, 2),
+                "score_4d": {
+                    "weighted_total": round(min(96.0, max(55.0, margin * 145 + 25)), 1)
+                },
+                "verdict": verdict,
             }
     return None
 
@@ -1621,7 +1639,10 @@ def run_companion_chat(
         )
 
     saved_draft: dict[str, Any] | None = None
-    if player_id and any(k in clean_msg for k in ("保存草稿", "帮我存", "记入草稿", "生成草稿")):
+    want_save_draft = bool((client_context or {}).get("save_as_draft")) or any(
+        k in clean_msg for k in ("保存草稿", "帮我存", "记入草稿", "生成草稿")
+    )
+    if player_id and want_save_draft:
         draft_content = {
             "goal": clean_msg[:180],
             "platform": (shop_ctx.get("active_project") or {}).get("platform") or "小红书",
@@ -1684,6 +1705,19 @@ def run_companion_chat(
         ui_actions.append(card_act["ui_action"])
 
     roi_calc = _try_calculate_roi_from_message(clean_msg)
+    if roi_calc:
+        tool_traces.append(
+            {
+                "tool": "calculate_unit_roi",
+                "status": "ok",
+                "summary": (
+                    f"售价 ¥{roi_calc['selling_price']:g} / 成本 ¥{roi_calc['total_cost']:g} "
+                    f"→ 毛利率 {roi_calc['gross_margin_pct']}% · "
+                    f"保本 ROI {roi_calc['breakeven_roi']}"
+                ),
+            }
+        )
+
     memory = (
         get_player_memory(db, player_id)
         if player_id
@@ -1753,7 +1787,7 @@ def run_companion_chat(
                 f"**{level_guide['deliverable_title']}** 草稿"
                 f"（编号 `{saved_draft['artifact_id']}`，版本 v{saved_draft['revision']}），"
                 "并为你打开了正式成果抽屉。"
-                f"请注意草稿还不会直接算作通关，记得上传真实截图或表格证据后点击「提交认证」哦！"
+                "请注意草稿还不会直接算作通关，记得上传真实截图或表格证据后点击「提交认证」哦！"
             )
         elif review_info and review_info.get("found"):
             sub_data = review_info["submission"]
@@ -1775,9 +1809,19 @@ def run_companion_chat(
             else:
                 llm_reply = (
                     f"你最近的认证申请（`{sub_data['id']}`）当前状态是 **{sub_data['status']}**。"
-                    f"你可以在正式经营成果面板点击「小商 AI 预审」，"
+                    "你可以在正式经营成果面板点击「小商 AI 预审」，"
                     f"我会按 {target_level} 评分量表逐项帮你把关！"
                 )
+        elif clean_msg in ("你好", "您好", "嗨", "hi", "hello", "在吗", "你是谁"):
+            emotion = "happy"
+            ka_intent = "Welcome"
+            llm_reply = (
+                f"店主你好呀！我是你的 3D 具身电商副驾「{preset_info['name']}」。"
+                f"当前咱们聚焦在 **{level_guide['name']}**"
+                f"（需交付《{level_guide['deliverable_title']}》）。\n"
+                "你可以直接发我：**「拿货 35 售价 99 帮我算账」**、"
+                "**「这关怎么过」**，或者让我**「生成草稿」**！"
+            )
         else:
             top_kb = kb_res["hits"][0] if kb_res["hits"] else KNOWLEDGE_BASE[0]
             checklist_preview = "；".join(level_guide["checklist"][:2])
@@ -1799,15 +1843,16 @@ def run_companion_chat(
                 emotion = "encouraging"
                 ka_intent = "Explain"
                 opening = (
-                    f"店主好！结合{shop_label}进度（当前聚焦 **{level_guide['name']}**，"
-                    f"已认证 {progress['approved_count']}/6 关）："
+                    f"结合{shop_label}进度（当前聚焦 **{level_guide['name']}**，"
+                    f"已认证 {progress['approved_count']}/6 关）给你支两招："
                 )
 
             llm_reply = (
                 f"{opening}\n"
-                f"1. **核心心法（{top_kb['title']}）**：{top_kb['summary']}\n"
-                f"2. **{target_level} 过关重点**：{checklist_preview}。\n"
-                f"需要我直接帮你生成一份 {target_level} 经营方案草稿，或者打开正式成果面板预审吗？"
+                f"1. **实操方法（{top_kb['title']}）**：{top_kb['summary']}\n"
+                f"2. **{target_level} 过关清单**：{checklist_preview}。\n"
+                "你可以直接告诉我拿货价和售价（如「拿货35售价99算账」），"
+                f"或回复「保存草稿」让我帮你生成 {target_level} 初始方案！"
             )
 
     spoken_text = re.sub(r"\*\*|`", "", llm_reply).replace("\n", " ")
@@ -1849,15 +1894,28 @@ def run_companion_chat(
         "emotion": emotion,
         "ka_intent": ka_intent,
         "avatar_state": "speak",
+        "pose": "speak",
         "target_level": target_level,
         "preset": {
             "preset_id": preset_info["preset_id"],
             "name": preset_info["name"],
             "role_title": preset_info["role_title"],
         },
+        "provider": llm_meta.get("provider") or "local_copilot",
+        "model": llm_meta.get("model") or "xiaoshang-rule-v1",
         "tool_traces": tool_traces,
+        "tool_calls": tool_traces,
         "ui_actions": ui_actions,
         "roi_calculation": roi_calc,
+        "saved_artifact": (
+            {
+                "id": saved_draft["artifact_id"],
+                "title": f"{level_guide['deliverable_title']}（小商共创草稿）",
+                "revision": saved_draft["revision"],
+            }
+            if saved_draft
+            else None
+        ),
         "memory": memory,
         "llm_meta": llm_meta,
     }
@@ -2163,13 +2221,17 @@ def run_ai_deliverable_review(
     )
 
     now = utcnow()
+    recommendation = "approve_candidate" if review_status == "approved" else review_status
     report: dict[str, Any] = {
         "submission_id": sub.id,
         "artifact_id": sub.artifact_id,
         "owner_id": sub.owner_id,
         "level_id": level_id,
+        "level_code": level_id,
         "artifact_type": artifact_type,
         "status": review_status,
+        "recommendation": recommendation,
+        "recommendation_label": status_cn,
         "score": base_score,
         "passed_checks": all_passed,
         "issues": all_issues,
@@ -2177,6 +2239,7 @@ def run_ai_deliverable_review(
         "consistency_warnings": consistency_warnings,
         "confidence": confidence,
         "evidence_inspected": ev_inspected,
+        "summary": spoken_summary,
         "spoken_summary": spoken_summary,
         "ssml": build_avatar_ssml(
             spoken_summary,

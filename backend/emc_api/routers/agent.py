@@ -50,10 +50,14 @@ sdk_router = APIRouter(tags=["agent-sdk"])
 
 
 class CompanionChatIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     message: str = Field(min_length=1, max_length=2000)
     level_id: str | None = Field(default=None, max_length=16)
+    current_level: str | None = Field(default=None, max_length=16)
+    current_view: str | None = Field(default=None, max_length=32)
+    mood: int | float | None = Field(default=None)
+    save_as_draft: bool = Field(default=False)
     preset_id: str | None = Field(default=None, max_length=32)
     session_id: str | None = Field(default=None, max_length=64)
     client_context: dict[str, Any] | None = Field(default=None)
@@ -297,14 +301,22 @@ def companion_chat(
     if player is not None:
         require_csrf(request, db, settings)
 
+    merged_context = dict(body.client_context or {})
+    if body.current_view is not None:
+        merged_context.setdefault("current_view", body.current_view)
+    if body.mood is not None:
+        merged_context.setdefault("mood", body.mood)
+    if body.save_as_draft:
+        merged_context["save_as_draft"] = True
+
     return run_companion_chat(
         db,
         settings,
         player_id=player.id if player else None,
         message=body.message,
-        level_id=body.level_id,
+        level_id=body.level_id or body.current_level,
         preset_id=body.preset_id,
-        client_context=body.client_context,
+        client_context=merged_context,
         session_id=body.session_id,
     )
 
