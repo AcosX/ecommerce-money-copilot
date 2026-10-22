@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {loadTexturedModel} from './emc-model-loader.js?v=20261022-perf1';
-import {createCharacterMotion} from './emc-character-motion.js?v=20261022-character12';
+import {createCharacterMotion} from './emc-character-motion.js?v=20261022-gait1';
 import {createCharacterFace} from './emc-character-face.js?v=20261022-character12';
 import {createCharacterProps} from './emc-character-props.js?v=20261022-character12';
 
@@ -12,7 +12,7 @@ export class IslandGuide{
     this.visual=new THREE.Group();this.visual.rotation.y=-Math.PI/2;this.visual.scale.setScalar(.78);this.root.add(this.visual);
     this.route=[[-2.8,3],[2.8,3],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];
     this.index=1;this.direction=1;this.root.position.set(-2.8,0,3);this.root.rotation.y=Math.PI/2;
-    this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.holdingLetter=false;this.letterSettling=false;this.speechRemaining=0;
+    this.elapsed=0;this.pause=1.5;this.walkSpeed=0;this.travelSpeed=0;this.checkAt=0;this.groundAt=0;this.talking=false;this.holdingLetter=false;this.letterSettling=false;this.speechRemaining=0;
     this.ray=new THREE.Raycaster();this.ray.firstHitOnly=true;this.profile=scene.quality.lite?'lite':'web';this.loaded=false;this.disposed=false;this.behavior='loading';this.ready=this.load();
   }
   async load(){
@@ -41,7 +41,7 @@ export class IslandGuide{
   }
   speak(text){this.speechText=String(text);this.speechRemaining=Math.min(8,Math.max(1,this.speechText.length*.09));this.speechAge=0;}
   stopSpeaking(){this.speechRemaining=0;this.face?.setViseme('sil');}
-  play(name){if(this.motion?.state().name!==name)this.motion?.play(name);}
+  play(name,options){if(this.motion?.state().name!==name)this.motion?.play(name,options);}
   chooseRest(){
     const nearest=[...this.host.items.values()].find(o=>o.position.distanceTo(this.root.position)<1.5);
     const name=nearest?'inspect':this.root.position.z>2?'window':Math.random()<.5?'lookout':'turn';
@@ -52,24 +52,38 @@ export class IslandGuide{
   }
   update(dt){
     if(!this.loaded||this.disposed)return;
-    this.elapsed+=dt;
+    dt=Math.max(0,Math.min(.1,dt||0));this.elapsed+=dt;let travel=null;
+    const previousWalkWeight=this.motion.state().weights.walk||0;
     const state=this.motion.state();
     if(this.letterSettling&&(state.name!=='letter'||state.time/state.duration>.86))this.letterSettling=false;
     if(this.holdingLetter||this.letterSettling){this.faceCamera();this.behavior='letter';}
     else if(this.talking){this.faceCamera();this.behavior=this.speechRemaining>0?'speaking':'listening';this.play(this.speechRemaining>0?'talk':'idle');}
     else if(this.pause>0)this.pause-=dt;
     else{
-      const [x,z]=this.route[this.index],dx=x-this.root.position.x,dz=z-this.root.position.z,length=Math.hypot(dx,dz),step=Math.min(length,dt*.32);
-      if(length<.035){
-        this.chooseRest();this.direction=Math.random()<.35?-this.direction:this.direction;
+      const [x,z]=this.route[this.index],dx=x-this.root.position.x,dz=z-this.root.position.z,length=Math.hypot(dx,dz);
+      if(length<.008){
+        this.walkSpeed=0;this.chooseRest();this.direction=Math.random()<.35?-this.direction:this.direction;
         this.index=(this.index+this.direction+this.route.length)%this.route.length;
       }else{
-        this.root.position.x+=dx/length*step;this.root.position.z+=dz/length*step;
-        const target=Math.atan2(dx,dz),difference=Math.atan2(Math.sin(target-this.root.rotation.y),Math.cos(target-this.root.rotation.y));this.root.rotation.y+=difference*(1-Math.exp(-dt*8));
-        this.play('walk');this.behavior='walking';
+        const target=Math.atan2(dx,dz),difference=Math.atan2(Math.sin(target-this.root.rotation.y),Math.cos(target-this.root.rotation.y));
+        const turn=Math.sign(difference)*Math.min(Math.abs(difference),dt*2.6);this.root.rotation.y+=turn;
+        if(Math.abs(difference-turn)>.10){
+          // Do not drag the actor sideways while the visual is still facing away.
+          this.walkSpeed=0;this.play('idle',{fade:.16});this.behavior='turning';
+        }else{
+          const targetSpeed=Math.min(.32,Math.sqrt(2*.6*length));
+          this.walkSpeed+=THREE.MathUtils.clamp(targetSpeed-this.walkSpeed,-.6*dt,.6*dt);
+          this.play('walk',{fade:.16});this.behavior='walking';travel={dx:dx/length,dz:dz/length,length};
+        }
       }
     }
-    this.motion.update(dt);
+    if(!travel)this.walkSpeed=0;
+    this.motion.setWalkSpeed(this.walkSpeed,this.visual.scale.x);this.motion.update(dt);
+    // The same blend weight controls both the gait and distance travelled.
+    const blend=(previousWalkWeight+(this.motion.state().weights.walk||0))/2;
+    const step=travel?Math.min(travel.length,this.walkSpeed*blend*dt):0;
+    this.travelSpeed=dt?step/dt:0;
+    if(travel){this.root.position.x+=travel.dx*step;this.root.position.z+=travel.dz*step;}
     // Cancelled mail finishes its landing, but its prop disappears immediately.
     this.props.update(this.motion.state().name==='letter'&&!this.holdingLetter?{name:'idle'}:this.motion.state());
     this.speechAge=(this.speechAge||0)+dt;
@@ -95,7 +109,7 @@ export class IslandGuide{
       }
       this.ray.far=Infinity;
     }
-    return {visible:this.loaded&&!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,holding_letter:this.holdingLetter,position:this.root.position.toArray(),heading:this.root.rotation.y,screen,model:'xiaoshang-animated-v1',profile:this.profile,behavior:this.behavior,motion:this.motion?.state().name,morphs:this.face?.names.length||0,props:this.props?.state(),mouth:this.face?.state().viseme};
+    return {visible:this.loaded&&!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,holding_letter:this.holdingLetter,position:this.root.position.toArray(),heading:this.root.rotation.y,screen,model:'xiaoshang-animated-v1',profile:this.profile,behavior:this.behavior,travel_speed:this.travelSpeed,walk_rate:this.motion?.state().walkPlaybackRate,motion:this.motion?.state().name,morphs:this.face?.names.length||0,props:this.props?.state(),mouth:this.face?.state().viseme};
   }
   dispose(){if(this.disposed)return;this.disposed=true;this.props?.dispose();this.motion?.dispose();this.root.removeFromParent();if(this.model)disposeModel(this.model);}
 }

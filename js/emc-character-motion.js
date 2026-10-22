@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+// Matches the constant-speed support phase baked by contact_legs in
+// tools/build-character-actions.py: .19 model units over 58% of one cycle.
+export const WALK_GAIT={supportDistance:.19,supportFraction:.58};
 export const CHARACTER_MOTIONS={
  idle:{label:'自然待机',loop:true},walk:{label:'走路',loop:true},
  wave:{label:'招手',loop:false},talk:{label:'说话手势',loop:true},
@@ -13,7 +16,7 @@ export const CHARACTER_MOTIONS={
 // The caller supplies navigation and facing. Clips are in-place and contain no
 // facial tracks, so dialogue / emotion can keep controlling the face independently.
 export function createCharacterMotion(root,clips){
- const mixer=new THREE.AnimationMixer(root),actions=new Map();let current=null,paused=false,transition=null,pending=null,repeat=false;
+ const mixer=new THREE.AnimationMixer(root),actions=new Map();let current=null,paused=false,transition=null,pending=null,repeat=false,walkPlaybackRate=1;
  for(const clip of clips){
   if(!CHARACTER_MOTIONS[clip.name])continue;
   const body=clip.clone();body.tracks=body.tracks.filter(t=>!t.name.includes('morphTargetInfluences'));
@@ -30,7 +33,7 @@ export function createCharacterMotion(root,clips){
   const from=[...actions.values()].filter(a=>a.isScheduled()&&a!==next&&a.getEffectiveWeight()>.0001).map(a=>[a,a.getEffectiveWeight()]);
   const initial=instant?1:(next.isScheduled()?next.getEffectiveWeight():0);
   if(instant){mixer.stopAllAction();transition=null;}
-  next.reset().setEffectiveWeight(initial).setEffectiveTimeScale(1);
+  next.reset().setEffectiveWeight(initial).setEffectiveTimeScale(name==='walk'?walkPlaybackRate:1);
   next.setLoop(CHARACTER_MOTIONS[name].loop?THREE.LoopRepeat:THREE.LoopOnce,CHARACTER_MOTIONS[name].loop?Infinity:1);
   next.clampWhenFinished=true;next.paused=false;next.play();
   if(previous&&!instant&&previous!==next)transition={from,to:next,initial,age:0,duration:Math.max(.05,fade)};
@@ -39,10 +42,10 @@ export function createCharacterMotion(root,clips){
  }
  mixer.addEventListener('finished',event=>{if(event.action===current&&!paused){const next=pending||(repeat?current.getClip().name:'idle');pending=null;play(next,{instant:repeat&&next===current.getClip().name});}});
  play('idle',{instant:true});
- return {play,setRepeat(value){repeat=!!value;},update(dt){if(paused)return;const seconds=Math.max(0,Math.min(.1,dt||0));if(transition){transition.age+=seconds;const t=Math.min(1,transition.age/transition.duration),s=t*t*(3-2*t);for(const [action,weight] of transition.from)action.setEffectiveWeight(weight*(1-s));transition.to.setEffectiveWeight(transition.initial+(1-transition.initial)*s);if(t===1){for(const [action] of transition.from)action.stop();transition=null;}}mixer.update(seconds);},
+ return {play,setWalkSpeed(speed,visualScale=1){const walk=actions.get('walk');const supportSpeed=WALK_GAIT.supportDistance*Math.abs(visualScale)/(WALK_GAIT.supportFraction*walk.getClip().duration);walkPlaybackRate=Math.max(0,speed)/supportSpeed;walk.setEffectiveTimeScale(walkPlaybackRate);},setRepeat(value){repeat=!!value;},update(dt){if(paused)return;const seconds=Math.max(0,Math.min(.1,dt||0));if(transition){transition.age+=seconds;const t=Math.min(1,transition.age/transition.duration),s=t*t*(3-2*t);for(const [action,weight] of transition.from)action.setEffectiveWeight(weight*(1-s));transition.to.setEffectiveWeight(transition.initial+(1-transition.initial)*s);if(t===1){for(const [action] of transition.from)action.stop();transition=null;}}mixer.update(seconds);},
   pause(value=true){paused=!!value;if(current)current.paused=paused;},
   seek(phase){if(!current)return;pending=null;transition=null;for(const action of actions.values())if(action!==current)action.stop();current.setEffectiveWeight(1);paused=true;current.paused=true;current.time=Math.max(0,Math.min(.99999,phase))*current.getClip().duration;mixer.update(0);},
-  state:()=>({name:current?.getClip().name,time:current?.time||0,duration:current?.getClip().duration||0,paused,pending,repeat,clips:[...actions.keys()],transitioning:!!transition,weights:Object.fromEntries([...actions].filter(([,a])=>a.isScheduled()).map(([name,a])=>[name,a.getEffectiveWeight()]))}),
+  state:()=>({name:current?.getClip().name,time:current?.time||0,duration:current?.getClip().duration||0,paused,pending,repeat,walkPlaybackRate,clips:[...actions.keys()],transitioning:!!transition,weights:Object.fromEntries([...actions].filter(([,a])=>a.isScheduled()).map(([name,a])=>[name,a.getEffectiveWeight()]))}),
   dispose(){mixer.stopAllAction();mixer.uncacheRoot(root);}
  };
 }
