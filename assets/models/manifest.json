@@ -216,7 +216,7 @@
   "island": {
     "model_url": "assets/models/island-flat-v2-web.glb",
     "rotation_y": -1.5707963267948966,
-    "surface_ratio": 1,
+    "surface_ratio": 0.8440585856793485,
     "generation": {
       "provider": "Tripo",
       "model": "v3.1-20260211",
@@ -231,17 +231,16 @@
     },
     "preview_url": "assets/models/previews/island-detail.webp",
     "delivery": {
-      "bytes": 1508260,
-      "triangles": 17398,
+      "bytes": 2148216,
+      "triangles": 46958,
       "texture_max_dimension": 2048,
       "texture_format": "webp",
-      "refinement": "planar ground cap, preserved cliff",
-      "ground_height": 0.57948333025
+      "refinement": "leveled paving geometry; preserved 3D grass, rocks, moss and cliff"
     },
     "lite": {
       "model_url": "assets/models/island-flat-v2-lite.glb",
-      "bytes": 739768,
-      "triangles": 12670,
+      "bytes": 1197916,
+      "triangles": 32870,
       "texture_max_dimension": 1024
     }
   }
