@@ -287,9 +287,9 @@
   }
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!homeScene?.upgradeEffect&&!$('scene').dataset.loading;}
   function updateChatAvailability(){
-    const available=npcAvailable(),ready=available&&!sending&&!paintDrag?.active;
+    const available=npcAvailable(),ready=!sending&&!paintDrag?.active;
     $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||!$('copilotInput').value.trim();
-    const text=!homeScene?.presentable?partnerName()+'正在上岛…':!available?(npcState?.occluded?partnerName()+'被店铺挡住了，转一转小岛再聊':'转一转小岛，让'+partnerName()+'回到视野里'):sending?partnerName()+'正在回应…':partnerName()+' · '+chatSourceLabel();
+    const text=sending?partnerName()+'正在回应…':!available?partnerName()+' · 文本聊天可用':partnerName()+' · '+chatSourceLabel();
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
     if(panel==='companion'){
@@ -365,7 +365,6 @@
   function askCompanion(text,send=false){
     const prompt=String(text).slice(0,240);guidedPrompts.add(prompt);if(guidedPrompts.size>30)guidedPrompts.delete(guidedPrompts.values().next().value);
     $('copilotInput').value=prompt;updateChatAvailability();
-    if(!npcAvailable()){toast('转一转小岛，让'+partnerName()+'回到视野里再聊。');return;}
     $('copilotInput').focus({preventScroll:true});if(send)$('copilotForm').requestSubmit();
   }
   function renderCompanion(){
@@ -403,8 +402,19 @@
     if(host.innerHTML!==markup){host.innerHTML=markup;if(nearBottom)host.scrollTop=host.scrollHeight;}
   }
   function appendChat(role,text,source){game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:400);save();renderSocialChat();if(panel==='history')renderChatHistory();}
+  window.EmcOpenCompanionChat=(message,{send=false}={})=>{
+    const dock=document.querySelector('.copilot-dock');
+    if(panel) closePanel();
+    if(innerWidth<=700) dock.classList.add('mobile-chat-open');
+    renderSocialChat();
+    if(typeof message==='string'&&message.trim())$('copilotInput').value=message.slice(0,240);
+    updateChatAvailability();
+    $('copilotInput').focus({preventScroll:true});
+    if(send&&$('copilotInput').value.trim()&&!$('copilotInput').disabled)$('copilotForm').requestSubmit();
+    return true;
+  };
   $('copilotInput').addEventListener('input',updateChatAvailability);
-  $('copilotInput').addEventListener('focus',()=>{if(!npcAvailable())return;if(panel!=='companion')closePanel();startConversation();});
+  $('copilotInput').addEventListener('focus',()=>{if(panel&& !document.querySelector('.copilot-dock').classList.contains('mobile-chat-open'))closePanel();if(npcAvailable())startConversation();});
   $('copilotInput').addEventListener('blur',()=>{if(!sending&&$('npcBubble').hidden)finishConversation();});
   $('npcInteract').onclick=()=>{if(npcAvailable())openCompanion(true);};
   const placeSocialChat=()=>{const nav=document.querySelector('.quest-peek').getBoundingClientRect(),dock=document.querySelector('.copilot-dock');dock.style.setProperty('--social-top',(nav.bottom+16)+'px');dock.style.setProperty('--social-right',(innerWidth-nav.right)+'px');dock.style.setProperty('--social-width',nav.width+'px');};
@@ -421,8 +431,10 @@
   $('copilotForm').addEventListener('submit',async e=>{
     e.preventDefault();const message=$('copilotInput').value.trim().slice(0,240);
     if(sending||!message||paintDrag?.active)return;
-    npcState=homeScene?.guide?.status(true)||null;if(!npcAvailable()||!startConversation()){updateChatAvailability();return;}
-    if(panel!=='companion')closePanel();startConversation();sending=true;const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
+    npcState=homeScene?.guide?.status(true)||null;
+    if(npcAvailable())startConversation();
+    if(panel!=='companion')closePanel();sending=true;
+    window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
@@ -434,6 +446,7 @@
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=result.state?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
       appendChat('assistant',result.text,result.source);
+      window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{text:result.text,source:result.source}}));
       if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();
       if(change.unlocked){audio.play('reward');toast('连问三次有依据的问题 · 本关验证锦囊已解锁');}
 
