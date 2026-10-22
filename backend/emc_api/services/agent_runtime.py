@@ -1359,6 +1359,9 @@ def build_avatar_ssml(spoken_text: str, *, ka_intent: str = "Explain") -> str:
 # -------------------------------------------- 大模型网关适配器（ai.acosx.xyz + 兜底）
 
 
+_UPSTREAM_COOLDOWN_UNTIL: dict[str, float] = {}
+
+
 class AgentProviderAdapter:
     """统一 LLM 调用适配器（连接 GOOGLE_GEMINI_BASE_URL / GEMINI_API_KEY，异常时平滑降级）。"""
 
@@ -1384,6 +1387,16 @@ class AgentProviderAdapter:
             }
 
         chosen_model = model or self.default_model or "gemini-2.5-flash"
+        now_mono = time.monotonic()
+        cooldown_until = _UPSTREAM_COOLDOWN_UNTIL.get(self.base_url, 0.0)
+        if now_mono < cooldown_until:
+            return None, {
+                "provider": "local_copilot_fallback",
+                "endpoint": self.base_url,
+                "model": chosen_model,
+                "reason": "upstream_circuit_breaker_cooldown",
+            }
+
         url = f"{self.base_url}/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -1399,10 +1412,12 @@ class AgentProviderAdapter:
             "temperature": 0.4,
             "max_tokens": max_tokens,
         }
+        fast_timeout = min(float(self.settings.ai_timeout_seconds or 2.5), 2.5)
         try:
-            with httpx.Client(timeout=self.settings.ai_timeout_seconds) as client:
+            with httpx.Client(timeout=fast_timeout) as client:
                 resp = client.post(url, json=payload, headers=headers)
                 if resp.status_code == 200:
+                    _UPSTREAM_COOLDOWN_UNTIL.pop(self.base_url, None)
                     data = resp.json()
                     content = (
                         data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -1414,6 +1429,8 @@ class AgentProviderAdapter:
                             "model": chosen_model,
                             "status_code": 200,
                         }
+                if resp.status_code in (429, 500, 502, 503, 504):
+                    _UPSTREAM_COOLDOWN_UNTIL[self.base_url] = time.monotonic() + 90.0
                 return None, {
                     "provider": "local_copilot_fallback",
                     "endpoint": self.base_url,
@@ -1422,6 +1439,7 @@ class AgentProviderAdapter:
                     "reason": f"upstream_http_{resp.status_code}",
                 }
         except Exception as exc:
+            _UPSTREAM_COOLDOWN_UNTIL[self.base_url] = time.monotonic() + 90.0
             return None, {
                 "provider": "local_copilot_fallback",
                 "endpoint": self.base_url,
