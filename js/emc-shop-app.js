@@ -19,16 +19,25 @@
   const mainTask=()=>{if(!journey)return G.current(game);const current=journey.progress().current;return current?{id:current.id,name:current.title,topic:current.topic}:{id:'first_order',name:'卖出真实第一单',topic:'最终试炼'};};
   const futureGame=rawGame&&rawGame.schema_version>1;
   let npcState=null,conversation=false,sending=false,bubbleUntil=0,bubbleKind=null,lastReminderAt=performance.now()-28000,replyController=null,speechEpoch=0;
-  let homeScene=null,homeStage=0,homeToken=0,homeReady=Promise.resolve();
+  let homeScene=null,homeStage=0,homeToken=0,homeReady=Promise.resolve(),preferLite=false,sceneSkipped=false;
+  const sceneDiagnostics=window.EmcSceneDiagnostics=[];
+  function recordSceneError(error,quality,phase){
+    const message=String(error?.message||error||'unknown').slice(0,400);
+    const code=/webgl|graphics|context|shader|显卡/i.test(message)?'GPU':/time.?out|超时/i.test(message)?'TIMEOUT':/fetch|network|http|请求/i.test(message)?'NETWORK':/texture|image|bitmap|贴图|解码/i.test(message)?'TEXTURE':'SCENE';
+    sceneDiagnostics.push({time:new Date().toISOString(),code,quality,phase,message});
+    if(sceneDiagnostics.length>8)sceneDiagnostics.shift();
+    console.error('[EMC scene '+code+'] '+phase+' ('+quality+'):',error);
+    return code;
+  }
   const mail=window.EmcMissionMail.create({sound:n=>audio.play(n),hold:value=>{const guide=homeScene?.guide;if(!guide)return null;guide.setHoldingLetter(value);const status=guide.status(true);return value&&status.visible?{...status.screen,delay:1600}:null;},locate:()=>homeScene?.guide?.letterScreen()});
   function sceneLoading(context){
     finishConversation();npcState=null;$('npcAnchor').hidden=true;updateChatAvailability();
-    $('scene').dataset.loading=context;$('scene').setAttribute('aria-busy','true');$('sceneLoader').hidden=false;$('sceneLoader').dataset.state='loading';$('retryScene').hidden=true;
+    $('scene').dataset.loading=context;$('scene').setAttribute('aria-busy','true');$('sceneLoader').hidden=false;$('sceneLoader').dataset.state='loading';delete $('sceneLoader').dataset.errorCode;$('retryScene').hidden=true;
     $('sceneLoadTitle').textContent='正在打开你的小店';$('sceneLoadHint').textContent='正在准备岛屿与店铺…';
   }
   function sceneLoaded(){delete $('scene').dataset.loading;$('scene').setAttribute('aria-busy','false');$('sceneLoader').hidden=true;}
-  function sceneFailed(hint){
-    delete $('scene').dataset.loading;$('scene').setAttribute('aria-busy','false');$('sceneLoader').hidden=false;$('sceneLoader').dataset.state='error';$('sceneLoadTitle').textContent='小店暂时没能打开';$('sceneLoadHint').textContent=hint||'可以重试加载，也可以先继续学习。';$('retryScene').hidden=false;
+  function sceneFailed(hint,code){
+    delete $('scene').dataset.loading;$('scene').setAttribute('aria-busy','false');$('sceneLoader').hidden=false;$('sceneLoader').dataset.state='error';$('sceneLoader').dataset.errorCode=code||'SCENE';$('sceneLoadTitle').textContent='小店暂时没能打开';$('sceneLoadHint').textContent=(hint||'可以重试加载，也可以先继续学习。')+'（'+(code||'SCENE')+'）';$('retryScene').hidden=false;
   }
   const icons=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,25 +101,55 @@
     homeReady=syncHome();
   }
   async function syncHome(){
+    if(sceneSkipped)return;
     const stage=growthStage()+1,progress=journey?.progress(),modelLevel=progress?(progress.certified||['approved','demo-approved'].includes(progress.firstOrder)?5:progress.completed>=5?4:progress.completed>=4?3:progress.completed>=2?2:progress.completed>=1?1:0):[0,2,3,4,5][stage-1],sceneKey=stage+':'+modelLevel;
     if(homeScene&&homeStage===sceneKey){homeScene.draft=game;homeScene.sync();homeScene.setShopName(game.shop_name);homeScene.setAtmosphere(skyState.light);return homeScene.ready;}
     if(homeStage===sceneKey)return;
     if(homeScene?.presentable&&modelLevel>homeScene.modelLevel){
       const current=homeScene,previousKey=homeStage,token=++homeToken;homeStage=sceneKey;let restorePanel=null;finishConversation();cancelPaint();
       try{await current.upgradeTo(modelLevel,{onStart:()=>{restorePanel={panel,drawer:$('drawer').hidden,backdrop:$('missionBackdrop').hidden};$('drawer').hidden=true;$('missionBackdrop').hidden=true;$('npcAnchor').hidden=true;},onReveal:()=>{audio.play('upgrade');toast('小店升级！'+current.buildingEntry.name,true);juice.burst($('continueButton'));}});}
-      catch(error){if(token===homeToken){homeStage=previousKey;toast('升级模型加载失败，当前小店已保留，请稍后重试。');}}
+      catch(error){if(token===homeToken){homeStage=previousKey;recordSceneError(error,game.graphics_quality,'upgrade');toast('升级模型加载失败，当前小店已保留，请稍后重试。');}}
       finally{if(restorePanel&&panel===restorePanel.panel){$('drawer').hidden=restorePanel.drawer;$('missionBackdrop').hidden=restorePanel.backdrop;}}return;
     }
     const token=++homeToken;selected=null;homeStage=sceneKey;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=false;
     sceneLoading('home');
-    const deadline=setTimeout(()=>{if(token!==homeToken)return;++homeToken;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed('场景加载超时，可以重试，或先继续学习。');},210000);
+    const deadline=setTimeout(()=>{if(token!==homeToken)return;++homeToken;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;recordSceneError(new Error('场景加载超时'),'auto','deadline');sceneFailed('场景加载超时，请重试或先继续学习。','TIMEOUT');},155000);
     try{
-      const {ShopScene}=await import(sceneURL.href);if(token!==homeToken)return;
-      const candidate=new ShopScene($('homeCanvas'),{stage,modelLevel,quality:game.graphics_quality,framingElement:$('sceneFraming'),night:theme()==='night',atmosphere:skyState.light,shopName:game.shop_name,draft:game,onLoadProgress:p=>{if(token!==homeToken)return;const label=p.phase==='character'?partnerName():p.phase==='shop'?'店铺':'小岛';$('sceneLoadHint').textContent=p.phase==='manifest'?'正在读取场景清单…':p.phase==='compile'?'正在准备灯光与材质…':p.retrying?'网络中断，正在重试下载'+label+'…':p.decoding?'正在准备'+label+'贴图…':'正在下载'+label+'…'+(p.total?' '+Math.min(100,Math.round(p.loaded/p.total*100))+'%':p.loaded?' '+(p.loaded/1048576).toFixed(1)+' MB':'');},onContextLost:()=>{if(token!==homeToken)return;++homeToken;homeStage=0;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=true;sceneFailed('显卡连接中断，请点击重新加载。');},onNpcFrame:updateNpcFrame,isInventoryPoint:e=>panel==='inventory'&&inBackpack(e),onReturnDecoration:id=>{audio.play('cancel');game.placements=game.placements.filter(p=>p.id!==id);selected=null;homeScene.sync();save();renderInventory();},onSelect:id=>{if(id)audio.play('pick');selected=id;if(panel==='inventory')renderInventory();},onChange:()=>{audio.play('place');save();if(panel==='inventory')renderInventory();}});homeScene=candidate;
-      await candidate.ready;if(token!==homeToken)return;if(candidate.source!=='tripo_model')throw new Error('Scene assets unavailable');
-      await candidate.prepareFrame();if(token!==homeToken)return;
-      $('homeCanvas').hidden=false;sceneLoaded();
-    }catch(error){if(token!==homeToken)return;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;sceneFailed(/^[\u4e00-\u9fff]/.test(error.message)?error.message:'场景资源加载失败，请检查网络后重试。');}finally{clearTimeout(deadline);}
+      const {ShopScene}=await import(sceneURL.href);
+      if(token!==homeToken)return;
+      const modes=game.graphics_quality==='smooth'||preferLite?['smooth']:[game.graphics_quality,'smooth'];
+      for(let attempt=0;attempt<modes.length;attempt++){
+        const quality=modes[attempt];let candidate=null,attemptTimer=null;
+        try{
+          candidate=new ShopScene($('homeCanvas'),{stage,modelLevel,quality,framingElement:$('sceneFraming'),night:theme()==='night',atmosphere:skyState.light,shopName:game.shop_name,draft:game,onLoadProgress:p=>{if(token!==homeToken||(candidate&&homeScene!==candidate))return;const label=p.phase==='character'?partnerName():p.phase==='shop'?'店铺':'小岛';$('sceneLoadHint').textContent=p.phase==='manifest'?'正在读取场景清单…':p.phase==='compile'?'正在准备灯光与材质…':p.retrying?'网络中断，正在重试下载'+label+'…':p.decoding?'正在准备'+label+'贴图…':'正在下载'+label+'…'+(p.total?' '+Math.min(100,Math.round(p.loaded/p.total*100))+'%':p.loaded?' '+(p.loaded/1048576).toFixed(1)+' MB':'');},onContextLost:()=>{if(token!==homeToken)return;++homeToken;homeStage=0;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=true;recordSceneError(new Error('WebGL context lost'),quality,'render');sceneFailed('显卡连接中断，请点击重新加载。','GPU');},onNpcFrame:updateNpcFrame,isInventoryPoint:e=>panel==='inventory'&&inBackpack(e),onReturnDecoration:id=>{audio.play('cancel');game.placements=game.placements.filter(p=>p.id!==id);selected=null;homeScene.sync();save();renderInventory();},onSelect:id=>{if(id)audio.play('pick');selected=id;if(panel==='inventory')renderInventory();},onChange:()=>{audio.play('place');save();if(panel==='inventory')renderInventory();}});
+          homeScene=candidate;
+          await Promise.race([
+            (async()=>{await candidate.ready;if(candidate.source!=='tripo_model')throw new Error('Scene assets unavailable');await candidate.prepareFrame();})(),
+            new Promise((_,reject)=>{attemptTimer=setTimeout(()=>reject(new Error('场景资源或显卡准备超时')),attempt===0&&modes.length>1?45000:95000);})
+          ]);
+          if(token!==homeToken)return;
+          $('homeCanvas').hidden=false;sceneLoaded();
+          if(attempt>0)toast('已切换轻量 3D 场景，游戏可以继续。');
+          return;
+        }catch(error){
+          if(token!==homeToken)return;
+          const code=recordSceneError(error,quality,'initial');
+          homeScene?.dispose();homeScene=null;
+          if(attempt<modes.length-1){
+            preferLite=true;
+            $('sceneLoadHint').textContent='高清场景加载异常，正自动切换轻量模型…';
+            continue;
+          }
+          homeStage=0;$('homeCanvas').hidden=true;
+          sceneFailed(code==='TIMEOUT'?'资源加载超时，请重试或跳过 3D 进入任务。':code==='GPU'?'显卡渲染失败，请重试或跳过 3D 进入任务。':code==='NETWORK'?'部分模型下载失败，请重试或跳过 3D 进入任务。':'模型或贴图加载失败，请重试或跳过 3D 进入任务。',code);
+        }finally{clearTimeout(attemptTimer);}
+      }
+    }catch(error){
+      if(token!==homeToken)return;
+      const code=recordSceneError(error,game.graphics_quality,'module');
+      homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;
+      sceneFailed('场景模块初始化失败，请重试或跳过 3D 进入任务。',code);
+    }finally{clearTimeout(deadline);}
   }
   function openPanel(name,sound='open'){
     document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');
@@ -453,7 +492,8 @@
   $('panelBody').addEventListener('focusin',e=>viewInventoryItem(e.target.closest('[data-inventory-key]')));
   $('panelBody').addEventListener('contextmenu',e=>{if(e.target.closest('[data-paint-part],[data-decor-id]'))e.preventDefault();});
   $('themeAuto').onclick=()=>setTheme('auto');$('themeDay').onclick=()=>setTheme('day');$('themeNight').onclick=()=>setTheme('night');$('saveRetry').onclick=save;
-  $('retryScene').onclick=()=>{homeStage=0;homeReady=syncHome();};
+  document.addEventListener('emc:scene-skip',()=>{sceneSkipped=true;++homeToken;homeScene?.dispose();homeScene=null;homeStage=0;$('homeCanvas').hidden=true;});
+  $('retryScene').onclick=()=>{sceneSkipped=false;homeStage=0;homeReady=syncHome();};
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));
   document.querySelector('.brand').onclick=e=>{e.preventDefault();closePanel();};
   $('panelBody').addEventListener('input',e=>{const key=e.target.dataset.audioVolume;if(key){audio.set(key,Number(e.target.value)/100);const output=$(key+'Value');if(output)output.textContent=e.target.value+'%';}});
@@ -475,7 +515,7 @@
     else if(b.id==='confirmPartnerName')savePartnerName(true);
     else if(b.hasAttribute('data-demo-toggle')){journey?.setDemo(!journey.isDemo());renderSettings();}
     else if(b.dataset.audioToggle){const key=b.dataset.audioToggle;audio.set(key,!audio.state()[key]);audio.play('click');renderSettings();}
-    else if(b.dataset.graphicsQuality){game.graphics_quality=b.dataset.graphicsQuality;save();homeStage=0;render();}
+    else if(b.dataset.graphicsQuality){game.graphics_quality=b.dataset.graphicsQuality;preferLite=false;sceneSkipped=false;save();homeStage=0;render();}
     else if(b.dataset.themeOption){setTheme(b.dataset.themeOption);renderSettings();}
     else if(b.id==='saveName'){game.shop_name=$('shopNameInput').value.trim().slice(0,12)||'我的小店';const saved=save();render();toast(saved?'店名与招牌已保存':'店名暂存在当前页面，请重试保存');}
     else if(b.id==='exportSave'){
