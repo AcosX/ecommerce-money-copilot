@@ -120,7 +120,7 @@
     const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],journal:['MY SHOP JOURNAL','经营手帐'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
     $('panelBody').classList.toggle('journey-body',panel==='journey');
     $('panelEyebrow').textContent=titles[panel][0];$('panelTitle').textContent=titles[panel][1];
-    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();
+    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();if($('panelBody').querySelector('.award-view'))$('panelTitle').textContent='通关证书';
   }
   function renderMissionList(){
     const p=journey.profile(),state=journey.progress(),labels={approved:'已完成',pending:'确认中',rejected:'待补充',ready:'进行中',draft:'草稿',locked:'未解锁'};
