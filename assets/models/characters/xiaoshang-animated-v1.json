@@ -71,7 +71,7 @@
   "forward": "+X",
   "in_place": true,
   "character_source": "xiaoshang-expressive-v2.blend",
-  "motion_revision": "letter-facing-v10: turn the pinched envelope toward the player with coordinated forearm roll",
+  "motion_revision": "letter-palms-v11: mirrored forearm roll presents both palms forward while preserving the envelope pinch",
   "interaction_anchors": {
     "letter": {
       "hand": "tripo::1_Left_Limb_2",
@@ -1397,8 +1397,8 @@
           1.4373918771743774
         ],
         "tripo::0_Right_Limb_2": [
-          0.13156864047050476,
-          0.36985182762145996,
+          0.13156859576702118,
+          0.36985188722610474,
           1.813246250152588
         ],
         "tripo::1_Left_Limb_2": [
@@ -1424,8 +1424,8 @@
           1.3475202322006226
         ],
         "tripo::0_Right_Limb_2": [
-          0.12999998033046722,
-          0.37000003457069397,
+          0.1300000101327896,
+          0.3700000047683716,
           1.7244443893432617
         ],
         "tripo::1_Left_Limb_2": [
@@ -1451,8 +1451,8 @@
           1.359084963798523
         ],
         "tripo::0_Right_Limb_2": [
-          0.14519062638282776,
-          0.36859869956970215,
+          0.14519059658050537,
+          0.36859872937202454,
           1.718000888824463
         ],
         "tripo::1_Left_Limb_2": [
