@@ -8,7 +8,7 @@ const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
     await page.goto('http://127.0.0.1:5173/?demo=1#view=island');await page.locator('.quest-peek').waitFor();if(width>700){const nav=await page.locator('.quest-peek').boundingBox(),chat=await page.locator('.copilot-dock').boundingBox();assert.ok(nav.x>width/2);assert.ok(chat.x>width/2&&chat.width>200&&chat.x+chat.width<=width);}
     await page.locator('.quest-peek').click();assert.equal(await page.locator('.mission-list li').count(),7);assert.equal(await page.locator('.j-goal').count(),0);
     await page.locator('#closePanel').click();await page.locator('#continueButton').click();
-    if(!reduced){await page.waitForTimeout(180);assert.equal(await page.locator('#missionFlight').isVisible(),true);await page.screenshot({path:path.join(os.tmpdir(),`emc-letter-flight-${width}.png`)});}
+    if(!reduced){await page.waitForTimeout(180);assert.equal((await page.evaluate(()=>JSON.parse(render_game_to_text()))).mail.opening,true);await page.screenshot({path:path.join(os.tmpdir(),`emc-letter-flight-${width}.png`)});}
     await page.locator('#drawer[aria-modal=true]').waitFor();await page.locator('[data-demo=begin]').click();await page.waitForTimeout(550);
     const rect=await page.locator('#drawer').boundingBox();assert.ok(Math.abs(rect.x+rect.width/2-width/2)<3);assert.ok(rect.y>=0&&rect.y+rect.height<=901);assert.equal(await page.locator('#sideButton').isVisible(),false);
     assert.ok(await page.locator('[data-demo=work]').isVisible());await page.screenshot({path:path.join(os.tmpdir(),`emc-letter-open-${width}.png`)});
