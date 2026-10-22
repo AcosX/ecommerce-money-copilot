@@ -14,10 +14,11 @@ for o in objects:
   z=q.co.z;r=math.hypot(q.co.x,q.co.y)
   radial=max(0,min(1,(.43-r)/.10));radial=radial*radial*(3-2*radial)
   # A continuous deformation keeps duplicated UV seam vertices watertight.
-  if .135<z<.195 and radial>0:
-   if z<.15:target=.135+(z-.135)/.015*(.169-.135)
-   elif z<=.18:target=.169+(z-.15)/.03*.004
-   else:target=.173+(z-.18)/.015*(.195-.173)
+  if .08<z<.22 and radial>0:
+   # The entire central support surface is horizontal (under 3 mm relief in game units).
+   if z<.10:target=.08+(z-.08)/.02*(.1708-.08)
+   elif z<=.20:target=.1708+(z-.10)/.10*.0004
+   else:target=.1712+(z-.20)/.02*(.22-.1712)
    q.co.z=z+(target-z)*radial;leveled+=1
   else:preserved+=1
  bm.normal_update();bm.to_mesh(o.data);bm.free();o.data.update()
