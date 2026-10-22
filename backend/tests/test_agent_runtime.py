@@ -8,8 +8,11 @@ from fastapi.testclient import TestClient
 
 from emc_api.security import CSRF_HEADER
 from emc_api.services.agent_runtime import (
+    KNOWLEDGE_BASE,
+    KNOWLEDGE_BASE_META,
     build_xingyun_session_payload,
     sign_xingyun_request,
+    tool_search_game_knowledge,
 )
 
 PNG_BYTES = (
@@ -351,3 +354,61 @@ def test_openai_compatible_bridge_json_and_sse(client: TestClient) -> None:
     )
     assert sse_resp.status_code == 200
     assert "data: [DONE]" in sse_resp.text
+
+
+def test_knowledge_base_courses_retrieval_and_companion_citation(
+    client: TestClient,
+) -> None:
+    # 1. 验证 knowledge.zip（小红书 + 拼多多）课程库已完整加载并暴露在 /api/agent/config
+    assert len(KNOWLEDGE_BASE) >= 900
+    assert KNOWLEDGE_BASE_META["total_items"] == len(KNOWLEDGE_BASE)
+    assert KNOWLEDGE_BASE_META["counts"].get("小红书", 0) >= 80
+    assert KNOWLEDGE_BASE_META["counts"].get("拼多多", 0) >= 800
+
+    cfg_resp = client.get("/api/agent/config")
+    assert cfg_resp.status_code == 200
+    kb_meta = cfg_resp.json()["knowledge_base"]
+    assert kb_meta["total_items"] >= 900
+
+    # 2. 验证混合检索（小红书商品笔记 / 个人店与个体店区别 / 拼多多电子面单 / 0元入驻）
+    xhs_note = tool_search_game_knowledge("小红书商品笔记怎么发才能拿自然流量？")
+    assert len(xhs_note["hits"]) >= 1
+    assert any("商品笔记" in h["title"] for h in xhs_note["hits"])
+
+    xhs_shop = tool_search_game_knowledge("小红书个人店和个体工商店有什么区别？")
+    assert any("个人店" in h["title"] or "个体" in h["title"] for h in xhs_shop["hits"])
+
+    pdd_waybill = tool_search_game_knowledge("拼多多怎么开通电子面单打单发货？")
+    assert any("电子面单" in h["title"] for h in pdd_waybill["hits"])
+    assert pdd_waybill["hits"][0]["platform"] == "拼多多"
+
+    pdd_zero = tool_search_game_knowledge("拼多多0元入驻有什么限制？保证金多少？")
+    assert any("0元入驻" in h["title"] or "保证金" in h["title"] for h in pdd_zero["hits"])
+
+    # 3. 验证伴随对话返回 knowledge_citations 并在回复正文中引用命中的官方课程
+    chat_xhs = client.post(
+        "/api/agent/chat",
+        json={
+            "message": "小红书商品笔记怎么挂载商品？有哪些流量技巧？",
+            "current_level": "L4",
+        },
+    )
+    assert chat_xhs.status_code == 200
+    xhs_data = chat_xhs.json()
+    assert len(xhs_data["knowledge_citations"]) >= 1
+    assert any("商品笔记" in c["title"] for c in xhs_data["knowledge_citations"])
+    assert "《" in xhs_data["reply"]
+
+    chat_pdd = client.post(
+        "/api/agent/chat",
+        json={
+            "message": "拼多多新手怎么开通电子面单发货？",
+            "current_level": "L5",
+        },
+    )
+    assert chat_pdd.status_code == 200
+    pdd_data = chat_pdd.json()
+    assert len(pdd_data["knowledge_citations"]) >= 1
+    assert any("电子面单" in c["title"] for c in pdd_data["knowledge_citations"])
+    assert "电子面单" in pdd_data["reply"]
+

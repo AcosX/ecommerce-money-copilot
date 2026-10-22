@@ -26,6 +26,7 @@ from ..security import (
 )
 from ..services.agent_runtime import (
     AGENT_TOOL_SCHEMAS,
+    KNOWLEDGE_BASE_META,
     LEVEL_GUIDES,
     PROMPT_VERSION,
     RUBRIC_VERSION,
@@ -123,6 +124,7 @@ def get_agent_config(
         "recent_conversation": recent_turns,
         "tools": AGENT_TOOL_SCHEMAS,
         "level_guides": LEVEL_GUIDES,
+        "knowledge_base": KNOWLEDGE_BASE_META,
     }
 
 

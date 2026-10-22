@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -42,7 +43,7 @@ from .audit import record_audit
 from .storage import read_evidence_file
 
 RUBRIC_VERSION = "2026.10.v1"
-PROMPT_VERSION = "xiaoshang-agent-v1.2"
+PROMPT_VERSION = "xiaoshang-agent-v1.3-kb"
 
 # ---------------------------------------------------------------- 星云 3D 角色预设与网关签名
 
@@ -409,9 +410,12 @@ LEVEL_GUIDES: dict[str, dict[str, Any]] = {
     },
 }
 
-KNOWLEDGE_BASE: list[dict[str, Any]] = [
+_CORE_KNOWLEDGE_BASE: list[dict[str, Any]] = [
     {
         "id": "kb_roi_formula",
+        "platform": "通用",
+        "category": "财务与ROI测算",
+        "level_id": "L3",
         "title": "保本 ROI（投产比）与真实毛利率核心公式",
         "keywords": [
             "roi",
@@ -430,9 +434,17 @@ KNOWLEDGE_BASE: list[dict[str, Any]] = [
             "例如售价 100 元、综合成本 60 元，毛利率 40%，则保本 ROI = 1 ÷ 0.4 = 2.5；"
             "若计入 20% 退货率，有效保本 ROI 需提升至 2.5 ÷ (1 - 0.2) ≈ 3.13。"
         ),
+        "key_points": [
+            "真实毛利 = 售价 - 拿货成本 - 快递包材 - 平台佣金 - 运费险 - 退货损耗",
+            "保本 ROI = 1 ÷ 真实毛利率（毛利率 40% 对应保本 ROI 2.5）",
+            "含退货有效保本 ROI = 保本 ROI ÷ (1 - 退货率)",
+        ],
     },
     {
         "id": "kb_selection_method",
+        "platform": "通用",
+        "category": "蓝海选品与货源",
+        "level_id": "L2",
         "title": "新手低风险蓝海选品三步法（七分选品三分运营）",
         "keywords": [
             "选品",
@@ -450,9 +462,17 @@ KNOWLEDGE_BASE: list[dict[str, Any]] = [
             "2）毛利安全垫：零售价建议为 1688 拿货价的 2.2–3 倍以上，预留 45%+ 毛利空间；"
             "3）小步测款：优先谈支持一件代发且 48 小时包揽收的源头厂，先拿样实拍再上架。"
         ),
+        "key_points": [
+            "痛点切入：拆解竞品差评高频痛点作为主图差异化卖点",
+            "毛利安全垫：零售价建议为 1688 拿货价 2.2–3 倍以上",
+            "柔性供应链：优先选择支持一件代发且 48h 揽收的源头厂家",
+        ],
     },
     {
         "id": "kb_cold_start",
+        "platform": "通用",
+        "category": "流量与测款漏斗",
+        "level_id": "L4",
         "title": "内容电商与搜索冷启动测款漏斗",
         "keywords": [
             "流量",
@@ -471,9 +491,17 @@ KNOWLEDGE_BASE: list[dict[str, Any]] = [
             "若主图点击率 < 4%，说明痛点钩子不吸睛，需重做首图；"
             "若点击率 > 5% 但转化率 < 1.5%，需优化详情页前三屏卖点对比、买家秀与价格锚点。"
         ),
+        "key_points": [
+            "先用 3 组差异化首图/封面测试 500–1000 次基础曝光",
+            "点击率 < 4% 重做首图钩子；点击率 > 5% 但转化率低则优化详情页与买家秀",
+            "设置单计划止损红线，未跑通漏斗前严禁盲目放大付费投流",
+        ],
     },
     {
         "id": "kb_fulfillment_sop",
+        "platform": "通用",
+        "category": "履约与客服售后",
+        "level_id": "L5",
         "title": "履约发货与降低退货率/仅退款实操 SOP",
         "keywords": [
             "发货",
@@ -491,9 +519,17 @@ KNOWLEDGE_BASE: list[dict[str, Any]] = [
             "2）售前预期管理：把尺码偏大/色差提示写在详情页首屏与自动欢迎语中；"
             "3）售后拦截：包裹附赠售后保障卡，遇瑕疵优先小额补偿换好评，避免上升平台纠纷。"
         ),
+        "key_points": [
+            "绑定至少 1 家备用一件代发供货商，严防缺货/虚假发货判罚",
+            "售前自动回复前置尺码、色差与发货时效说明，管理买家预期",
+            "售后遇小瑕疵优先小额仅退款补偿拦截差评与平台介入",
+        ],
     },
     {
         "id": "kb_verification_guide",
+        "platform": "通用",
+        "category": "六关通关与认证",
+        "level_id": "L1",
         "title": "正式经营成果认证与六关通关规则",
         "keywords": [
             "认证",
@@ -512,8 +548,48 @@ KNOWLEDGE_BASE: list[dict[str, Any]] = [
             "需在『正式经营成果』抽屉上传真实截图/表格证据（PNG/JPG/WEBP/PDF）并提交认证；"
             "小商审核 Agent 从结构完整性、数值自洽性、上下文一致性与证据相关性四维打分。"
         ),
+        "key_points": [
+            "沙盘模拟与正式经营成果隔离，新建或复制成果初始状态均为 draft",
+            "提交认证需绑定至少 1 份真实经营截图或 PDF 证据",
+            "小商 AI 预审从结构完整性、数值自洽、上下文一致、证据真实四维评分",
+        ],
     },
 ]
+
+_KB_JSON_PATH = Path(__file__).resolve().parent.parent / "data" / "agent_knowledge_base.json"
+
+
+def _load_knowledge_base() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """加载 `knowledge.zip` 构建的结构化知识库（小红书 + 拼多多 + 通用核心法则）。"""
+    if _KB_JSON_PATH.is_file():
+        try:
+            raw = json.loads(_KB_JSON_PATH.read_text(encoding="utf-8"))
+            items = raw.get("items")
+            if isinstance(items, list) and items:
+                stats = raw.get("stats") if isinstance(raw.get("stats"), dict) else {}
+                counts = raw.get("counts") or stats.get("by_platform") or {}
+                meta = {
+                    "version": str(raw.get("version") or "2026.10.kb.v1"),
+                    "source": str(
+                        raw.get("source")
+                        or "knowledge.zip (xiaohongshu.zip + pinduoduo(1).zip)"
+                    ),
+                    "total_items": len(items),
+                    "counts": counts,
+                    "by_level": stats.get("by_level") or {},
+                }
+                return items, meta
+        except Exception:
+            pass
+    return _CORE_KNOWLEDGE_BASE, {
+        "version": "2026.10.kb.fallback",
+        "source": "builtin_core",
+        "total_items": len(_CORE_KNOWLEDGE_BASE),
+        "counts": {"通用": len(_CORE_KNOWLEDGE_BASE)},
+    }
+
+
+KNOWLEDGE_BASE, KNOWLEDGE_BASE_META = _load_knowledge_base()
 
 
 # -------------------------------------------- 长期记忆与会话历史（按 player_id 强隔离）
@@ -720,11 +796,19 @@ AGENT_TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "search_game_knowledge",
         "category": "read",
         "description": (
-            "检索电商搞钱参谋内置知识库（保本 ROI 公式、蓝海选品、测款漏斗、履约客服 SOP）。"
+            "检索电商搞钱参谋内置知识库（含小红书电商学习中心 88 门课程与百问百答、"
+            "拼多多新手开店 849 篇全流程规则教程，以及保本 ROI、蓝海选品、测款、履约 SOP）。"
         ),
         "parameters": {
             "type": "object",
-            "properties": {"query": {"type": "string"}},
+            "properties": {
+                "query": {"type": "string"},
+                "level_id": {
+                    "type": "string",
+                    "enum": ["L1", "L2", "L3", "L4", "L5", "L6"],
+                },
+                "platform": {"type": "string"},
+            },
             "required": ["query"],
             "additionalProperties": False,
         },
@@ -947,23 +1031,136 @@ def tool_get_level_guide(level_id: str) -> dict[str, Any]:
     return LEVEL_GUIDES[clean_level]
 
 
-def tool_search_game_knowledge(query: str) -> dict[str, Any]:
+_QUERY_STOP_WORDS = (
+    "请问",
+    "怎么",
+    "如何",
+    "什么",
+    "哪些",
+    "能不能",
+    "可以吗",
+    "是不是",
+    "有没有",
+    "有什么",
+    "帮我",
+    "告诉我",
+    "一下",
+    "小商",
+    "参谋",
+    "呢",
+    "吗",
+    "呀",
+    "啊",
+    "吧",
+    "的",
+    "了",
+)
+
+
+def _tokenize_search_query(query: str) -> list[str]:
+    """将用户自然语言提问切分为中文 2/3/4-gram 词片与英文/数字关键词，用于混合检索。"""
+    clean = (query or "").strip().lower()
+    for sw in _QUERY_STOP_WORDS:
+        clean = clean.replace(sw, " ")
+    chunks = re.findall(r"[\u4e00-\u9fff]{2,}|[a-z0-9]{2,}", clean)
+    tokens: list[str] = []
+    for ch in chunks:
+        if re.match(r"^[a-z0-9]+$", ch):
+            tokens.append(ch)
+            continue
+        tokens.append(ch)
+        n = len(ch)
+        for k in (4, 3, 2):
+            if n >= k:
+                for i in range(n - k + 1):
+                    tokens.append(ch[i : i + k])
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for tok in tokens:
+        if tok not in seen and len(tok) >= 2:
+            seen.add(tok)
+            uniq.append(tok)
+    return uniq
+
+
+def tool_search_game_knowledge(
+    query: str,
+    *,
+    level_id: str | None = None,
+    platform: str | None = None,
+    top_k: int = 4,
+) -> dict[str, Any]:
+    """混合检索小商电商知识库（关键词 + 中文 n-gram + 平台加权 + 关卡匹配）。"""
     q = (query or "").strip().lower()
-    scored: list[tuple[int, dict[str, Any]]] = []
+    tokens = _tokenize_search_query(q)
+
+    explicit_platform = (platform or "").strip()
+    if any(k in q for k in ("小红书", "千帆", "笔记", "买手", "聚光", "乘风", "薯店", "呼吸灯")):
+        explicit_platform = "小红书"
+    elif any(k in q for k in ("拼多多", "多多", "先用后付", "电子面单", "0元入驻", "多多买菜")):
+        explicit_platform = "拼多多"
+
+    clean_level = (level_id or "").strip().upper()
+
+    scored: list[tuple[float, dict[str, Any]]] = []
     for item in KNOWLEDGE_BASE:
-        score = 0
-        if q and q in item["title"].lower():
-            score += 5
-        if q and q in item["summary"].lower():
-            score += 3
-        for kw in item["keywords"]:
-            if kw.lower() in q or (q and q in kw.lower()):
-                score += 4
+        score = 0.0
+        title_low = str(item.get("title") or "").lower()
+        summary_low = str(item.get("summary") or "").lower()
+        cat_low = str(item.get("category") or "").lower()
+        item_platform = str(item.get("platform") or "通用")
+        item_level = str(item.get("level_id") or "")
+
+        if q and len(q) >= 2:
+            if q in title_low:
+                score += 18.0
+            if q in summary_low:
+                score += 8.0
+
+        for kw in item.get("keywords") or []:
+            kw_low = str(kw).lower()
+            if not kw_low or len(kw_low) < 2:
+                continue
+            if kw_low in q:
+                score += 6.0 + min(len(kw_low), 6) * 1.2
+                if kw_low in title_low:
+                    score += 4.0
+
+        for tok in tokens:
+            w = len(tok)
+            if tok in title_low:
+                score += 3.2 * w
+            elif tok in cat_low:
+                score += 1.8 * w
+            elif tok in summary_low:
+                score += 1.0 * w
+
         if score > 0:
+            if explicit_platform:
+                if item_platform == explicit_platform:
+                    score += 5.0
+                elif item_platform == "通用":
+                    score += 1.5
+            if clean_level and item_level == clean_level:
+                score += 2.0
             scored.append((score, item))
+
     scored.sort(key=lambda x: x[0], reverse=True)
-    hits = [x[1] for x in scored[:3]] if scored else KNOWLEDGE_BASE[:2]
-    return {"query": query, "hits": hits}
+    limit = max(1, min(int(top_k or 4), 8))
+    if scored:
+        hits = [x[1] for x in scored[:limit]]
+    else:
+        level_matches = [
+            it for it in KNOWLEDGE_BASE if clean_level and it.get("level_id") == clean_level
+        ]
+        hits = (level_matches or KNOWLEDGE_BASE)[:3]
+
+    return {
+        "query": query,
+        "total_kb_items": len(KNOWLEDGE_BASE),
+        "kb_version": KNOWLEDGE_BASE_META.get("version"),
+        "hits": hits,
+    }
 
 
 def tool_get_artifact_summary(
@@ -1302,7 +1499,12 @@ def execute_agent_tool(
     if tool_name == "get_level_guide":
         return tool_get_level_guide(str(safe_args.get("level_id") or "L1"))
     if tool_name == "search_game_knowledge":
-        return tool_search_game_knowledge(str(safe_args.get("query") or ""))
+        return tool_search_game_knowledge(
+            str(safe_args.get("query") or ""),
+            level_id=safe_args.get("level_id"),
+            platform=safe_args.get("platform"),
+            top_k=int(safe_args.get("top_k") or 4),
+        )
     if tool_name == "get_artifact_summary":
         return tool_get_artifact_summary(
             db,
@@ -1524,7 +1726,7 @@ def _try_calculate_roi_from_message(msg: str) -> dict[str, Any] | None:
     ):
         price = max(nums[0], nums[1])
         cost = min(nums[0], nums[1])
-        if price > 0 and cost < price:
+        if price > 0 and 0 < cost < price:
             extra_ship = nums[2] if len(nums) >= 3 and nums[2] < price * 0.5 else 0.0
             total_cost = cost + extra_ship
             profit = round(price - total_cost, 2)
@@ -1628,17 +1830,28 @@ def run_companion_chat(
         }
     )
 
+    active_platform = (shop_ctx.get("active_project") or {}).get("platform")
     kb_res = execute_agent_tool(
         db,
         player_id=player_id,
         tool_name="search_game_knowledge",
-        arguments={"query": clean_msg},
+        arguments={
+            "query": clean_msg,
+            "level_id": target_level,
+            "platform": active_platform,
+        },
     )
+    top_hit_titles = "、".join(f"《{h['title']}》" for h in kb_res["hits"][:2])
     tool_traces.append(
         {
             "tool": "search_game_knowledge",
             "status": "ok",
-            "summary": f"命中 {len(kb_res['hits'])} 条经营知识卡片",
+            "summary": (
+                f"检索 {kb_res.get('total_kb_items', len(KNOWLEDGE_BASE))} 条知识库，"
+                f"命中 {top_hit_titles}"
+                if kb_res["hits"]
+                else f"命中 {len(kb_res['hits'])} 条经营知识卡片"
+            ),
         }
     )
 
@@ -1749,16 +1962,29 @@ def run_companion_chat(
 
     # 3. 调用大模型网关（若上游限流 429/503 自动切换本地参谋推理）
     adapter = AgentProviderAdapter(settings)
+    kb_prompt_items = [
+        {
+            "id": h.get("id"),
+            "platform": h.get("platform", "通用"),
+            "category": h.get("category", "经营实操"),
+            "level_id": h.get("level_id", target_level),
+            "title": h.get("title"),
+            "summary": h.get("summary"),
+            "key_points": (h.get("key_points") or [])[:4],
+        }
+        for h in kb_res["hits"][:3]
+    ]
     sys_prompt = (
         f"你是《电商搞钱参谋》3D 数字人「{preset_info['name']}」"
         f"（人设：{preset_info['persona_summary']}）。\n"
-        f"请结合服务端已校验的工具结果回答店主问题：\n"
+        f"请优先依据【知识库命中课程】（源自小红书电商学习中心与拼多多商家知识库）"
+        f"及服务端已校验的工具结果回答店主问题：\n"
         f"- 进度：{json.dumps(progress, ensure_ascii=False)}\n"
         f"- 店铺：{json.dumps(shop_ctx, ensure_ascii=False)}\n"
         f"- 当前关卡指南：{json.dumps(level_guide, ensure_ascii=False)}\n"
-        f"- 知识库命中：{json.dumps(kb_res['hits'], ensure_ascii=False)}\n"
-        "回答要求：口语化、接地气、条理清晰，控制在 160 字以内，"
-        "先给明确结论与数字公式，再给 2 条立刻能做的行动建议。"
+        f"- 知识库命中课程：{json.dumps(kb_prompt_items, ensure_ascii=False)}\n"
+        "回答要求：口语化、接地气、条理清晰，控制在 180 字以内，"
+        "明确引用命中的课程名称（如《...》），先给核心结论与数字公式，再给 2 条立刻能做的行动建议。"
     )
     llm_reply, llm_meta = adapter.complete_json_or_text(
         system_prompt=sys_prompt,
@@ -1833,16 +2059,36 @@ def run_companion_chat(
         elif clean_msg in ("你好", "您好", "嗨", "hi", "hello", "在吗", "你是谁"):
             emotion = "happy"
             ka_intent = "Welcome"
+            kb_count = KNOWLEDGE_BASE_META.get("total_items", len(KNOWLEDGE_BASE))
             llm_reply = (
                 f"店主你好呀！我是你的 3D 具身电商副驾「{preset_info['name']}」。"
+                f"我已加载 **{kb_count} 门官方电商课程知识库**"
+                "（小红书电商学习中心 + 拼多多开店全流程规则），"
                 f"当前咱们聚焦在 **{level_guide['name']}**"
                 f"（需交付《{level_guide['deliverable_title']}》）。\n"
-                "你可以直接发我：**「拿货 35 售价 99 帮我算账」**、"
-                "**「这关怎么过」**，或者让我**「生成草稿」**！"
+                "你可以直接问我：**「小红书商品笔记怎么发」**、**「拼多多0元入驻有什么限制」**、"
+                "**「拿货 35 售价 99 帮我算账」**，或让我**「生成草稿」**！"
             )
         else:
             top_kb = kb_res["hits"][0] if kb_res["hits"] else KNOWLEDGE_BASE[0]
+            kb_platform = top_kb.get("platform") or "通用"
+            kb_category = top_kb.get("category") or "经营实操"
+            kb_points = [
+                str(p).strip() for p in (top_kb.get("key_points") or []) if str(p).strip()
+            ]
+            points_block = (
+                "\n" + "\n".join(f"  - {pt}" for pt in kb_points[:3]) if kb_points else ""
+            )
             checklist_preview = "；".join(level_guide["checklist"][:2])
+            if len(kb_res["hits"]) > 1:
+                sec = kb_res["hits"][1]
+                second_line = (
+                    f"2. **延伸课程《{sec['title']}》**：{sec['summary'][:120]}\n"
+                    f"3. **{target_level} 过关清单**：{checklist_preview}。"
+                )
+            else:
+                second_line = f"2. **{target_level} 过关清单**：{checklist_preview}。"
+
             if any(
                 k in clean_msg
                 for k in (
@@ -1856,19 +2102,20 @@ def run_companion_chat(
             ):
                 emotion = "comforting"
                 ka_intent = "Encourage"
-                opening = "别慌，做店冷启动遇到卡点太正常了，小商陪你一步步拆解！"
+                opening = "别慌，做店冷启动遇到卡点太正常了，小商检索了课程知识库陪你一步步拆解："
             else:
                 emotion = "encouraging"
                 ka_intent = "Explain"
                 opening = (
                     f"结合{shop_label}进度（当前聚焦 **{level_guide['name']}**，"
-                    f"已认证 {progress['approved_count']}/6 关）给你支两招："
+                    f"已认证 {progress['approved_count']}/6 关）与官方课程知识库，给你梳理重点："
                 )
 
             llm_reply = (
                 f"{opening}\n"
-                f"1. **实操方法（{top_kb['title']}）**：{top_kb['summary']}\n"
-                f"2. **{target_level} 过关清单**：{checklist_preview}。\n"
+                f"1. **《{top_kb['title']}》[{kb_platform}·{kb_category}]**："
+                f"{top_kb['summary']}{points_block}\n"
+                f"{second_line}\n"
                 "你可以直接告诉我拿货价和售价（如「拿货35售价99算账」），"
                 f"或回复「保存草稿」让我帮你生成 {target_level} 初始方案！"
             )
@@ -1900,6 +2147,7 @@ def run_companion_chat(
                 "preset_id": chosen_preset,
                 "tool_traces": tool_traces,
                 "ui_actions": ui_actions,
+                "knowledge_citations": kb_prompt_items,
                 "llm_meta": llm_meta,
             },
         )
@@ -1924,6 +2172,7 @@ def run_companion_chat(
         "tool_traces": tool_traces,
         "tool_calls": tool_traces,
         "ui_actions": ui_actions,
+        "knowledge_citations": kb_prompt_items,
         "roi_calculation": roi_calc,
         "saved_artifact": (
             {
