@@ -17,7 +17,7 @@ export function createCharacterProps(root){
  // Native character +Y-up conversion: fingers point +Z, palm normal is -Y.
  const along=new THREE.Vector3(0,0,1),normal=new THREE.Vector3(0,-1,0),across=new THREE.Vector3(-1,0,0);
  const rest=new THREE.Matrix4().makeBasis(normal,along,across);
- rest.setPosition(new THREE.Vector3().setFromMatrixPosition(bind).addScaledVector(along,.10).addScaledVector(normal,.018).addScaledVector(across,.06));
+ rest.setPosition(new THREE.Vector3().setFromMatrixPosition(bind).addScaledVector(along,.160).addScaledVector(normal,.070).addScaledVector(across,.020));
  envelope.applyMatrix4(bind.clone().invert().multiply(rest));
  envelope.visible=false;wrist.add(envelope);
  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=192;
