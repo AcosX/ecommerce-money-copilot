@@ -52,6 +52,10 @@ python -m http.server 5189 --bind 127.0.0.1
 2026-10-22 核对引用后，将 7 张未使用的成就设计稿移入工作区 `../_archive/cleanup-20261022/unused-achievements/`，保留页面使用的 `first-order-certificate-v5.png`。归档是本机文件，不属于仓库，也不随站点部署。
 当前业务模块均有引用，角色制作源文件、模型生成脚本及预览验收入口继续保留。
 
+新版六级建筑发布资源统一位于 `assets/models/buildings/`，由 `assets/models/manifest.json` 指向；低级原模型与后三级模块建筑均保留几何，按设备选择 web/lite 贴图。39 个废弃发布资产与旧生成脚本（约 146 MiB）已移出项目，位于本机 `../_archive/ecommerce-assets-retired-20261022/`，不随站点部署。当前岛屿原始源网格、角色与模块制作源文件继续保留。
+
+`tools/island-buildings-preview.html` 可逐级检查浮岛实装和升级演出；正式升级在当前画布旋转建筑，以轻微金色泛光和淡入淡出换模，揭开新建筑时播放音效。下载失败保留原模型。
+
 ## 说明
 
 - 当前为 Demo 版本：游客模式可完整体验教学流程，绑定平台 / 真实选品单等实操环节预留了「引导注册」入口。
