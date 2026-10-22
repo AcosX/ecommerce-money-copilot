@@ -1,20 +1,27 @@
 (function(){
 'use strict';
-const overlay=document.getElementById('opening'),loader=document.getElementById('sceneLoader'),status=document.getElementById('bootStatus'),retry=document.getElementById('bootRetry');
+const overlay=document.getElementById('opening'),loader=document.getElementById('sceneLoader'),status=document.getElementById('bootStatus'),retry=document.getElementById('bootRetry'),skip=document.getElementById('bootSkip');
 if(!overlay||!loader)return;
 let elapsed=false,finished=false;
+function leave(){
+ if(finished)return;
+ finished=true;observer.disconnect();overlay.classList.add('leaving');
+ overlay.addEventListener('animationend',event=>{if(event.target===overlay&&event.animationName==='boot-exit')overlay.remove();});
+ setTimeout(()=>overlay.remove(),matchMedia('(prefers-reduced-motion: reduce)').matches?120:1100);
+}
 function update(){
  if(finished)return;
  const error=loader.dataset.state==='error'&&!loader.hidden;
- overlay.classList.toggle('failed',error);retry.hidden=!error;
- if(error){status.textContent='小店暂时没能打开，再试一次。';return;}
+ overlay.classList.toggle('failed',error);retry.hidden=!error;skip.hidden=!error;
+ if(error){status.textContent='小店暂时没能打开。可以重试，也可以先进行经营任务。';return;}
  const ready=loader.hidden;
  overlay.dataset.ready=String(ready);
  overlay.classList.toggle('waiting',elapsed&&!ready);
  status.textContent=elapsed&&!ready?'正在准备场景资源，请稍候…':elapsed&&ready?'准备好了，开张！':'正在为你的小店开张…';
- if(elapsed&&ready){finished=true;observer.disconnect();overlay.classList.add('leaving');overlay.addEventListener('animationend',event=>{if(event.target===overlay&&event.animationName==='boot-exit')overlay.remove();});setTimeout(()=>overlay.remove(),matchMedia('(prefers-reduced-motion: reduce)').matches?120:1100);}
+ if(elapsed&&ready)leave();
 }
 retry.onclick=()=>{document.getElementById('retryScene')?.click();update();};
+skip.onclick=()=>{document.dispatchEvent(new Event('emc:scene-skip'));leave();};
 const observer=new MutationObserver(update);observer.observe(loader,{attributes:true,attributeFilter:['hidden','data-state']});
 // Count rendered foreground time, not a wall-clock timeout that can overtake the animation.
 let played=0,last=null;
