@@ -6,7 +6,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-roof8';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-sign9';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -231,8 +231,9 @@ export class ShopScene{
     this.rayAt(e);const hit=this.ray.intersectObjects([this.shopModel,...(this.signBoard?[this.signBoard]:[])],true)[0];if(!hit)return null;if(hit.object.userData.paintPart)return hit.object.userData.paintPart;
     const mat=Array.isArray(hit.object.material)?hit.object.material[hit.face.materialIndex]:hit.object.material;if(this.buildingEntry?.modular)return mat.userData.paintPart||null;const map=mat.map;if(!map||!hit.uv)return null;
     const [r,g,b]=this.texturePixel(map,hit.uv),hi=Math.max(r,g,b),lo=Math.min(r,g,b),local=hit.point.clone().applyMatrix4(this.paintUniforms.signMatrix.value),size=this.paintUniforms.signSize.value;
-    // 整块牌面与边框共用紧贴正面的空间范围，避开后方屋檐。
-    if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
+    // 精品店使用与着色器相同的 UV 区域，含边框；旧模型保留空间判定。
+    if(mat.userData.emcSignMask&&mat.aoMap){if(this.texturePixel(mat.aoMap,hit.uv)[1]>.5)return 'sign';}
+    else if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
     if(mat.userData.emcRoofMask&&mat.aoMap){if(this.texturePixel(mat.aoMap,hit.uv)[0]>.5)return 'roof';}else if(hit.point.y>this.paintUniforms.roofY.value&&r>Math.max(g,b)*1.35)return 'roof';
     if((hi-lo)/Math.max(hi,.001)<.58&&hi>.25&&r>=b*.85)return 'wall';
     return null;
@@ -337,19 +338,19 @@ export class ShopScene{
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
 function disposeAsset(obj){obj.traverse(child=>{child.geometry?.dispose();if(child.material)(Array.isArray(child.material)?child.material:[child.material]).forEach(disposeMaterial);});}
-// 单张生成贴图按原始色相和空间边界着色，保留纹理；预览只覆盖对应部位。
+// 优先使用资产内的部位遮罩；旧模型回退色相/空间判定，保留木纹与明暗。
 function installPartTint(material,u){
   material.onBeforeCompile=shader=>{
-    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY,emcRoofMask:{value:material.aoMap||material.map},emcUseRoofMask:{value:material.userData.emcRoofMask?1:0}});
+    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY,emcRoofMask:{value:material.aoMap||material.map},emcUseSignMask:{value:material.userData.emcSignMask?1:0},emcUseRoofMask:{value:material.userData.emcRoofMask?1:0}});
     shader.vertexShader='varying vec3 emcWorld;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
-    shader.fragmentShader='varying vec3 emcWorld; uniform sampler2D emcRoofMask;uniform float emcUseRoofMask;uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    shader.fragmentShader='varying vec3 emcWorld; uniform sampler2D emcRoofMask;uniform float emcUseRoofMask,emcUseSignMask;uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
       vec3 original=diffuseColor.rgb;
       // 判定使用 sRGB，和射线取样一致；颜色计算保留在线性空间。
       vec3 sampleColor=sRGBTransferOETF(vec4(original,1.0)).rgb;
       float hi=max(sampleColor.r,max(sampleColor.g,sampleColor.b));
       float lo=min(sampleColor.r,min(sampleColor.g,sampleColor.b));
       vec3 signPos=(emcSignMatrix*vec4(emcWorld,1.0)).xyz;
-      float signMask=step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
+      float signMask=emcUseSignMask>0.5?texture2D(emcRoofMask,vMapUv).g:step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
       float roofMask=(emcUseRoofMask>0.5?texture2D(emcRoofMask,vMapUv).r:step(emcRoofY,emcWorld.y)*step(max(sampleColor.g,sampleColor.b)*1.35,sampleColor.r))*(1.0-signMask);
       float wallMask=(1.0-smoothstep(0.42,0.60,(hi-lo)/max(hi,0.001)))*smoothstep(0.20,0.25,hi)*step(sampleColor.b*0.85,sampleColor.r)*(1.0-signMask)*(1.0-roofMask);
       diffuseColor.rgb=mix(original,original*emcWall,wallMask);
@@ -359,7 +360,7 @@ function installPartTint(material,u){
       if(emcPreview>0.5)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.08,0.85,0.28),previewMask*0.55);
     `);
   };
-  material.customProgramCacheKey=()=> 'emc-part-tint-v5';material.needsUpdate=true;
+  material.customProgramCacheKey=()=> 'emc-part-tint-v6';material.needsUpdate=true;
 }
 
 function countTexturedMeshes(root){let count=0;root.traverse(obj=>{if(obj.isMesh&&(Array.isArray(obj.material)?obj.material:[obj.material]).some(mat=>mat?.map?.image))count++;});return count;}

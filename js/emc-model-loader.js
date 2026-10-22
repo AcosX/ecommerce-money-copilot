@@ -30,7 +30,7 @@ async function download(url,signal,onProgress){
     }catch(error){if(signal.aborted||attempt||error.status&&error.status<500)throw error;onProgress?.({loaded:0,total:0,retrying:true});}
   }
 }
-export function loadSceneManifest(signal){return bounded(async active=>{const data=await download(new URL('assets/models/manifest.json?v=20261022-roof8',ROOT),active);try{return JSON.parse(new TextDecoder().decode(data));}catch(_){throw new Error('模型清单格式错误，请刷新后重试');}},signal);}
+export function loadSceneManifest(signal){return bounded(async active=>{const data=await download(new URL('assets/models/manifest.json?v=20261022-sign9',ROOT),active);try{return JSON.parse(new TextDecoder().decode(data));}catch(_){throw new Error('模型清单格式错误，请刷新后重试');}},signal);}
 export function loadTexturedModel(path,{signal,onProgress,revision}={}){
   return bounded(async active=>{
     const url=new URL(path,ROOT);if(revision)url.searchParams.set('v',revision);const data=await download(url,active,onProgress);active.throwIfAborted();

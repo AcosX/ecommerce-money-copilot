@@ -71,11 +71,11 @@
         "paint_back_depth": -0.055
       },
       "model_url": "assets/models/buildings/level-2-web.glb",
-      "bytes": 4239408,
+      "bytes": 4244020,
       "triangles": 42638,
       "lite": {
         "model_url": "assets/models/buildings/level-2-lite.glb",
-        "bytes": 2277036,
+        "bytes": 2279324,
         "triangles": 42638,
         "texture_max_dimension": 1024,
         "texture_format": "webp"
@@ -83,7 +83,8 @@
       "texture_max_dimension": 2048,
       "texture_format": "webp",
       "roof_mask": "authored_uv_region",
-      "revision": "roof-b241d7ec4170"
+      "revision": "surface-9f5acf11ee63",
+      "sign_mask": "authored_uv_region"
     },
     "3": {
       "level": 3,
@@ -191,11 +192,11 @@
         "paint_back_depth": -0.055
       },
       "model_url": "assets/models/buildings/level-2-web.glb",
-      "bytes": 4239408,
+      "bytes": 4244020,
       "triangles": 42638,
       "lite": {
         "model_url": "assets/models/buildings/level-2-lite.glb",
-        "bytes": 2277036,
+        "bytes": 2279324,
         "triangles": 42638,
         "texture_max_dimension": 1024,
         "texture_format": "webp"
@@ -203,7 +204,8 @@
       "texture_max_dimension": 2048,
       "texture_format": "webp",
       "roof_mask": "authored_uv_region",
-      "revision": "roof-b241d7ec4170"
+      "revision": "surface-9f5acf11ee63",
+      "sign_mask": "authored_uv_region"
     },
     "3": {
       "level": 3,
