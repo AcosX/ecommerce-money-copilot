@@ -205,3 +205,7 @@ uv run pytest
 - 聊天 `client_context.conversation` 可传最近的 user/assistant 对话作为参考，不作为身份、进度或工具权限。L1 可在对话里生成完整规划，前端检查后仍走现有成果及认证接口，冻结文本，不因省略附件自动认证。
 - 数字人使用仓库内 XmovAvatar SDK，经同源 `/api/agent/xingyun/session` 由服务器签名。首次发送消息自动尝试连接一次，失败仍可文字对话，支持重试、暂停与断开。前端不接触服务端 AppSecret。
 - Markdown 使用本地 vendored marked 15.0.12 / DOMPurify 3.3.3。只渲染回复，过滤脚本、事件、图片与危险链接；用户消息作为文本显示。
+
+### 项目对话历史筛选
+
+`GET /api/agent/memory?session_id=<项目ID>` 可只取当前玩家该项目的最近 10 轮对话，筛选先于条数限制执行。省略该参数时保持玩家全局最近对话。`session_id` 为 1–64 字符，不能绕过登录玩家隔离。
