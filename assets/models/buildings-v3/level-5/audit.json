@@ -53,7 +53,17 @@
     {
       "name": "roof",
       "file": "level-5/roof.glb",
-      "triangles": 948,
+      "triangles": 572,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "stone"
+      ]
+    },
+    {
+      "name": "canopy",
+      "file": "level-5/canopy.glb",
+      "triangles": 1144,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
       "materials": [
@@ -64,11 +74,10 @@
     {
       "name": "entrance",
       "file": "level-5/entrance.glb",
-      "triangles": 5492,
+      "triangles": 4348,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
       "materials": [
-        "stone",
         "gold",
         "warm",
         "glass",
@@ -85,8 +94,18 @@
         "gold",
         "sign"
       ]
+    },
+    {
+      "name": "emblem",
+      "file": "level-5/emblem.glb",
+      "triangles": 376,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "materials": [
+        "gold"
+      ]
     }
   ],
   "triangles": 79500,
-  "bytes": 3529748
+  "bytes": 3530772
 }
