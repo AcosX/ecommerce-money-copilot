@@ -408,3 +408,27 @@ def test_knowledge_base_courses_retrieval_and_companion_citation(
     assert len(pdd_data["knowledge_citations"]) >= 1
     assert any("电子面单" in c["title"] for c in pdd_data["knowledge_citations"])
     assert "电子面单" in pdd_data["reply"]
+
+
+def test_agent_scores_are_returned_and_persisted_per_player(client, make_player, login_as):
+    player = make_player()
+    login_as(player)
+    before = client.get("/api/agent/memory").json()["memory"]
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "message": "预算两千元，每周十小时，有家居货源，想在小红书经营收纳商品。",
+            "level_id": "L1",
+            "client_context": {"companion_state": {"affinity": 100, "patience": 100}},
+        },
+    )
+    assert response.status_code == 200
+    memory = response.json()["memory"]
+    assert memory["intimacy_score"] == before["intimacy_score"] + 3
+    assert memory["patience_score"] == before["patience_score"] + 2
+    persisted = client.get("/api/agent/memory").json()["memory"]
+    assert persisted["intimacy_score"] == memory["intimacy_score"]
+    assert persisted["patience_score"] == memory["patience_score"]
+    other = make_player()
+    login_as(other)
+    assert client.get("/api/agent/memory").json()["memory"]["patience_score"] == 80

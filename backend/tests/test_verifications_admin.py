@@ -775,3 +775,101 @@ def test_admin_ui_and_openapi_routes(client: TestClient) -> None:
     assert "/api/admin/verifications" in paths
     assert "/api/admin/verifications/{submission_id}" in paths
     assert "/api/admin/verifications/{submission_id}/review" in paths
+
+
+@pytest.mark.parametrize(
+    "artifact_type,report,expected",
+    [
+        (
+            "business_plan",
+            "预算两千元，每周十小时，现有家居货源，面向租房青年做桌下收纳。先在小红书观察需求与竞争，再比较三款样品并验证毛利与履约成本。",
+            201,
+        ),
+        ("business_plan", "还没聊清楚", 422),
+        (
+            "product_selection",
+            "明确目标人群、选择理由、来源、预算、利润以及下一步验证办法。" * 3,
+            422,
+        ),
+    ],
+)
+def test_text_plan_without_attachment_is_l1_only(
+    client, db_session, make_player, login_as, artifact_type, report, expected
+):
+    player = make_player()
+    login_as(player)
+    artifact = create_project_and_artifact(
+        db_session,
+        player,
+        artifact_type=artifact_type,
+        content={"planning_report": report, "platform": "小红书", "category": "家居收纳"},
+    )
+    response = client.post(
+        "/api/verifications",
+        json={
+            "artifact_id": artifact.id,
+            "artifact_version": artifact.version,
+            "evidence_ids": [],
+        },
+    )
+    assert response.status_code == expected, response.text
+    if expected == 201:
+        data = response.json()
+        assert data["status"] == "pending"
+        assert data["snapshot"]["content"]["planning_report"] == report
+        replay = client.get("/api/verifications/" + data["id"])
+        assert replay.status_code == 200
+        assert replay.json()["snapshot"]["content"]["planning_report"] == report
+
+
+def test_long_conversation_plan_uses_real_artifact_schema(
+    client, db_session, make_player, login_as
+):
+    player = make_player()
+    login_as(player)
+    seed = create_project_and_artifact(db_session, player)
+    report = (
+        "预算两千元，每周十小时，有家居货源。面向租房青年经营小红书桌下收纳，记录需求、竞争、毛利与履约成本。\n"
+        * 120
+    )
+    response = client.post(
+        "/api/artifacts",
+        json={
+            "project_id": seed.project_id,
+            "artifact_type": "business_plan",
+            "schema_version": 1,
+            "title": "小红书收纳生意规划",
+            "origin": "formal",
+            "source_level_id": "L1",
+            "content": {
+                "summary": report[:1000],
+                "planning_report": report,
+                "conversation": [
+                    {"role": "user", "text": "预算两千元"},
+                    {"role": "assistant", "text": report[:4000]},
+                ],
+                "platform": "xiaohongshu",
+                "category": "家居收纳",
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    artifact = response.json()
+    submitted = client.post(
+        "/api/verifications",
+        json={
+            "artifact_id": artifact["id"],
+            "artifact_version": artifact["version"],
+            "evidence_ids": [],
+        },
+    )
+    assert submitted.status_code == 201, submitted.text
+    data = submitted.json()
+    assert data["snapshot"]["content"]["planning_report"] == report
+    review = client.post("/api/agent/reviews/" + data["id"], json={})
+    assert review.status_code == 200, review.text
+    assert "请重新上传" not in str(review.json().get("rework_instructions", []))
+    assert "L1 无需上传文件" in str(review.json().get("passed_checks", []))
+    other = make_player()
+    login_as(other)
+    assert client.get("/api/verifications/" + data["id"]).status_code == 404
