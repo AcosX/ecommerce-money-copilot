@@ -1,0 +1,31 @@
+(function(){
+'use strict';
+const overlay=document.getElementById('opening'),loader=document.getElementById('sceneLoader'),status=document.getElementById('bootStatus'),retry=document.getElementById('bootRetry');
+if(!overlay||!loader)return;
+let elapsed=false,finished=false;
+function update(){
+ if(finished)return;
+ const error=loader.dataset.state==='error'&&!loader.hidden;
+ overlay.classList.toggle('failed',error);retry.hidden=!error;
+ if(error){status.textContent='小店暂时没能打开，再试一次。';return;}
+ const ready=loader.hidden;
+ overlay.dataset.ready=String(ready);
+ overlay.classList.toggle('waiting',elapsed&&!ready);
+ status.textContent=elapsed&&!ready?'正在准备场景资源，请稍候…':elapsed&&ready?'准备好了，开张！':'正在为你的小店开张…';
+ if(elapsed&&ready){finished=true;observer.disconnect();overlay.classList.add('leaving');overlay.addEventListener('animationend',event=>{if(event.target===overlay&&event.animationName==='boot-exit')overlay.remove();});setTimeout(()=>overlay.remove(),matchMedia('(prefers-reduced-motion: reduce)').matches?120:1100);}
+}
+retry.onclick=()=>{document.getElementById('retryScene')?.click();update();};
+const observer=new MutationObserver(update);observer.observe(loader,{attributes:true,attributeFilter:['hidden','data-state']});
+// Count rendered foreground time, not a wall-clock timeout that can overtake the animation.
+let played=0,last=null;
+document.addEventListener('visibilitychange',()=>{last=null;overlay.classList.toggle('intro-paused',document.hidden);});
+function tick(now){
+ if(finished)return;
+ if(!document.hidden){if(last!==null)played+=Math.min(100,now-last);last=now;}else last=null;
+ overlay.dataset.playedMs=String(Math.floor(played));
+ if(played>=6000){elapsed=true;update();return;}
+ requestAnimationFrame(tick);
+}
+requestAnimationFrame(()=>requestAnimationFrame(()=>{overlay.classList.add('intro-playing');overlay.classList.toggle('intro-paused',document.hidden);requestAnimationFrame(tick);}));
+update();
+})();

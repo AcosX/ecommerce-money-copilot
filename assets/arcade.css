@@ -1,0 +1,34 @@
+/* 街机开张：沿用浮岛布局，以轻量的 UI 动作承接经营进度。 */
+:root{--ink:#202447;--muted:#596682;--surface:#fffbea;--surface2:#f4efd9;--line:#242947;--gold:#ffe340;--mint:#46d8ad;--button-shadow:#242947;--arcade-red:#f44b3c;--arcade-outline:#242947}
+:root[data-theme=night]{--ink:#242748;--muted:#5b6184;--surface:#f0edff;--surface2:#dbd9f5;--line:#9496cc;--gold:#ffe340;--mint:#46d8ad;--button-shadow:#10132e;--arcade-red:#f44b3c;--arcade-outline:#242947}
+.brand-cn{font-weight:950;letter-spacing:-2px;color:#ffe340;-webkit-text-stroke:1px #252947;text-shadow:3px 3px 0 #252947,5px 5px 0 #f44b3c}
+.brand-en{letter-spacing:4px;font-weight:900}.brand-spark{color:#f44b3c;-webkit-text-stroke:0;text-shadow:1px 2px #fffbea}
+.header-caption{font-weight:900;letter-spacing:1px}.header-caption span{font-weight:500;letter-spacing:0}
+.pixel-panel{border:2px solid var(--arcade-outline);border-radius:3px;box-shadow:4px 5px 0 var(--button-shadow)}
+.player-card{border-top:7px solid var(--arcade-red)}.player-avatar{background:var(--gold);border-color:var(--arcade-outline)}
+.player-identity h1{font-weight:900}.xp-track{border-color:var(--arcade-outline);background:var(--surface2)}.xp-track i{background:repeating-linear-gradient(90deg,var(--mint) 0,var(--mint) 20px,transparent 20px,transparent 23px);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.shortcut>svg{background:var(--surface);border:2px solid var(--arcade-outline);box-shadow:3px 4px 0 var(--button-shadow);transition:transform .14s,box-shadow .14s}
+.shortcut:hover>svg{background:var(--gold);transform:translateY(-3px)}.shortcut:active>svg{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--button-shadow)}
+.quest-peek{border-left:7px solid var(--arcade-red)}.peek-icon{background:var(--gold)}
+.main-actions{gap:13px}.action-primary{position:relative;isolation:isolate;overflow:hidden;border:2px solid var(--arcade-outline);border-radius:3px;background:var(--gold);box-shadow:5px 6px 0 var(--button-shadow);transition:transform .13s,box-shadow .13s}
+.action-primary:before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 35%,#fff9 45%,transparent 55%);transform:translateX(-140%);animation:arcade-shine 6s ease-in-out 2s infinite;pointer-events:none}
+.action-primary b{font-weight:950;letter-spacing:1px}.action-primary small{font-weight:700}.action-primary>svg{animation:arcade-arrow 2.5s ease-in-out infinite}.play-pixel{color:var(--arcade-red);text-shadow:2px 2px 0 #242947}
+.action-primary:hover{transform:translateY(-3px);box-shadow:5px 9px 0 var(--button-shadow)}.action-primary:active{transform:translate(4px,5px);box-shadow:1px 1px 0 var(--button-shadow)}
+.action-secondary{border:2px solid var(--arcade-outline);box-shadow:4px 5px 0 var(--button-shadow);font-weight:800}.action-secondary:active{transform:translate(3px,4px);box-shadow:1px 1px 0 var(--button-shadow)}
+.drawer-header{background:var(--gold);border-bottom:2px solid var(--arcade-outline)}.drawer-header small{color:#535036;font-weight:800;letter-spacing:2px}.drawer-header h2{font-weight:950}
+.drawer-header .icon-button{background:var(--surface);border:1px solid var(--arcade-outline)}
+.small-button.gold,.j-button.primary{background:var(--gold);border:2px solid var(--arcade-outline);box-shadow:3px 4px 0 var(--button-shadow);font-weight:850;transition:transform .12s,box-shadow .12s}.small-button.gold:active,.j-button.primary:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--button-shadow)}
+.j-task-title{font-weight:950}.j-kit{border-color:var(--arcade-outline);background:var(--surface2)}.j-kit-toggle{font-weight:800}.j-chapter-progress .approved>span{background:var(--mint)}
+.j-reward-seal{background:var(--gold);color:var(--arcade-outline);border:2px solid var(--arcade-outline);box-shadow:4px 4px 0 var(--arcade-red);animation:arcade-stamp .45s cubic-bezier(.2,1.5,.3,1) both}.j-earned-xp{color:#16775d;font-weight:950}.j-reward-screen h3{font-weight:950}
+.copilot-dock form{border:2px solid var(--arcade-outline);box-shadow:3px 4px 0 var(--button-shadow)}.copilot-dock form:focus-within{outline:3px solid var(--mint);outline-offset:2px}.copilot-dock button[type=submit]:not(:disabled){background:var(--gold)}
+.toast{border:2px solid var(--arcade-outline);box-shadow:4px 4px 0 var(--arcade-outline);font-weight:800}
+.arcade-effects{position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden}.arcade-particle{position:absolute;width:9px;height:9px;background:var(--particle-color);border:1px solid #242947;animation:arcade-burst .85s cubic-bezier(.12,.6,.4,1) forwards;will-change:transform,opacity}
+.arcade-press{animation:arcade-press .22s ease-out}.arcade-launch .play-pixel{animation:arcade-launch .32s ease-out}
+@keyframes arcade-shine{0%,70%{transform:translateX(-140%)}100%{transform:translateX(140%)}}
+@keyframes arcade-arrow{0%,65%,100%{transform:translateX(0)}78%{transform:translateX(4px)}90%{transform:translateX(1px)}}
+@keyframes arcade-stamp{from{transform:scale(1.35) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+@keyframes arcade-burst{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--spin));opacity:0}}
+@keyframes arcade-press{50%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes arcade-launch{50%{transform:translateX(6px) scale(1.15)}}
+@media(max-width:700px){.brand-cn{font-size:34px;text-shadow:2px 2px 0 #252947,3px 3px 0 #f44b3c}.player-card{border-top-width:5px}.main-actions{gap:10px}.action-primary b{font-size:20px;letter-spacing:0}.action-primary{box-shadow:3px 4px 0 var(--button-shadow)}.drawer-header{padding-top:16px;padding-bottom:14px}.arcade-particle{width:7px;height:7px}}
+@media(prefers-reduced-motion:reduce){.action-primary:before,.action-primary>svg,.j-reward-seal,.arcade-particle,.arcade-press,.arcade-launch .play-pixel{animation:none}.arcade-effects{display:none}.xp-track i,.action-primary,.shortcut>svg,.small-button.gold,.j-button.primary{transition:none}.action-primary:hover{transform:none}}
