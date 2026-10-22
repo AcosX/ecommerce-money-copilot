@@ -205,10 +205,10 @@
     // 底部操作入口：打开 3D 副驾控制台 (#cpFab) 与 真实经营核验工作台 ([data-emc-gate="真实经营"])
     var actions = make('div', 'emc-avatar-actions');
     if (!doc.getElementById('cpFab')) {
-      var fab = make('button', 'emc-avatar-fab', '🤖 3D 副驾舱');
+      var fab = make('button', 'emc-avatar-fab', '和小商聊聊');
       fab.type = 'button';
       fab.id = 'cpFab';
-      fab.setAttribute('aria-label', '打开 AI 副驾');
+      fab.setAttribute('aria-label', '和小商聊天');
       fab.addEventListener('click', function () {
         toggleCopilotPanel();
       });
@@ -240,81 +240,27 @@
   }
 
   function ensureCopilotPanelDom() {
-    var cpPanel = doc.getElementById('cpPanel');
-    var cpBody = doc.getElementById('cpBody');
-    var cpInput = doc.getElementById('cpInput');
+    els.cpPanel = doc.querySelector('.copilot-dock');
+    els.cpBody = doc.getElementById('socialMessages');
+    els.cpInput = doc.getElementById('copilotInput');
+  }
 
-    if (!cpPanel) {
-      cpPanel = make('aside', 'emc-cp-panel');
-      cpPanel.id = 'cpPanel';
-      cpPanel.setAttribute('aria-label', '向导小商 3D 副驾控制台');
-
-      var head = make('div', 'emc-cp-head');
-      head.appendChild(make('span', '', '🤖 向导·小商 3D 具身副驾'));
-      var closeBtn = make('button', 'emc-cp-close', '×');
-      closeBtn.type = 'button';
-      closeBtn.setAttribute('aria-label', '关闭 AI 副驾');
-      closeBtn.addEventListener('click', function () {
-        closeCopilotPanel();
-      });
-      head.appendChild(closeBtn);
-      cpPanel.appendChild(head);
-
-      cpBody = make('div', 'emc-cp-body');
-      cpBody.id = 'cpBody';
-      var welcome = make(
-        'div',
-        'emc-cp-msg',
-        '店主你好！我是你的 3D 具身副驾「小商」。支持切换 3D 形象、握手魔珐星云实时流，或直接输入拿货价/售价为你推演四维选品 ROI。'
-      );
-      cpBody.appendChild(welcome);
-      cpPanel.appendChild(cpBody);
-
-      var inputWrap = make('div', 'cp-input');
-      cpInput = doc.createElement('input');
-      cpInput.id = 'cpInput';
-      cpInput.type = 'text';
-      cpInput.maxLength = 240;
-      cpInput.placeholder = '输入选品算账或六关实操问题…';
-      cpInput.setAttribute('aria-label', '向小商提问');
-
-      var sendBtn = make('button', '', '发送');
-      sendBtn.type = 'button';
-      function submitQuestion() {
-        var q = (cpInput.value || '').trim();
-        if (!q) return;
-        cpInput.value = '';
-        var uMsg = make('div', 'emc-cp-msg user', q);
-        cpBody.appendChild(uMsg);
-        cpBody.scrollTop = cpBody.scrollHeight;
-        requestBackendChat(q);
-      }
-      sendBtn.addEventListener('click', submitQuestion);
-      cpInput.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          submitQuestion();
-        }
-      });
-
-      inputWrap.appendChild(cpInput);
-      inputWrap.appendChild(sendBtn);
-      cpPanel.appendChild(inputWrap);
-
-      var hostEl = doc.querySelector('.game-shell') || doc.querySelector('.app') || doc.body;
-      hostEl.appendChild(cpPanel);
+  function dispatchChat(message, autoSend) {
+    if (typeof global.EmcOpenCompanionChat === 'function') {
+      return global.EmcOpenCompanionChat(message, {send: autoSend !== false});
     }
-
-    els.cpPanel = cpPanel;
-    els.cpBody = cpBody;
-    els.cpInput = cpInput;
+    var input = doc.getElementById('copilotInput');
+    var form = doc.getElementById('copilotForm');
+    if (!input || !form) return false;
+    input.value = String(message || '').slice(0, 240);
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+    if (autoSend !== false) form.requestSubmit();
+    return true;
   }
 
   function buildCopilotDeckDom() {
     ensureCopilotPanelDom();
-    var cpPanel = els.cpPanel;
-    var cpBody = els.cpBody;
-    if (!cpPanel || !cpBody || els.deck) return;
+    if (!els.stage || els.deck) return;
 
     var deck = make('div', 'emc-agent-deck');
     deck.id = 'emcAvatarDeck';
@@ -395,18 +341,20 @@
       var qb = make('button', 'emc-agent-mini-btn', qp.label);
       qb.type = 'button';
       qb.addEventListener('click', function () {
-        if (els.cpBody) {
-          var uMsg = make('div', 'emc-cp-msg user', qp.q);
-          els.cpBody.appendChild(uMsg);
-          els.cpBody.scrollTop = els.cpBody.scrollHeight;
-        }
-        requestBackendChat(qp.q, { saveAsDraft: qp.draft });
+        // A suggested draft must be confirmed within the single game conversation.
+        dispatchChat(qp.draft ? '先跟我讨论本关草稿，确认后再保存。' : qp.q, true);
       });
       quickRow.appendChild(qb);
     });
     deck.appendChild(quickRow);
 
-    cpPanel.insertBefore(deck, cpBody);
+    // Configuration only; the primary #copilotForm is the single chat surface.
+    var advanced = make('details', 'emc-avatar-config');
+    advanced.id = 'emcAvatarConfig';
+    var caption = make('summary', '', '3D 形象与语音设置');
+    advanced.appendChild(caption);
+    advanced.appendChild(deck);
+    els.stage.appendChild(advanced);
     els.deck = deck;
     els.presetSelect = select;
     els.rtcBtn = rtcBtn;
@@ -414,25 +362,25 @@
   }
 
   function openCopilotPanel() {
-    buildCopilotDeckDom();
-    if (els.cpPanel) els.cpPanel.classList.add('open');
+    if (typeof global.EmcOpenCompanionChat === 'function') {
+      global.EmcOpenCompanionChat();
+    } else {
+      var input=doc.getElementById('copilotInput');
+      if (input) input.focus();
+      var dock=doc.querySelector('.copilot-dock');
+      if (dock && global.innerWidth<=700) dock.classList.add('mobile-chat-open');
+    }
     if (els.stage) els.stage.classList.add('panel-open');
     setPose('interactive');
   }
 
   function closeCopilotPanel() {
-    if (els.cpPanel) els.cpPanel.classList.remove('open');
+    var dock=doc.querySelector('.copilot-dock');
+    if (dock && global.innerWidth<=700) dock.classList.remove('mobile-chat-open');
     if (els.stage) els.stage.classList.remove('panel-open');
   }
 
-  function toggleCopilotPanel() {
-    buildCopilotDeckDom();
-    if (els.cpPanel && els.cpPanel.classList.contains('open')) {
-      closeCopilotPanel();
-    } else {
-      openCopilotPanel();
-    }
-  }
+  function toggleCopilotPanel() { openCopilotPanel(); }
 
   async function openFormalWorkbench(gateName) {
     if (global.EmcSession && typeof global.EmcSession.isLoggedIn === 'function' && !global.EmcSession.isLoggedIn()) {
@@ -906,65 +854,9 @@
     };
   }
 
-  async function requestBackendChat(question, opts) {
-    opts = opts || {};
-    setPose('think');
-    try {
-      var headers = { 'Content-Type': 'application/json' };
-      if (global.EmcSession) {
-        var me = typeof global.EmcSession.current === 'function' ? global.EmcSession.current() : null;
-        if (!me && typeof global.EmcSession.getMe === 'function') {
-          try { me = await global.EmcSession.getMe(); } catch (_) {}
-        }
-        if (me && me.csrf_token) headers['X-CSRF-Token'] = me.csrf_token;
-      }
-      var payloadStr = JSON.stringify({
-        message: question,
-        level_id: currentLevelCode(),
-        current_level: currentLevelCode(),
-        current_view: currentViewName(),
-        mood: (global.state && typeof global.state.mood === 'number') ? global.state.mood : 0,
-        preset_id: agentState.presetId,
-        save_as_draft: Boolean(opts.saveAsDraft)
-      });
-      var res = await global.fetch('/api/agent/chat', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: headers,
-        body: payloadStr
-      });
-      if (res.status === 403 && global.EmcSession && typeof global.EmcSession.getMe === 'function') {
-        var freshMe = await global.EmcSession.getMe({ force: true });
-        if (freshMe && freshMe.csrf_token) {
-          headers['X-CSRF-Token'] = freshMe.csrf_token;
-        } else {
-          delete headers['X-CSRF-Token'];
-        }
-        res = await global.fetch('/api/agent/chat', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: headers,
-          body: payloadStr
-        });
-      }
-      if (!res.ok) {
-        var fallback = buildLocalFallbackResponse(question);
-        speakText(fallback.reply, fallback.emotion);
-        appendAgentCard(fallback);
-        return fallback;
-      }
-      var data = await res.json();
-      agentState.lastToolCalls = data.tool_calls || data.tool_traces || [];
-      agentState.lastRoi = data.roi_calculation || null;
-      speakText(data.reply || '', data.emotion || 'happy');
-      appendAgentCard(data);
-      return data;
-    } catch (e) {
-      var offlineData = buildLocalFallbackResponse(question);
-      speakText(offlineData.reply, offlineData.emotion);
-      appendAgentCard(offlineData);
-      return offlineData;
-    }
+  async function requestBackendChat(question) {
+    if (dispatchChat(String(question || ''), true)) return {delegated:true};
+    throw new Error('伙伴聊天窗口尚未就绪');
   }
 
   async function runDeliverablePreReview(submissionId, containerEl) {
@@ -1003,64 +895,12 @@
   }
 
   function hookCopilotFunctions() {
-    var origSay = global.copilotSay;
-    if (typeof origSay === 'function' && !origSay._emcWrapped) {
-      var wrappedSay = function (text, kind) {
-        origSay(text, kind);
-        speakText(text, kind || 'happy');
-      };
-      wrappedSay._emcWrapped = true;
-      global.copilotSay = wrappedSay;
-    }
-
-    var origHandleAI = global.handleAI;
-    if (typeof origHandleAI === 'function' && !origHandleAI._emcWrapped) {
-      var wrappedHandleAI = function (q) {
-        origHandleAI(q);
-        requestBackendChat(q);
-      };
-      wrappedHandleAI._emcWrapped = true;
-      global.handleAI = wrappedHandleAI;
-    }
-
-    var origOpen = global.openCopilot;
-    if (typeof origOpen === 'function' && !origOpen._emcWrapped) {
-      var wrappedOpen = function () {
-        buildCopilotDeckDom();
-        origOpen();
-        if (els.stage) els.stage.classList.add('panel-open');
-        setPose('interactive');
-      };
-      wrappedOpen._emcWrapped = true;
-      global.openCopilot = wrappedOpen;
-    } else if (typeof global.openCopilot !== 'function') {
-      global.openCopilot = openCopilotPanel;
-    }
-
-    var origClose = global.closeCopilot;
-    if (typeof origClose === 'function' && !origClose._emcWrapped) {
-      var wrappedClose = function () {
-        origClose();
-        if (els.stage) els.stage.classList.remove('panel-open');
-      };
-      wrappedClose._emcWrapped = true;
-      global.closeCopilot = wrappedClose;
-    } else if (typeof global.closeCopilot !== 'function') {
-      global.closeCopilot = closeCopilotPanel;
-    }
-
-    // 与浮岛版 #copilotForm 联动动作表情（不篡改 EmcCopilotTransport 默认契约）
-    var dockForm = doc.getElementById('copilotForm');
-    var dockInput = doc.getElementById('copilotInput');
-    if (dockForm && !dockForm._emcAvatarBound) {
-      dockForm._emcAvatarBound = true;
-      dockForm.addEventListener('submit', function () {
-        var msg = dockInput && dockInput.value ? dockInput.value.trim() : '';
-        if (msg) {
-          speakText('正在结合小店进度为你分析：' + msg, 'think', 1800);
-        }
-      }, true);
-    }
+    // Only the primary island chat calls /api/agent/chat; avatar observes its reply.
+    global.addEventListener('emc:companion-reply', function (event) {
+      var answer=String(event.detail?.text || '').trim();
+      if (answer) speakText(answer, 'happy');
+    });
+    global.addEventListener('emc:companion-thinking', function () { setPose('think'); });
   }
 
   function start() {
