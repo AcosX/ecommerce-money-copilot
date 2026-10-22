@@ -214,9 +214,9 @@
     }
   },
   "island": {
-    "model_url": "assets/models/island-web.glb",
+    "model_url": "assets/models/island-flat-v2-web.glb",
     "rotation_y": -1.5707963267948966,
-    "surface_ratio": 0.9,
+    "surface_ratio": 1,
     "generation": {
       "provider": "Tripo",
       "model": "v3.1-20260211",
@@ -231,19 +231,18 @@
     },
     "preview_url": "assets/models/previews/island-detail.webp",
     "delivery": {
-      "bytes": 3373020,
-      "original_bytes": 9958316,
+      "bytes": 1508260,
+      "triangles": 17398,
       "texture_max_dimension": 2048,
       "texture_format": "webp",
-      "geometry_sha256": "13bac261429e7e175d0b3e184d0a755a27d50ac8b5295c40e293d22a3964c7a9"
+      "refinement": "planar ground cap, preserved cliff",
+      "ground_height": 0.57948333025
     },
     "lite": {
-      "model_url": "assets/models/island-lite.glb",
-      "bytes": 1126184,
-      "triangles": 29862,
-      "original_triangles": 46958,
-      "texture_max_dimension": 1024,
-      "simplification_error": 0.001
+      "model_url": "assets/models/island-flat-v2-lite.glb",
+      "bytes": 739768,
+      "triangles": 12670,
+      "texture_max_dimension": 1024
     }
   }
 }
