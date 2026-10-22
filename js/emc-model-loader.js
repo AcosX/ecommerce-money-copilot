@@ -30,10 +30,10 @@ async function download(url,signal,onProgress){
     }catch(error){if(signal.aborted||attempt||error.status&&error.status<500)throw error;onProgress?.({loaded:0,total:0,retrying:true});}
   }
 }
-export function loadSceneManifest(signal){return bounded(async active=>{const data=await download(new URL('assets/models/manifest.json?v=20261022-sign7',ROOT),active);try{return JSON.parse(new TextDecoder().decode(data));}catch(_){throw new Error('模型清单格式错误，请刷新后重试');}},signal);}
-export function loadTexturedModel(path,{signal,onProgress}={}){
+export function loadSceneManifest(signal){return bounded(async active=>{const data=await download(new URL('assets/models/manifest.json?v=20261022-roof8',ROOT),active);try{return JSON.parse(new TextDecoder().decode(data));}catch(_){throw new Error('模型清单格式错误，请刷新后重试');}},signal);}
+export function loadTexturedModel(path,{signal,onProgress,revision}={}){
   return bounded(async active=>{
-    const url=new URL(path,ROOT),data=await download(url,active,onProgress);active.throwIfAborted();
+    const url=new URL(path,ROOT);if(revision)url.searchParams.set('v',revision);const data=await download(url,active,onProgress);active.throwIfAborted();
     if(data.byteLength<20||new DataView(data).getUint32(0,true)!==0x46546c67)throw new Error('模型文件不完整或被服务器替换，请重试');
     onProgress?.({decoding:true});
     const manager=new THREE.LoadingManager();let imageFailed=false;manager.onError=()=>{imageFailed=true;};
