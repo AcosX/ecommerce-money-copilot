@@ -1788,6 +1788,49 @@
             ],
             "title": "Level Id"
           },
+          "current_level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Level"
+          },
+          "current_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current View"
+          },
+          "mood": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mood"
+          },
+          "save_as_draft": {
+            "type": "boolean",
+            "title": "Save As Draft",
+            "default": false
+          },
           "preset_id": {
             "anyOf": [
               {
@@ -1825,7 +1868,6 @@
             "title": "Client Context"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "message"

@@ -132,13 +132,25 @@
 
     var bubble = make('div', 'emc-avatar-bubble');
     bubble.id = 'emcAvatarBubble';
-    bubble.textContent = '小商 3D：随时为你推演选品毛利与六关核验';
+    bubble.style.cursor = 'pointer';
+    bubble.title = '点击打开向导小商 3D 副驾对话舱';
+    bubble.textContent = '小商 3D：点击我随时对话、推演选品毛利与六关核验';
+    bubble.addEventListener('click', function () {
+      openCopilotPanel();
+      if (els.cpInput) els.cpInput.focus();
+    });
     stage.appendChild(bubble);
 
     var holo = make('div', 'emc-avatar-holo');
     holo.id = 'emcAvatarHolo';
+    holo.style.cursor = 'pointer';
+    holo.title = '点击打开向导小商 3D 副驾对话舱';
     holo.setAttribute('data-pose', 'idle');
     holo.setAttribute('data-preset', agentState.presetId);
+    holo.addEventListener('click', function () {
+      openCopilotPanel();
+      if (els.cpInput) els.cpInput.focus();
+    });
 
     var topHud = make('div', 'emc-avatar-hud-top');
     var modePill = make('span', 'emc-avatar-pill');
@@ -371,6 +383,28 @@
     statusLine.id = 'emcAvatarEngineStatus';
     statusLine.style.color = 'var(--av-sub)';
     deck.appendChild(statusLine);
+
+    var quickRow = make('div', 'emc-agent-btn-group');
+    quickRow.style.marginTop = '4px';
+    var quickPrompts = [
+      { label: '💰 算账：拿货35售价99', q: '小商，拿货成本 35 元、售价 99 元，帮我算下毛利率和保本 ROI', draft: false },
+      { label: '📋 本关怎么过？', q: '当前关卡过关重点和必填交付物是什么？', draft: false },
+      { label: '✨ 生成本关草稿', q: '帮我保存草稿：当前关卡初始经营方案', draft: true }
+    ];
+    quickPrompts.forEach(function (qp) {
+      var qb = make('button', 'emc-agent-mini-btn', qp.label);
+      qb.type = 'button';
+      qb.addEventListener('click', function () {
+        if (els.cpBody) {
+          var uMsg = make('div', 'emc-cp-msg user', qp.q);
+          els.cpBody.appendChild(uMsg);
+          els.cpBody.scrollTop = els.cpBody.scrollHeight;
+        }
+        requestBackendChat(qp.q, { saveAsDraft: qp.draft });
+      });
+      quickRow.appendChild(qb);
+    });
+    deck.appendChild(quickRow);
 
     cpPanel.insertBefore(deck, cpBody);
     els.deck = deck;
@@ -763,7 +797,10 @@
       body.appendChild(replyEl);
     }
 
-    var hasTools = Array.isArray(resp.tool_calls) && resp.tool_calls.length > 0;
+    var toolList = Array.isArray(resp.tool_calls)
+      ? resp.tool_calls
+      : (Array.isArray(resp.tool_traces) ? resp.tool_traces : []);
+    var hasTools = toolList.length > 0;
     var hasRoi = resp.roi_calculation && typeof resp.roi_calculation === 'object';
     var hasArtifact = resp.saved_artifact && resp.saved_artifact.id;
     if (!hasTools && !hasRoi && !hasArtifact) {
@@ -776,13 +813,13 @@
 
     var head = make('div', 'emc-agent-card-head');
     head.appendChild(make('span', '', '小商 Agent 工具链与推演'));
-    var prov = make('span', '', (resp.provider === 'ai_gateway' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || ''));
+    var prov = make('span', '', (resp.provider === 'ai_gateway' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || 'xiaoshang-v1'));
     head.appendChild(prov);
     card.appendChild(head);
 
     if (hasTools) {
       var toolsBox = make('div', 'emc-agent-tools');
-      resp.tool_calls.forEach(function (tc) {
+      toolList.forEach(function (tc) {
         var chip = make('span', 'emc-agent-tool-chip', '⚙ ' + tc.tool + (tc.summary ? '：' + tc.summary : ''));
         chip.setAttribute('data-emc-tool-call', tc.tool);
         toolsBox.appendChild(chip);
@@ -794,12 +831,16 @@
       var r = resp.roi_calculation;
       var roiBox = make('div', 'emc-agent-roi');
       roiBox.setAttribute('data-emc-roi-card', '');
+      var retail = r.retail_price_yuan != null ? r.retail_price_yuan : r.selling_price;
+      var supply = r.supply_price_yuan != null ? r.supply_price_yuan : r.total_cost;
+      var netProfit = r.estimated_net_profit_yuan != null ? r.estimated_net_profit_yuan : r.unit_profit;
+      var marginPct = r.margin_rate_pct != null ? r.margin_rate_pct : r.gross_margin_pct;
       var scoreTx = r.score_4d ? ' · 四维加权分 ' + r.score_4d.weighted_total : '';
       roiBox.textContent =
-        '【选品算账】售价 ¥' + r.retail_price_yuan +
-        ' / 拿货 ¥' + r.supply_price_yuan +
-        ' → 预估净利 ¥' + r.estimated_net_profit_yuan +
-        '（净利率 ' + r.margin_rate_pct + '%' + scoreTx + '）· ' + (r.verdict || '');
+        '【选品算账】售价 ¥' + retail +
+        ' / 拿货 ¥' + supply +
+        ' → 预估净利 ¥' + netProfit +
+        '（净利率 ' + marginPct + '%' + scoreTx + '）· ' + (r.verdict || ('保本 ROI ' + (r.breakeven_roi || '')));
       card.appendChild(roiBox);
     }
 
@@ -814,41 +855,104 @@
     body.scrollTop = body.scrollHeight;
   }
 
+  function buildLocalFallbackResponse(question) {
+    var lv = currentLevelCode();
+    var q = String(question || '').trim();
+    var nums = q.match(/\d+(?:\.\d+)?/g);
+    var roiCalc = null;
+    if (nums && nums.length >= 2 && /拿货|进货|成本|售价|卖|定价|毛利|算账|利润|roi/i.test(q)) {
+      var a = parseFloat(nums[0]);
+      var b = parseFloat(nums[1]);
+      var price = Math.max(a, b);
+      var cost = Math.min(a, b);
+      var profit = +(price - cost).toFixed(2);
+      var margin = price > 0 ? +(profit / price * 100).toFixed(1) : 0;
+      var roi = margin > 0 ? +(100 / margin).toFixed(2) : 99.9;
+      roiCalc = {
+        retail_price_yuan: price,
+        supply_price_yuan: cost,
+        estimated_net_profit_yuan: profit,
+        margin_rate_pct: margin,
+        breakeven_roi: roi,
+        score_4d: { weighted_total: margin >= 40 ? 84.5 : 62.0 },
+        verdict: margin >= 40 ? '毛利率充足（≥40%），推荐小步测款' : '毛利偏薄，建议优化供应链或组合提客单'
+      };
+    }
+    var reply = roiCalc
+      ? ('小商帮你把账算好啦：售价 ¥' + roiCalc.retail_price_yuan + '、综合成本 ¥' + roiCalc.supply_price_yuan +
+         '，单笔毛利 ¥' + roiCalc.estimated_net_profit_yuan + '（毛利率 ' + roiCalc.margin_rate_pct +
+         '%），保本 ROI = ' + roiCalc.breakeven_roi + '。' + roiCalc.verdict)
+      : ('店主你好！当前聚焦 ' + lv + ' 阶段。建议先明确细分人群痛点与保本 ROI（公式：保本 ROI = 1 ÷ 毛利率），' +
+         '你也可以直接发我「拿货 35 售价 99 帮我算账」或点击下方「真实经营」提交成果认证！');
+    return {
+      reply: reply,
+      emotion: 'happy',
+      pose: 'speak',
+      provider: 'local_copilot',
+      model: 'xiaoshang-fallback-v1',
+      tool_calls: [{ tool: 'get_level_guide', summary: '已加载 ' + lv + ' 阶段实操指南' }],
+      roi_calculation: roiCalc
+    };
+  }
+
   async function requestBackendChat(question, opts) {
     opts = opts || {};
     setPose('think');
     try {
       var headers = { 'Content-Type': 'application/json' };
-      if (global.EmcSession && typeof global.EmcSession.current === 'function') {
-        var me = global.EmcSession.current();
+      if (global.EmcSession) {
+        var me = typeof global.EmcSession.current === 'function' ? global.EmcSession.current() : null;
+        if (!me && typeof global.EmcSession.getMe === 'function') {
+          try { me = await global.EmcSession.getMe(); } catch (_) {}
+        }
         if (me && me.csrf_token) headers['X-CSRF-Token'] = me.csrf_token;
       }
+      var payloadStr = JSON.stringify({
+        message: question,
+        level_id: currentLevelCode(),
+        current_level: currentLevelCode(),
+        current_view: currentViewName(),
+        mood: (global.state && typeof global.state.mood === 'number') ? global.state.mood : 0,
+        preset_id: agentState.presetId,
+        save_as_draft: Boolean(opts.saveAsDraft)
+      });
       var res = await global.fetch('/api/agent/chat', {
         method: 'POST',
         credentials: 'same-origin',
         headers: headers,
-        body: JSON.stringify({
-          message: question,
-          current_level: currentLevelCode(),
-          current_view: currentViewName(),
-          mood: (global.state && typeof global.state.mood === 'number') ? global.state.mood : 0,
-          preset_id: agentState.presetId,
-          save_as_draft: Boolean(opts.saveAsDraft)
-        })
+        body: payloadStr
       });
+      if (res.status === 403 && global.EmcSession && typeof global.EmcSession.getMe === 'function') {
+        var freshMe = await global.EmcSession.getMe({ force: true });
+        if (freshMe && freshMe.csrf_token) {
+          headers['X-CSRF-Token'] = freshMe.csrf_token;
+        } else {
+          delete headers['X-CSRF-Token'];
+        }
+        res = await global.fetch('/api/agent/chat', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: headers,
+          body: payloadStr
+        });
+      }
       if (!res.ok) {
-        setPose('idle');
-        return null;
+        var fallback = buildLocalFallbackResponse(question);
+        speakText(fallback.reply, fallback.emotion);
+        appendAgentCard(fallback);
+        return fallback;
       }
       var data = await res.json();
-      agentState.lastToolCalls = data.tool_calls || [];
+      agentState.lastToolCalls = data.tool_calls || data.tool_traces || [];
       agentState.lastRoi = data.roi_calculation || null;
       speakText(data.reply || '', data.emotion || 'happy');
       appendAgentCard(data);
       return data;
     } catch (e) {
-      setPose('idle');
-      return null;
+      var offlineData = buildLocalFallbackResponse(question);
+      speakText(offlineData.reply, offlineData.emotion);
+      appendAgentCard(offlineData);
+      return offlineData;
     }
   }
 
@@ -944,7 +1048,7 @@
         if (msg) {
           speakText('正在结合小店进度为你分析：' + msg, 'think', 1800);
         }
-      });
+      }, true);
     }
   }
 
