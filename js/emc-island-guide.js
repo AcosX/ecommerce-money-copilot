@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {loadTexturedModel} from './emc-model-loader.js?v=20261022-perf1';
-import {createCharacterMotion} from './emc-character-motion.js?v=20261022-gait1';
+import {createCharacterMotion} from './emc-character-motion.js?v=20261022-gait2';
 import {createCharacterFace} from './emc-character-face.js?v=20261022-character12';
 import {createCharacterProps} from './emc-character-props.js?v=20261022-character12';
 
