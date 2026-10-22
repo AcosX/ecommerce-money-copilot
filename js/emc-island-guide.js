@@ -1,56 +1,102 @@
 import * as THREE from 'three';
-import {batchDecoration} from './emc-model-performance.js';
+import {loadTexturedModel} from './emc-model-loader.js?v=20261022-perf1';
+import {createCharacterMotion} from './emc-character-motion.js?v=20261022-character12';
+import {createCharacterFace} from './emc-character-face.js?v=20261022-character12';
+import {createCharacterProps} from './emc-character-props.js?v=20261022-character12';
 
-// 岛屿向导：沿建筑外侧巡游；投影与射线遮挡使用同一份三维坐标。
+// One actor in the shared island scene. Navigation uses +Z forward; the reviewed
+// GLB uses +X, so only the visual child is rotated. UI and occlusion share root.
 export class IslandGuide{
   constructor(scene){
-    this.host=scene;this.root=new THREE.Group();scene.root.add(this.root);
-    const body=new THREE.Group();this.root.add(body);
-    const box=(size,pos,mat,parent=body)=>scene.box(parent,size,pos,mat);
-    const navy=scene.mat('#30466a'),skin=scene.mat('#e5bb8b'),cream=scene.mat('#eddfbb'),mint=scene.mat('#709d85'),gold=scene.mat('#dfb84e'),dark=scene.mat('#263344');
-    box([.34,.39,.23],[0,.53,0],cream);box([.36,.23,.25],[0,.58,0],mint);box([.04,.25,.025],[0,.59,.14],navy);
-    box([.33,.31,.28],[0,.89,0],skin);box([.36,.10,.31],[0,1.06,0],navy);box([.39,.045,.14],[0,1.015,.17],navy);box([.08,.055,.015],[0,1.07,.16],gold);
-    for(const x of [-.085,.085])box([.035,.045,.015],[x,.91,.15],dark);
-    box([.055,.025,.035],[0,.85,.15],skin);box([.07,.015,.015],[0,.805,.15],navy);
-    box([.16,.20,.14],[.23,.44,.05],gold);box([.025,.35,.025],[.18,.66,.15],gold);
-    this.legs=[];this.arms=[];
-    for(const side of [-1,1]){
-      const leg=new THREE.Group();leg.position.set(side*.095,.36,0);this.root.add(leg);box([.115,.26,.13],[0,-.13,0],navy,leg);box([.13,.075,.20],[0,-.29,.035],dark,leg);this.legs.push(leg);
-      const arm=new THREE.Group();arm.position.set(side*.235,.71,0);this.root.add(arm);box([.12,.21,.15],[0,-.10,0],mint,arm);box([.10,.10,.13],[0,-.25,0],skin,arm);this.arms.push(arm);
-    }
-    this.letter=new THREE.Group();this.arms[1].add(this.letter);this.letter.position.set(0,-.29,.09);box([.40,.25,.025],[0,0,0],scene.mat('#ffe7a1'),this.letter);box([.07,.07,.035],[0,0,.025],scene.mat('#dc674c'),this.letter);this.letter.visible=false;this.holdingLetter=false;this.letterPose=0;
-    batchDecoration(body);
-    this.route=[[-2.8,3.0],[2.8,3.0],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];this.index=1;this.root.position.set(-2.8,0,3);this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.ray=new THREE.Raycaster();this.ray.firstHitOnly=true;this.root.rotation.y=Math.PI/2;this.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
+    this.host=scene;this.root=new THREE.Group();this.root.name='Xiaoshang_Island';scene.root.add(this.root);
+    this.visual=new THREE.Group();this.visual.rotation.y=-Math.PI/2;this.visual.scale.setScalar(.78);this.root.add(this.visual);
+    this.route=[[-2.8,3],[2.8,3],[3.1,0],[2.8,-2.8],[-2.8,-2.8],[-3.1,0]];
+    this.index=1;this.direction=1;this.root.position.set(-2.8,0,3);this.root.rotation.y=Math.PI/2;
+    this.elapsed=0;this.pause=1.5;this.checkAt=0;this.groundAt=0;this.talking=false;this.holdingLetter=false;this.letterSettling=false;this.speechRemaining=0;
+    this.ray=new THREE.Raycaster();this.ray.firstHitOnly=true;this.profile=scene.quality.lite?'lite':'web';this.loaded=false;this.disposed=false;this.behavior='loading';this.ready=this.load();
   }
-  setHoldingLetter(value){this.holdingLetter=!!value;this.letter.visible=!!value;}
-  setTalking(value){if(value&&!this.status(true).visible)return false;this.talking=!!value;return true;}
+  async load(){
+    const url=`assets/models/characters/xiaoshang-animated-v1-${this.profile}.glb?v=island-v12`;
+    const model=await loadTexturedModel(url,{signal:this.host.loadController.signal,onProgress:p=>this.host.options.onLoadProgress?.({phase:'character',...p})});
+    if(this.disposed||this.host.disposed){disposeModel(model.scene);return;}
+    try{
+      this.model=model.scene;this.visual.add(this.model);
+      this.motion=createCharacterMotion(this.model,model.animations);this.face=createCharacterFace(this.model);this.props=createCharacterProps(this.model);
+      this.face.setEmotion('friendly');this.face.update(0,{instant:true});
+      this.model.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;}});
+      this.root.position.y=this.host.surfaceHeight(this.root.position.x,this.root.position.z);this.loaded=true;this.behavior='idle';
+    }catch(error){this.dispose();throw error;}
+  }
+  faceCamera(){const camera=this.host.camera.position;this.root.rotation.y=Math.atan2(camera.x-this.root.position.x,camera.z-this.root.position.z);}
+  setHoldingLetter(value){
+    const next=!!value;if(next===this.holdingLetter)return;
+    this.holdingLetter=next;
+    if(next){this.talking=false;this.speechRemaining=0;this.letterSettling=false;this.faceCamera();this.motion?.play('letter',{fade:.22});this.face?.setEmotion('happy');}
+    else this.letterSettling=this.motion?.state().name==='letter';
+  }
+  setTalking(value){
+    if(value&&!this.status(true).visible)return false;
+    this.talking=!!value;if(value)this.faceCamera();else this.speechRemaining=0;
+    return true;
+  }
+  speak(text){this.speechText=String(text);this.speechRemaining=Math.min(8,Math.max(1,this.speechText.length*.09));this.speechAge=0;}
+  stopSpeaking(){this.speechRemaining=0;this.face?.setViseme('sil');}
+  play(name){if(this.motion?.state().name!==name)this.motion?.play(name);}
+  chooseRest(){
+    const nearest=[...this.host.items.values()].find(o=>o.position.distanceTo(this.root.position)<1.5);
+    const name=nearest?'inspect':this.root.position.z>2?'window':Math.random()<.5?'lookout':'turn';
+    this.behavior=nearest?'decoration':name;this.motion.play(name);this.pause=Math.max(2+Math.random()*3,this.motion.state().duration+.4);
+    if(nearest){const p=nearest.position;this.root.rotation.y=Math.atan2(p.x-this.root.position.x,p.z-this.root.position.z);}
+    else if(name==='window')this.root.rotation.y=Math.atan2(-this.root.position.x,-this.root.position.z);
+    else if(name==='lookout')this.root.rotation.y=Math.atan2(this.root.position.x,this.root.position.z);
+  }
   update(dt){
+    if(!this.loaded||this.disposed)return;
     this.elapsed+=dt;
-    let moving=false;
-    if(this.talking||this.holdingLetter){const camera=this.host.camera.position;this.root.rotation.y=Math.atan2(camera.x-this.root.position.x,camera.z-this.root.position.z);}
+    const state=this.motion.state();
+    if(this.letterSettling&&(state.name!=='letter'||state.time/state.duration>.86))this.letterSettling=false;
+    if(this.holdingLetter||this.letterSettling){this.faceCamera();this.behavior='letter';}
+    else if(this.talking){this.faceCamera();this.behavior=this.speechRemaining>0?'speaking':'listening';this.play(this.speechRemaining>0?'talk':'idle');}
     else if(this.pause>0)this.pause-=dt;
     else{
-      const [x,z]=this.route[this.index],dx=x-this.root.position.x,dz=z-this.root.position.z,length=Math.hypot(dx,dz),step=Math.min(length,dt*.46);
-      if(length<.035){this.index=(this.index+1)%this.route.length;this.pause=1.6;}
-      else{this.root.position.x+=dx/length*step;this.root.position.z+=dz/length*step;this.root.rotation.y=Math.atan2(dx,dz);moving=true;}
+      const [x,z]=this.route[this.index],dx=x-this.root.position.x,dz=z-this.root.position.z,length=Math.hypot(dx,dz),step=Math.min(length,dt*.32);
+      if(length<.035){
+        this.chooseRest();this.direction=Math.random()<.35?-this.direction:this.direction;
+        this.index=(this.index+this.direction+this.route.length)%this.route.length;
+      }else{
+        this.root.position.x+=dx/length*step;this.root.position.z+=dz/length*step;
+        const target=Math.atan2(dx,dz),difference=Math.atan2(Math.sin(target-this.root.rotation.y),Math.cos(target-this.root.rotation.y));this.root.rotation.y+=difference*(1-Math.exp(-dt*8));
+        this.play('walk');this.behavior='walking';
+      }
     }
-    const stride=moving?Math.sin(this.elapsed*8)*.40:0;this.legs.forEach((limb,i)=>limb.rotation.x=i?stride:-stride);this.letterPose=THREE.MathUtils.damp(this.letterPose,this.holdingLetter?1:0,12,dt);this.arms.forEach((limb,i)=>limb.rotation.x=i?THREE.MathUtils.lerp(-stride,-2.35,this.letterPose):stride);
-    if(this.elapsed>=this.groundAt){this.groundAt=this.elapsed+.15;this.root.position.y=this.host.surfaceHeight(this.root.position.x,this.root.position.z)-.02;}
-    const status=this.status();this.host.options.onNpcFrame?.(status);
+    this.motion.update(dt);
+    // Cancelled mail finishes its landing, but its prop disappears immediately.
+    this.props.update(this.motion.state().name==='letter'&&!this.holdingLetter?{name:'idle'}:this.motion.state());
+    this.speechAge=(this.speechAge||0)+dt;
+    if(this.speechRemaining>0){this.speechRemaining=Math.max(0,this.speechRemaining-dt);const cues=['aa','ih','sil','ee','oh','mbp'];this.face.setViseme(cues[Math.floor(this.speechAge/.13)%cues.length],.62);}
+    else this.face.setViseme('sil');
+    this.face.setEmotion(this.holdingLetter?'happy':this.talking?'friendly':'neutral');this.face.setProximity(Math.max(0,1-this.host.camera.position.distanceTo(this.root.position)/14));this.face.update(dt);
+    if(this.elapsed>=this.groundAt){this.groundAt=this.elapsed+.12;this.root.position.y=this.host.surfaceHeight(this.root.position.x,this.root.position.z);}
+    this.host.options.onNpcFrame?.(this.status());
+  }
+  letterScreen(){
+    const envelope=this.model?.getObjectByName('Xiaoshang_Envelope');if(!envelope?.visible)return null;this.root.updateMatrixWorld(true);const p=envelope.getWorldPosition(new THREE.Vector3()).project(this.host.camera),r=this.host.renderer.domElement.getBoundingClientRect();return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};
   }
   status(force=false){
-    const host=this.host,point=this.root.position.clone().add(new THREE.Vector3(0,1.15,0));host.camera.updateMatrixWorld();const projection=point.clone().project(host.camera),rect=host.renderer.domElement.getBoundingClientRect();
+    const host=this.host,point=this.root.position.clone().add(new THREE.Vector3(0,1.42,0));host.camera.updateMatrixWorld();const projection=point.clone().project(host.camera),rect=host.renderer.domElement.getBoundingClientRect();
     const screen={x:rect.left+(projection.x+1)*rect.width/2,y:rect.top+(1-projection.y)*rect.height/2};
     const onscreen=projection.z>-1&&projection.z<1&&screen.x>12&&screen.x<innerWidth-12&&screen.y>12&&screen.y<(window.visualViewport?.height||innerHeight)-12;
     if(force||this.elapsed>=this.checkAt){
       this.checkAt=this.elapsed+.12;this.occluded=false;
-      for(const height of [.25,.65,1.04]){
+      for(const height of [.30,.78,1.28]){
         const target=this.root.position.clone().add(new THREE.Vector3(0,height,0)),direction=target.clone().sub(host.camera.position),distance=direction.length();
         this.ray.set(host.camera.position,direction.normalize());this.ray.far=distance-.07;
         if(host.shopModel&&this.ray.intersectObjects([host.shopModel,...(host.signBoard?[host.signBoard]:[])],true).length){this.occluded=true;break;}
       }
       this.ray.far=Infinity;
     }
-    return {visible:!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,holding_letter:this.holdingLetter,position:this.root.position.toArray(),heading:this.root.rotation.y,screen};
+    return {visible:this.loaded&&!!host.presentable&&onscreen&&!this.occluded,occluded:!!this.occluded,onscreen,talking:this.talking,holding_letter:this.holdingLetter,position:this.root.position.toArray(),heading:this.root.rotation.y,screen,model:'xiaoshang-animated-v1',profile:this.profile,behavior:this.behavior,motion:this.motion?.state().name,morphs:this.face?.names.length||0,props:this.props?.state(),mouth:this.face?.state().viseme};
   }
+  dispose(){if(this.disposed)return;this.disposed=true;this.props?.dispose();this.motion?.dispose();this.root.removeFromParent();if(this.model)disposeModel(this.model);}
 }
+function disposeModel(root){const materials=new Set(),textures=new Set();root.traverse(o=>{o.geometry?.dispose();for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[])materials.add(m);});for(const m of materials){Object.values(m).forEach(v=>{if(v?.isTexture)textures.add(v);});m.dispose();}textures.forEach(t=>t.dispose());}
