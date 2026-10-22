@@ -22,6 +22,7 @@
  *   ACTIONS               -> 受限操作名称：REAL_OPS 真实经营 / FORMAL_SELECTION 生成正式选品单 / SUBMIT_VERIFICATION 提交认证
  *
  * 事件（document 上）：
+   *   emc:before-login cancelable，detail.proceed() 继续跳转；用于游戏伙伴设置，不改变认证参数
  *   emc:session-changed  detail {authenticated, me, status, reason}
  *   emc:login-required   cancelable，detail {action, reason: 'unauthenticated' | 'unavailable'}
  *
@@ -140,7 +141,11 @@
   }
 
   function login(returnTo) {
-    global.location.assign(loginUrl(returnTo));
+    var url = loginUrl(returnTo), proceeded = false;
+    function proceed() { if (!proceeded) { proceeded = true; global.location.assign(url); } }
+    // 游戏可在跳转统一认证前完成伙伴设置；没有监听者时保持原来的直接登录行为。
+    var event = new CustomEvent('emc:before-login', { cancelable: true, detail: { proceed: proceed } });
+    if (doc.dispatchEvent(event)) proceed();
   }
 
   function logout() {

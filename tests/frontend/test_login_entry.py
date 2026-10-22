@@ -39,6 +39,9 @@ def test_login_returns_to_current_panel(open_page, panel):
     page = goto(h)
     page.locator('[data-panel="' + panel + '"]').click()
     page.locator("#emcLoginBtn").click()
+    expect(page.locator("#confirmPartnerName")).to_be_visible()
+    page.locator("#partnerNameInput").fill("小满")
+    page.locator("#confirmPartnerName").click()
     page.wait_for_function("window.EmcSession?.isLoggedIn()")
     assert page.evaluate("JSON.parse(render_game_to_text()).panel") == panel
     expect(page.locator("#emcLogoutBtn")).to_be_visible()
@@ -61,6 +64,22 @@ def test_logout_keeps_tutorial_and_uses_csrf(open_page, state):
     assert calls[0]["csrf_ok"] and calls[0]["origin"] == h.base
     assert page.evaluate("document.cookie") == ""
     assert not page.evaluate("[...Object.keys(localStorage),...Object.keys(sessionStorage)].some(k=>/token|session|csrf/i.test(k))")
+
+
+def test_gated_login_can_name_partner_without_inert_overlay(open_page):
+    h = open_page()
+    page = goto(h)
+    page.evaluate("EmcSession.requireLogin('真实经营')")
+    expect(dialog(page)).to_be_visible()
+    page.locator("#emcPromptPrimary").click()
+    expect(dialog(page)).to_be_hidden()
+    expect(page.locator("#confirmPartnerName")).to_be_visible()
+    assert page.locator(".game-shell").get_attribute("inert") is None
+    page.locator("#partnerNameInput").fill("小麦")
+    page.locator("#confirmPartnerName").click()
+    page.wait_for_function("window.EmcSession?.isLoggedIn()")
+    assert page.evaluate("JSON.parse(render_game_to_text()).companion_name") == "小麦"
+    assert not h.urls("/api/artifacts")
 
 
 @pytest.mark.parametrize("action", ["真实经营", "生成正式选品单", "提交认证"])
@@ -163,6 +182,7 @@ def test_open_redirect_never_leaves_origin(open_page, evil):
     # 非法 return_to 回退为当前位置（本页路径），不携带恶意目标
     assert "evil" not in url and "return_to=%2F" in url
     page.evaluate("(p) => EmcSession.login(p)", evil)
+    page.locator("#confirmPartnerName").click()
     page.wait_for_url(lambda u: u.startswith(h.base))
     page.wait_for_function("window.EmcSession && EmcSession.isLoggedIn()")
     assert page.url.startswith(h.base)
