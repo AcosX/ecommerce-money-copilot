@@ -23,7 +23,7 @@
   function connectXingyunSession(presetId){
     if(agentState.connecting)return agentState.connecting;
     if(agentState.mode==='rtc')return Promise.resolve(agentState.sdk);
-    const generation=++agentState.generation;
+    const generation=++agentState.generation,connectionOwner=ownerKey();
     agentState.connecting=(async()=>{
       agentState.lastError=null;agentState.messages=[];els.connect.disabled=true;status('正在邀请数字人小商…');
       let sdk,timer;
@@ -35,7 +35,8 @@
         els.stage.hidden=false;els.stage.classList.add('connecting');els.screen.hidden=false;
         const grant=await global.EmcApi.post('/api/agent/xingyun/web-sessions',{});
         if(generation!==agentState.generation)return null;
-        agentState.grant={...grant,owner:ownerKey(),expiresAt:Date.now()+grant.expires_in*1000};
+        if(connectionOwner!==ownerKey())throw new Error('账号已切换，请重新连接数字人');
+        agentState.grant={...grant,owner:connectionOwner,expiresAt:Date.now()+grant.expires_in*1000};
         sdk=new global.XingyunAvatarAgent({container:els.mount,containerId:'#emcXingyunSdkMount',appId:config.xingyun.app_id,appSecret:'',gatewayServer:'/api/agent/xingyun/e2e-session?grant_id='+encodeURIComponent(grant.id)+'&preset='+encodeURIComponent(agentState.presetId),enableLogger:false,
           onMessage:message=>{agentState.messages.push({code:message.code,message:String(message.message||'').slice(0,200)});agentState.messages=agentState.messages.slice(-20);},
           agentCallbacks:{
@@ -125,6 +126,7 @@
     doc.addEventListener('visibilitychange',()=>{if(!doc.hidden)setTimeout(applyVolume,0);});
     global.addEventListener('emc:companion-reply',event=>{const answer=event.detail?.text;if(answer&&!event.detail?.avatar_spoken)speakText(answer);});
     global.addEventListener('emc:companion-thinking',()=>{void stopVoice();interruptSpeech();setPose('think');});
+    global.EmcSession?.onChange?.(()=>{if(agentState.grant&&agentState.grant.owner!==ownerKey()){agentState.autoAttempted=false;void disconnect();}});
     global.addEventListener('pagehide',()=>{void disconnect();});
   }
   function buildAgentCardElement(resp) {
