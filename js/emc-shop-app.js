@@ -401,7 +401,8 @@
   const chatTurnMeta=new Map();let chatMetaEpoch=0;
   function renderChatSuggestions(){
     const host=$('copilotSuggestions');if(!host)return;
-    const task=currentCompanionTask(),welcome=journey?.summary().view==='welcome',scope=companionScope();
+    const task=currentCompanionTask(),turns=game.npc_chat.filter(row=>row.role==='user').length,hasConversation=turns>0;
+    const welcome=journey?.summary().view==='welcome'&&!hasConversation&&(!task||task.id==='L1')&&!journey?.progress().submittedCount,scope=companionScope();
     const key=scope+':'+(welcome?'welcome':task?.id||'review')+':'+(task?.status||'');
     if(host.dataset.scope!==key){
       host.dataset.scope=key;
@@ -419,9 +420,10 @@
         [topic+'，先做哪一步？','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，请利用我已经提供的信息，带我做眼前的一小步，一次只问一个关键问题。'],
         ['我还没想好，先问我一个问题','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，还拿不定主意，请先问我一个最关键的问题。']
       ];
-      host.innerHTML='<small>可以这样问 · 点选后可修改</small>'+prompts.map(([label,prompt])=>`<button type="button" data-chat-suggestion="${escape(prompt)}">${escape(label)}</button>`).join('');
+      host.innerHTML=`<small>${welcome?'从这里开始':'接着聊 · '+escape(task?.id||'')+' '+escape(topic)}</small>`+prompts.map(([label,prompt])=>`<button type="button" data-chat-suggestion="${escape(prompt)}" title="填入消息，修改后再发送">${escape(label)}</button>`).join('');
     }
     const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('button').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
+    const finish=$('copilotFinish');if(finish){finish.hidden=turns<3||['pending','approved','locked'].includes(task?.status);finish.disabled=disabled;}
   }
   $('copilotSuggestions').addEventListener('click',event=>{
     const button=event.target.closest('[data-chat-suggestion]');if(!button||button.disabled)return;
@@ -433,7 +435,7 @@
     $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
     const rows=C.history([...game.npc_chat,...[...eventMessages.values()].filter(e=>e.scope===companionScope())].sort((a,b)=>(Number(a.time)||0)-(Number(b.time)||0)),8000).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
     let markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><div class="message-content ${row.role==='assistant'?'markdown-body':'plain-text'}">${row.role==='assistant'?window.EmcMarkdown.render(row.text):escape(row.text).replaceAll('\n','<br>')}</div></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
-    if(rows.filter(row=>row.role==='user').length>=3&&!sending)markup+='<details class="coach-finish"><summary>这一步已经做完了？</summary><button type="button" class="j-button chat-plan-button" data-companion-action="report">让小商整理本关成果 →</button></details>';
+
     const renderKey=markup+'::'+chatMetaEpoch;
     if(host.dataset.renderKey!==renderKey){
       host.dataset.renderKey=renderKey;host.innerHTML=markup;
