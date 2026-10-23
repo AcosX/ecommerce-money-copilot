@@ -302,7 +302,7 @@ LEVEL_GUIDES: dict[str, dict[str, Any]] = {
         ],
         "pitfalls": [
             "品类过大缺乏爆款切口",
-            "盲目跟风高退货率女装/标品红海",
+            "未核实需求、竞争与退货风险就盲目跟风",
         ],
     },
     "L2": {
@@ -1441,9 +1441,9 @@ def tool_save_business_draft(
         project = BusinessProject(
             id=new_id(PROJECT),
             owner_id=player_id,
-            name="小商陪跑主营店铺",
-            platform="小红书",
-            category="蓝海细分选品",
+            name="我的经营项目",
+            platform=None,
+            category=None,
             description="由小商伴随 Agent 协助创建的默认经营项目",
             status="active",
             version=1,
@@ -2125,6 +2125,8 @@ def run_companion_chat(
     sys_prompt = (
         f"你是面向新手店主的经营伙伴小商。人设：{preset_info['persona_summary']}。\n"
         "你的首要目标是解决用户此刻的问题，帮助他推进实际工作。\n"
+        "支持用户自主选择任何经营项目、类目与平台，不预设女装或其他行业。"
+        "以当前项目和用户明确提供的方向为准；方向未定时帮助比较，不能把案例当成用户项目。\n"
         "先理解最新一句的意图，结合前文理解‘它、继续、换一个’；用户纠正时立即调整，"
         "不要重复上次回答。用户已提供的平台、预算、商品和限制不要反复询问。\n"
         "先直接回答，再按需要给具体步骤、比较、成品文案或计算。用户要你写就直接写；"
