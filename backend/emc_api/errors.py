@@ -99,6 +99,12 @@ class RateLimited(ApiError):
     status_code, code, message = 429, "rate_limited", "请求过于频繁，请稍后再试"
 
 
+class ServiceUnavailable(ApiError):
+    status_code = 503
+    code = "service_unavailable"
+    message = "服务暂时不可用，请稍后重试"
+
+
 class InternalError(ApiError):
     status_code, code, message = 500, "internal_error", "服务器内部错误"
 

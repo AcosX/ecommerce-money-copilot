@@ -355,13 +355,15 @@
         var revHtml = (sub.reviews || []).map(function (r) {
           return (
             '<li>' +
-              statusBadge(r.decision) + ' · 审核员 <code>' + esc(r.reviewer_id) + '</code> · ' +
+              statusBadge(r.decision) + (r.source === 'agent' ? ' · 小商 Agent · ' : ' · 审核员 <code>' + esc(r.reviewer_id) + '</code> · ') +
               '<span class="muted">' + esc(r.created_at) + '</span>' +
               (r.reason ? '<div style="margin-top:4px;">原因/意见：' + esc(r.reason) + '</div>' : '') +
             '</li>'
           );
         }).join('') || '<li class="muted">暂无审核记录</li>';
 
+        var job = sub.agent_review;
+        var agentHtml = job ? '<h4>小商审核</h4><p>状态：' + esc(job.state) + ' · 尝试 ' + esc(job.attempts) + ' 次 · Rubric ' + esc(job.rubric_version) + '</p>' + (job.report ? '<pre class="json-box">' + esc(JSON.stringify(job.report, null, 2)) + '</pre>' : '') : '';
         var actionHtml = '';
         if (sub.status === 'pending') {
           if (isSelf) {
@@ -398,7 +400,7 @@
           '<pre class="json-box">' + esc(JSON.stringify(snap, null, 2)) + '</pre>' +
           '<h4>绑定证据附件 (' + esc((sub.evidence || []).length) + ')</h4>' +
           '<ul class="evidence-list">' + evHtml + '</ul>' +
-          '<h4>审核历史记录 (Append-Only)</h4>' +
+          agentHtml + '<h4>审核历史记录 (Append-Only)</h4>' +
           '<ul class="review-list">' + revHtml + '</ul>' +
           actionHtml
         );

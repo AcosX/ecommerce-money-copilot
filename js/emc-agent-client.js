@@ -75,6 +75,7 @@
       session_id: session,
       client_context: {
         current_view: String(context.page_context?.page || 'shop').slice(0, 32),
+        coaching_mode: true,
         source: 'island-companion',
         companion_name: String(context.companion_name || '小商').slice(0, 24),
         platform,
