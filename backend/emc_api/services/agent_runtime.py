@@ -731,16 +731,18 @@ def update_player_memory(
     return updated
 
 
-def get_recent_conversation(db: Session, player_id: str, *, limit: int = 8) -> list[dict[str, Any]]:
+def get_recent_conversation(
+    db: Session, player_id: str, *, limit: int = 8, session_id: str | None = None
+) -> list[dict[str, Any]]:
     """读取当前玩家的最近对话历史（严格按 actor_player_id 过滤）。"""
+    query = select(AuditEvent).where(
+        AuditEvent.actor_player_id == player_id,
+        AuditEvent.action == "agent.chat.turn",
+    )
+    if session_id is not None:
+        query = query.where(AuditEvent.target_id == session_id)
     rows = db.scalars(
-        select(AuditEvent)
-        .where(
-            AuditEvent.actor_player_id == player_id,
-            AuditEvent.action == "agent.chat.turn",
-        )
-        .order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
-        .limit(limit)
+        query.order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc()).limit(limit)
     ).all()
     turns: list[dict[str, Any]] = []
     for row in reversed(rows):
