@@ -40,3 +40,6 @@
 #copilotForm .copilot-voice{flex:none;background:transparent;color:var(--ink,#4a453c);border:1px solid #dfd6c6;border-radius:12px;min-width:38px;min-height:38px;padding:8px;cursor:pointer}
 #copilotForm .copilot-voice[aria-pressed="true"]{background:#f5dfcd;color:#963f24;box-shadow:0 0 0 3px #c9795524}
 #copilotForm .copilot-voice:focus-visible{outline:2px solid #8b6b3f;outline-offset:3px}
+
+/* The single chat renders sanitized business content; keep the small avatar free of duplicate widgets. */
+#emcXingyunSdkMount .avatar-sdk-widget-container{display:none!important}

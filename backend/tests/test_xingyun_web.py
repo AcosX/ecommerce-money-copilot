@@ -288,3 +288,19 @@ def test_gateway_stop_wait_does_not_block_unrelated_requests(client, settings, m
             release.set()
         assert first.result(timeout=5).status_code == 200
         assert second.result(timeout=5).status_code == 200
+
+
+def test_model_markup_is_inert_in_native_subtitle_widgets(client, settings, monkeypatch):
+    grant, turn, question = setup_turn(client)
+    text = '<img src=x onerror="alert(1)">保持文字安全'
+    monkeypatch.setattr(
+        xingyun_web,
+        "run_companion_chat",
+        lambda *args, **kwargs: {"reply": text, "spoken_text": text},
+    )
+    response = callback(client, settings, grant, question, stream=True)
+    assert response.status_code == 200
+    assert "<img" not in response.text
+    assert "&lt;img" in response.text
+    receipt = client.get(f"{ROOT}/{grant}/turns/{turn['id']}").json()
+    assert receipt["result"]["reply"] == text
