@@ -216,52 +216,14 @@ def test_safe_return_to_unit(open_page):
     assert cases == ["/", "/a?b=1#c", None, None, None, None, None, None, None]
 
 
-def test_existing_formal_component_contract_is_preserved(open_page, state):
-    """旧工作台不挂入游戏；独立夹具继续验证朋友的正式业务模块。"""
-    state.roles = ["player", "reviewer"]
+def test_formal_workbench_and_demo_are_not_loaded(open_page):
     h = open_page(session=True)
-    page = goto(h)
+    page = goto(h, "/?demo=1")
     assert page.locator("#emcRealWorkbench").count() == 0
-    page.evaluate("""() => {
-        const node=document.createElement('div');node.id='emcRealWorkbench';
-        node.style.cssText='position:fixed;inset:0;z-index:500;overflow:auto;background:white;padding:20px';
-        document.body.append(node);
-    }""")
-    page.add_script_tag(url=h.base + "/js/emc-formal-ui.js")
-    page.evaluate("EmcFormalUI.start()")
-    # 3. 打开真实经营内嵌工作台（审核员可见 /admin/ 入口）
-    page.evaluate("EmcFormalUI.openWorkbench('真实经营')")
-    wb = page.locator("#emcRealWorkbench")
-    assert wb.is_visible()
-    assert page.locator("#emcWbAdminLink").get_attribute("href") == "/admin/"
-
-    # 4. 从教学模拟复制为正式草稿：显示「草稿」+「来自教学模拟」
-    page.locator("#emcWbCopyTutorialBtn").click()
-    page.wait_for_function("document.querySelectorAll('#emcWbList [data-artifact-id]').length === 1")
-    first_item = page.locator("#emcWbList [data-artifact-id]").first
-    assert "草稿" in first_item.inner_text()
-    assert "来自教学模拟" in first_item.inner_text()
-
-    # 5. 上传证据并提交认证：状态切换为「待审核」
-    page.locator("#emcWbSubmitVerifyBtn").click()
-    page.wait_for_function("document.querySelectorAll('#emcWbList [data-verification-id]').length === 1")
-    assert page.locator("#emcWbCurrentStatus").inner_text() == "待审核"
-
-    # 6. 审核员驳回后同步：状态显示「已驳回」及驳回原因
-    state.verifications[0]["status"] = "rejected"
-    state.verifications[0]["reviews"] = [{"decision": "rejected", "reason": "请补充真实物流轨迹截图"}]
-    state.artifacts[0]["status"] = "rejected"
-    page.locator("#emcWbLoadBtn").click()
-    page.wait_for_function("document.getElementById('emcWbCurrentStatus').textContent === '已驳回'")
-    assert "请补充真实物流轨迹截图" in page.locator("[data-emc-rejection-reason]").inner_text()
-
-    # 7. 审核员通过后同步：状态显示「正式认证通过」
-    state.verifications[0]["status"] = "approved"
-    state.artifacts[0]["status"] = "approved"
-    page.locator("#emcWbLoadBtn").click()
-    page.wait_for_function("document.getElementById('emcWbCurrentStatus').textContent === '正式认证通过'")
-    assert page.locator("#emcWbCurrentStatus").inner_text() == "正式认证通过"
-    assert not h.foreign
+    assert page.locator("[data-demo-toggle]").count() == 0
+    assert not h.urls("/js/emc-formal-ui.js")
+    assert not h.urls("/js/emc-journey-demo.js")
+    assert not h.urls("/api/verifications")
 
 
 def test_journey_deep_link_still_requires_shop_entry(open_page):

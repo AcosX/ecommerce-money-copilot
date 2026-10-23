@@ -309,23 +309,15 @@ def test_ai_deliverable_review_l3_and_cross_player_protection(
     assert c_stranger.post(f"/api/agent/reviews/{sub['id']}").status_code == 404
     assert c_stranger.get(f"/api/agent/reviews/{sub['id']}").status_code == 404
 
-    # 申请人本人触发小商 AI 预审
+    # No model configured: no fabricated score, and the formal job stays pending.
     rev_resp = c_owner.post(f"/api/agent/reviews/{sub['id']}")
-    assert rev_resp.status_code == 200
-    report = rev_resp.json()
-    assert report["submission_id"] == sub["id"]
-    assert report["level_id"] == "L3"
-    assert report["status"] == "approved"
-    assert report["score"] >= 85
-    assert len(report["evidence_inspected"]) == 1
-    assert report["evidence_inspected"][0]["verified_on_disk"] is True
-    assert "<speak>" in report["ssml"]
-
-    # 审核员也可直接查看最新 AI 审核结论
+    assert rev_resp.status_code == 503
+    current = c_owner.get(f"/api/verifications/{sub['id']}").json()
+    assert current["status"] == "pending"
+    assert current["agent_review"]["state"] == "queued"
     get_resp = c_reviewer.get(f"/api/agent/reviews/{sub['id']}")
     assert get_resp.status_code == 200
-    assert get_resp.json()["has_ai_review"] is True
-    assert get_resp.json()["ai_review"]["score"] == report["score"]
+    assert get_resp.json()["has_ai_review"] is False
 
 
 def test_openai_compatible_bridge_json_and_sse(client: TestClient) -> None:

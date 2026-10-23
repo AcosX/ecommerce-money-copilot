@@ -410,7 +410,7 @@ def test_full_verification_lifecycle_reject_revise_resubmit_approve(
     sub1 = submit_resp.json()
     assert ids.has_prefix(sub1["id"], ids.VERIFICATION)
     assert sub1["status"] == "pending"
-    assert sub1["method"] == "manual_review"
+    assert sub1["method"] == "agent_review"
     assert sub1["artifact_revision"] == 1
     assert sub1["rejection_reason"] is None
     assert sub1["evidence_count"] == 2
@@ -787,13 +787,19 @@ def test_admin_ui_and_openapi_routes(client: TestClient) -> None:
         ),
         ("business_plan", "还没聊清楚", 422),
         (
+            "data_review",
+            "近七天没有订单，来源为店铺后台。曝光不足仍是假设，下一步逐日记录曝光和点击，先测试一版主图，连续观察七天再比较。",
+            201,
+        ),
+        ("asset_pack", "优化前后图片应该真实提交，文字不能代替视觉证据。" * 3, 422),
+        (
             "product_selection",
             "明确目标人群、选择理由、来源、预算、利润以及下一步验证办法。" * 3,
-            422,
+            201,
         ),
     ],
 )
-def test_text_plan_without_attachment_is_l1_only(
+def test_text_reports_without_duplicate_attachment(
     client, db_session, make_player, login_as, artifact_type, report, expected
 ):
     player = make_player()
@@ -867,9 +873,35 @@ def test_long_conversation_plan_uses_real_artifact_schema(
     data = submitted.json()
     assert data["snapshot"]["content"]["planning_report"] == report
     review = client.post("/api/agent/reviews/" + data["id"], json={})
-    assert review.status_code == 200, review.text
-    assert "请重新上传" not in str(review.json().get("rework_instructions", []))
-    assert "L1 无需上传文件" in str(review.json().get("passed_checks", []))
+    assert review.status_code == 503  # no provider configured; never synthesize approval
+    assert client.get("/api/verifications/" + data["id"]).json()["status"] == "pending"
     other = make_player()
     login_as(other)
     assert client.get("/api/verifications/" + data["id"]).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://example.com/item/123", 201),
+        ("javascript:alert(1)", 422),
+        ("https://name:password@example.com/item", 422),
+        ("", 422),
+    ],
+)
+def test_listing_link_is_an_alternative_to_upload(
+    client, db_session, make_player, login_as, url, expected
+):
+    player = make_player()
+    login_as(player)
+    artifact = create_project_and_artifact(
+        db_session, player, artifact_type="listing_record", content={"listing_url": url}
+    )
+    response = client.post(
+        "/api/verifications",
+        json={"artifact_id": artifact.id, "artifact_version": artifact.version, "evidence_ids": []},
+    )
+    assert response.status_code == expected, response.text
+    if expected == 201:
+        assert response.json()["snapshot"]["content"]["listing_url"] == url
+        assert response.json()["status"] == "pending"

@@ -15,7 +15,7 @@
 1. `js/emc-route.js`（`window.EmcRoute`）：管理 `#view=<视图>&lv=<1-6>&gate=<操作名>`，支持登录往返后恢复原视图与关卡。
 2. `js/emc-api.js`（`window.EmcApi`）：同源请求封装，自动附加 `X-CSRF-Token` 与 `Idempotency-Key`，并将后端错误响应解析为 `EmcApi.EmcApiError`。
 3. `js/emc-session.js`（`window.EmcSession`）：管理 `/api/me` 会话状态，提供 `EmcSession.requireLogin(actionName)` 与 `emc:session-changed` 事件。
-4. `js/emc-formal-ui.js`（`window.EmcFormalUI`）：状态徽章渲染与真实经营工作台（区分「教学通关（仅前端本地）」「草稿」「待审核」「正式认证通过」「已驳回」）。
+4. `js/emc-journey-ui.js`（`window.EmcJourneyUI`）：当前关卡、唯一聊天、成果检查与正式提交。旧 `emc-formal-ui.js` 占位工作台已移除，禁止生成占位证据。最新交付与审核规则见 [单步带关说明](./guided-journey.md)。
 
 ### 调用示例
 

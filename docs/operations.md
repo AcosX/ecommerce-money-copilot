@@ -181,3 +181,14 @@ systemd 以 root 身份读取 EnvironmentFile 后再切换到 `emc`，因此这�
   - 验证 `emc-deploy v0.1.0` → `emc-deploy v0.1.1` → `emc-rollback`（原子切回 `v0.1.0`）→ `emc-deploy v0.1.1` 全流程及健康检查失败自动回滚保护。
   - 验证 `emc-backup-db` 与 `emc-restore-drill`：将备份恢复至临时库 `emc_restore_drill`，11 张业务表逐表 `COUNT(*)` 比对与上传归档校验结果为 `result=OK`。
   - 演示站点仅允许通过 `emc-deploy <git-tag>` 部署已通过测试的 tag，开发分支与开发机改动不会直接影响比赛演示环境。
+
+
+## 单步带关版本的审核 worker
+
+本版本新增 `0002_agent_review_queue`；发布前备份仍由 `emc-deploy` 执行。先从已审核版本运行 `deploy/scripts/install-host.sh` 安装新 worker 单元与更新后的部署脚本，再按 tag 发布。安装脚本本身不启动 worker。部署脚本检测到当前版本含审核模块后启用并重启 `ecommerce-money-copilot-review.service`，并要求其为 active；回滚到无审核模块的旧版本会停止并禁用 worker，保留未处理队列。
+
+worker 使用现有 app.env/db.env 中的运行期 DML 账号和私有上传目录；显式清除迁移 URL，不需要 DDL 凭据。`EMC_AI_REVIEW_MODEL` 要配置为支持真实图片输入与 JSON 输出的模型；密钥留在服务器配置中。一次处理一个任务，超时或额度不足重试，最终转人工待复核，绝不伪造通过。
+
+可在与服务相同的私有环境下运行 `python -m emc_api.services.review_queue --metrics` 查看队列状态与最早等待时间，`--once` 只处理一次。监控 `waiting_manual`、`retry`、最早等待时间及 systemd 重启次数；人工复核仍用既有管理员端。尚无全局金额预算，需同时在模型供应商侧设置额度。
+
+回滚应用时保留此增量 schema，不自动降库。已经生成 Agent 审核记录后，迁移 downgrade 会拒绝删除审核来源与报告，避免丢失记录或伪造人类审核员；空库往返已由迁移测试覆盖。

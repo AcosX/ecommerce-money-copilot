@@ -8,11 +8,11 @@ async function orbit(p,amount){const r=await p.locator('#homeCanvas canvas').bou
 (async()=>{const b=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||'msedge'});try{
  for(const width of [1440,390]){
   const c=await b.newContext({viewport:{width,height:width===390?844:1000}}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.addInitScript(({lite})=>{Object.defineProperty(navigator,'deviceMemory',{get:()=>lite?2:8});Object.defineProperty(navigator,'hardwareConcurrency',{get:()=>8});localStorage.setItem('emc-journey-demo-v1',JSON.stringify({enabled:true,completed:1,active:1,introduced:true}));},{lite:width===390});
+  await p.addInitScript(({lite})=>{Object.defineProperty(navigator,'deviceMemory',{get:()=>lite?2:8});Object.defineProperty(navigator,'hardwareConcurrency',{get:()=>8});localStorage.setItem('emc-journey-welcome-v1','1');},{lite:width===390});
   // The merged island calls the live #62 Agent HTTP route, not an injectable
   // standalone #63 transport. Mock only that external API in this scene test.
   await p.route('**/api/agent/chat',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({reply:'先把预算、货源和时间说清楚，我们再选一个方向。',provider:'ai_gateway_live'})}));
-  await p.goto(url+'/?demo=1#view=island');await ready(p);await p.locator('#opening').waitFor({state:'hidden'});
+  await p.goto(url+'/#view=island');await ready(p);await p.locator('#opening').waitFor({state:'hidden'});
   let s=await state(p);assert.equal(s.npc.model,'xiaoshang-animated-v1');assert.equal(s.npc.morphs,26);assert.equal(s.npc.profile,width===390?'lite':'web');assert.equal(await p.locator('canvas').count(),1);assert.equal(s.graphics.tier,width===390?'smooth':'detail');
   await p.waitForTimeout(2400);const walked=await state(p);assert.notDeepEqual(walked.npc.position,s.npc.position);assert.equal(walked.npc.motion,'walk');await p.screenshot({path:path.join(out,width+'-walking.png')});
   await p.locator('#copilotInput').fill('我预算2000元，想先卖收纳用品');await p.waitForTimeout(250);s=await state(p);assert.equal(s.npc.talking,true);const expected=Math.atan2(s.camera[0]-s.npc.position[0],s.camera[2]-s.npc.position[2]);assert.ok(Math.abs(expected-s.npc.heading)<.02);await p.waitForTimeout(500);assert.deepEqual((await state(p)).npc.position,s.npc.position);

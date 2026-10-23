@@ -55,10 +55,9 @@
     if(els.stage)return;
     const dock=doc.querySelector('.copilot-dock');if(!dock)return;
     const footer=make('div','copilot-companion-tools');footer.setAttribute('aria-label','伙伴与常用操作');
-    const settings=make('div','avatar-settings');
+    const settings=make('details','avatar-settings');settings.append(make('summary','','语音与形象'));
     const select=make('select');select.id='emcAvatarPresetSelect';select.setAttribute('aria-label','数字人形象');[['yingyi','盈怡 · 带教伙伴'],['xingya','星芽 · 元气学姐'],['huahua','花花 · 陪伴萌宠']].forEach(([id,name])=>{const option=make('option','',name);option.value=id;select.append(option);});select.onchange=()=>setPreset(select.value);settings.append(select);
     const connect=make('button','avatar-connect','连接数字人');connect.id='emcAvatarConnect3dBtn';connect.type='button';connect.onclick=()=>agentState.mode==='rtc'?disconnect().then(()=>status('小商继续在岛上陪你。')):connectXingyunSession(els.select.value);settings.append(connect);
-    const actions=make('div','avatar-actions');[['这关怎么做','请帮我梳理当前关卡目标和下一步'],['帮我算账','请告诉我算利润需要哪些成本'],['查看成果要求','请打开当前关卡成果要求']].forEach(([label,prompt])=>{const b=make('button','',label);b.type='button';b.onclick=()=>requestBackendChat(prompt);actions.append(b);});settings.append(actions);
     const line=make('p','avatar-status','开始聊天后，小商会自动尝试连接数字人。');line.setAttribute('role','status');settings.append(line);footer.append(settings);
     const stage=make('section','emc-avatar-stage');stage.id='emcAvatarStage';stage.hidden=true;stage.setAttribute('aria-label','小商数字人');
     const screen=make('div','avatar-screen');screen.hidden=true;const mount=make('div');mount.id='emcXingyunSdkMount';screen.append(mount);stage.append(screen);
@@ -145,7 +144,7 @@
     try {
       var data = await global.EmcApi.post('/api/agent/reviews/' + submissionId, {});
       speakText(
-        'AI 预审完成：' + (data.recommendation_label || data.recommendation || '') + '（得分 ' + data.score + ' 分）。' + (data.summary || data.feedback || ''),
+        'AI 预审完成：' + (data.recommendation_label || data.status || data.recommendation || '') + '。' + (data.summary || data.feedback || ''),
         data.recommendation === 'approve_candidate' ? 'happy' : 'think'
       );
       if (containerEl) {
@@ -154,8 +153,8 @@
         var box = make('div', 'emc-ai-review-box');
         box.setAttribute('data-emc-ai-review-result', submissionId);
         var head = make('div', 'emc-ai-review-head');
-        head.appendChild(make('span', '', '小商 AI 预审结论：' + (data.recommendation_label || data.recommendation)));
-        head.appendChild(make('span', '', '得分 ' + data.score + ' / 100'));
+        head.appendChild(make('span', '', '小商 AI 预审结论：' + (data.recommendation_label || data.status || data.recommendation)));
+
         box.appendChild(head);
         box.appendChild(make('div', '', data.summary || data.feedback || ''));
         if (Array.isArray(data.rework_instructions) && data.rework_instructions.length) {
