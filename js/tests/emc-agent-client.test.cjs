@@ -3,7 +3,7 @@ const { test } = require('node:test'), assert = require('node:assert/strict');
 const vm = require('node:vm'), fs = require('node:fs'), path = require('node:path');
 
 function setup() {
-  let user = 'alice', online = true, fail = false, provider = 'ai_gateway_live';
+  let user = 'alice', online = true, fail = false, provider = 'ai_gateway_live', historyProvider = null;
   const calls = [];
   const root = {
     EmcSession: {
@@ -13,12 +13,12 @@ function setup() {
     EmcApi: {
       get: async (url) => {
         calls.push({ type: 'GET', url });
-        assert.equal(url, '/api/agent/memory');
+        assert.ok(url === '/api/agent/memory' || url === '/api/agent/memory?session_id=proj_1');
         return {
           memory: { intimacy_score: 27, interactions_count: 2, current_focus_level: 'L2' },
           recent_conversation: [
             { session_id: 'proj_other', user_message: '秘密', reply: '不应显示' },
-            { session_id: 'proj_1', user_message: '问题', reply: '服务端回答' }
+            { session_id: 'proj_1', user_message: '问题', reply: '服务端回答', provider: historyProvider }
           ]
         };
       },
@@ -35,7 +35,8 @@ function setup() {
     setUser: value => { user = value; },
     setOnline: value => { online = value; },
     setFail: value => { fail = value; },
-    setProvider: value => { provider = value; }
+    setProvider: value => { provider = value; },
+    setHistoryProvider: value => { historyProvider = value; }
   };
 }
 
@@ -60,10 +61,12 @@ test('registered chat uses #62 /api/agent/chat, never forwards a forged prompt o
   assert.equal(post.body.session_id, 'proj_1');
   assert.equal(post.body.client_context.platform, 'pinduoduo');
   assert.equal(post.body.system_prompt, undefined);
+  assert.equal(post.body.client_context.conversation, undefined);
+  assert.equal(post.body.guest_history, undefined);
   assert.equal(post.body.history, undefined);
   assert.equal(post.body.companion, undefined);
   assert.equal(post.body.client_context.player_id, undefined);
-  assert.equal(t.client.snapshot('proj_1').affinity, 30);
+  assert.equal(t.client.snapshot('proj_1').affinity, 27);
   t.setUser('bob');
   assert.equal(t.client.snapshot('proj_1'), null);
 });
@@ -71,10 +74,11 @@ test('registered chat uses #62 /api/agent/chat, never forwards a forged prompt o
 test('history is filtered by project session id and avoids cross-project exposure', async () => {
   const t = setup();
   const history = await t.client.history('proj_1');
+  assert.ok(t.calls.some(call => call.url === '/api/agent/memory?session_id=proj_1'));
   assert.equal(history.items.length, 1);
   assert.equal(history.items[0].message, '问题');
   assert.equal(history.items[0].reply.text, '服务端回答');
-  assert.equal(history.items[0].reply.source, 'local-guide'); // 旧审计不提供模型来源
+  assert.equal(history.items[0].reply.source, 'history'); // 旧审计不提供模型来源
   assert.equal(t.client.snapshot('proj_1').server_version, 2);
   assert.equal(t.calls.length, 1);
 });
@@ -147,4 +151,12 @@ test('journey profile and current task reach model context', async () => {
   assert.equal(context.platform, 'xiaohongshu');
   assert.equal(context.category, '宿舍收纳');
   assert.equal(context.current_task.deliverable, '候选商品表');
+});
+
+test('restored history distinguishes recorded AI, fallback and unrecorded sources', async () => {
+  const t = setup();
+  for (const [provider, source] of [['ai_gateway_live','ai'],['ai_gateway','ai'],['local_copilot_fallback','local-guide'],['local_copilot','local-guide'],[null,'history'],['future-provider','history']]) {
+    t.setHistoryProvider(provider);
+    assert.equal((await t.client.history('proj_1')).items[0].reply.source,source);
+  }
 });
