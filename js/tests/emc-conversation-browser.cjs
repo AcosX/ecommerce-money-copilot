@@ -15,11 +15,11 @@ async function prepare(page,{guest=false,failAvatar=false,restoreHistory=false}=
  const state={calls:[],artifacts:[],verifications:[],turns:0};
  await page.addInitScript(({guest})=>{
   localStorage.setItem('emc-journey-entry-v1',JSON.stringify({saved:true,shop_name:'小满杂货铺',partner_name:'小商',platform:'xiaohongshu',category:'家居收纳',agent:'Codex'}));
-  window.sdkCalls={created:0,speeches:[],destroyed:0};
+  window.sdkCalls={created:0,speeches:[],volumes:[],destroyed:0};
   window.XmovAvatar=class {
    constructor(options){this.options=options;window.sdkCalls.created++;}
    async init({onDownloadProgress}){const response=await fetch(this.options.gatewayServer,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:'browser-fixture',config:{}})});const data=await response.json();if(data.error_code)throw new Error('unavailable');onDownloadProgress(100);this.options.onStatusChange(0);}
-   speak(text){window.sdkCalls.speeches.push(text);}think(){}idle(){}interrupt(){}
+   setVolume(value){window.sdkCalls.volumes.push(value);}speak(text){window.sdkCalls.speeches.push(text);}think(){}idle(){}interrupt(){}
    async destroy(){window.sdkCalls.destroyed++;}
   };
  },{guest});
@@ -28,6 +28,7 @@ async function prepare(page,{guest=false,failAvatar=false,restoreHistory=false}=
   const body=method==='GET'?null:request.postDataJSON();state.calls.push({uri,method,body});let result={},status=200;
   if(uri==='/api/me')result=guest?{authenticated:false}:{authenticated:true,player:{id:'ply_conversation',display_name:'小满'},roles:['player'],csrf_token:'test-csrf'};
   else if(uri==='/api/projects'&&method==='GET')result={items:guest?[]:[{id:'prj_conversation',name:'小满杂货铺',platform:'xiaohongshu',category:'家居收纳',version:1}],next_cursor:null};
+  else if(uri==='/api/projects'&&method==='POST'){status=201;result={...body,id:'prj_custom',version:1};}
   else if(uri==='/api/artifacts'&&method==='GET')result={items:state.artifacts,next_cursor:null};
   else if(uri==='/api/verifications'&&method==='GET')result={items:state.verifications,next_cursor:null};
   else if(uri==='/api/agent/memory')result={memory:{intimacy_score:47,patience_score:86,interactions_count:3,current_focus_level:'L1'},recent_conversation:restoreHistory?[{session_id:'prj_conversation',user_message:'问题一',reply:'模型回复',provider:'ai_gateway_live'},{session_id:'prj_conversation',user_message:'问题二',reply:'规则回复',provider:'local_copilot_fallback'},{session_id:'prj_conversation',user_message:'问题三',reply:'旧回复'}]:[]};
@@ -48,6 +49,9 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
   for(const [width,height] of (process.env.EMC_HISTORY_ONLY?[]:[[1440,900],[390,844],[320,568]])){
    const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
    const state=await prepare(page);await ready(page);
+   assert.equal(await page.locator('#emcAvatarStage').isVisible(),false);
+   assert.equal(await page.getByText('和小商一起经营',{exact:true}).count(),0);
+   assert.equal(await page.locator('#emcAvatarInterruptBtn,.avatar-toolbar').count(),0);
    await page.locator('#continueButton').click();await page.locator('.mail-welcome').waitFor();
    let header=page.locator('.mail-correspondence');
    assert.ok(await header.evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=13));
@@ -63,6 +67,17 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    await page.locator('#copilotInput').fill('预算两千元，每周十小时，有家居货源，想在小红书经营收纳商品。请和我聊清方向并整理完整生意规划。');
    await page.locator('#copilotSend').click();await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);
    await page.waitForFunction(()=>window.EmcAvatarAgent._state.mode==='rtc');
+   assert.equal(await page.locator('#emcAvatarStage').isVisible(),true);
+   assert.equal(await page.locator('.avatar-actions button').count(),3);
+   const tools=await page.locator('.copilot-companion-tools').boundingBox(),avatar=await page.locator('#emcAvatarStage').boundingBox(),settings=await page.locator('.avatar-settings').boundingBox();
+   assert.ok(avatar.x>settings.x&&avatar.x+avatar.width<=tools.x+tools.width+1);
+   assert.ok(Math.abs(avatar.y+avatar.height-(tools.y+tools.height-parseFloat(await page.locator('.copilot-companion-tools').evaluate(el=>getComputedStyle(el).paddingBottom))))<2);
+   assert.ok(await page.locator('.avatar-actions').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+   const mute=page.locator('#emcAvatarMuteBtn');await mute.click();
+   assert.equal(await mute.getAttribute('aria-pressed'),'true');assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),0);
+   await page.evaluate(()=>{EmcAvatarAgent.speakText('静音后的新回复');document.dispatchEvent(new Event('visibilitychange'));});
+   await page.waitForTimeout(30);assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),0);
+   await mute.click();assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),1);
    const last=page.locator('.social-message.theirs .markdown-body').last();
    assert.ok((await last.innerText()).includes('完整报告结束'));
    assert.equal(await last.locator('table').count(),1);assert.equal(await last.locator('pre code').count(),1);assert.ok(await last.locator('strong').count());
@@ -75,6 +90,13 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    assert.ok(await page.locator('#socialMessages').evaluate(el=>el.clientHeight>=140));
    await page.locator('#socialMessages').evaluate(el=>el.scrollTop=el.scrollHeight);await page.screenshot({path:path.join(output,`chat-long-${width}.png`)});
    assert.equal(await page.evaluate(()=>sdkCalls.created),1);assert.ok((await page.evaluate(()=>sdkCalls.speeches[0])).includes('完整报告结束'));
+   if(width===1440){
+    await mute.click();await page.locator('#emcAvatarPresetSelect').selectOption('huahua');
+    await page.waitForFunction(()=>EmcAvatarAgent._state.mode==='rtc'&&EmcAvatarAgent._state.presetId==='huahua');assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),0);
+    await page.locator('#emcAvatarConnect3dBtn').click();assert.equal(await page.locator('#emcAvatarStage').isVisible(),false);
+    await page.locator('#emcAvatarConnect3dBtn').click();await page.waitForFunction(()=>EmcAvatarAgent._state.mode==='rtc');
+    assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),0);await mute.click();assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),1);
+   }
    await page.locator('[data-companion-action=plan]').click();await page.locator('#journeyDelivery').waitFor();
    assert.ok((await page.locator('[name=notes]').inputValue()).includes('完整报告结束'));
    await page.locator('[name=confirm]').check();await page.locator('#journeyDelivery button[type=submit]').click();
@@ -96,10 +118,27 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    await page.close();console.log('PASS restored AI, fallback and unrecorded history labels survive reload');
   }
   if(process.env.EMC_HISTORY_ONLY)return;
+  {
+   const page=await browser.newPage({viewport:{width:1440,height:900}});const state=await prepare(page);await ready(page);
+   await page.evaluate(()=>{let host=document.getElementById('emcRealWorkbench');if(!host){host=document.createElement('div');host.id='emcRealWorkbench';document.body.append(host);}host.classList.add('emc-workbench-modal');EmcFormalUI.openWorkbench();});
+   assert.equal(await page.locator('#emcWbProjectName').inputValue(),'');
+   assert.equal(await page.locator('#emcWbArtifactNotes').getAttribute('maxlength'),'4000');
+   await page.locator('#emcWbProjectName').fill('宠物用品试验项目');await page.locator('#emcWbProjectPlatform').fill('淘宝');await page.locator('#emcWbProjectCategory').fill('宠物用品');
+   await page.locator('#emcWbCreateProjectBtn').click();await page.waitForFunction(()=>EmcFormalUI._state.selectedProjectId==='prj_custom');
+   const project=state.calls.find(c=>c.uri==='/api/projects'&&c.method==='POST');assert.deepEqual(project.body,{name:'宠物用品试验项目',platform:'淘宝',category:'宠物用品'});
+   await page.locator('#emcWbArtifactNotes').fill('比较三款猫抓板，成本和需求待验证');await page.locator('#emcWbCreateFormalBtn').click();await page.waitForFunction(()=>EmcFormalUI._state.artifacts.length===1);
+   const artifact=state.calls.find(c=>c.uri==='/api/artifacts'&&c.method==='POST');assert.equal(artifact.body.content.category,'宠物用品');assert.equal(artifact.body.content.summary,'比较三款猫抓板，成本和需求待验证');assert.equal(artifact.body.content.items,undefined);
+   await page.evaluate(()=>EmcFormalUI.openWorkbench());await page.locator('#emcWbProjectName').fill('待定方向项目');await page.locator('#emcWbProjectPlatform').fill('');await page.locator('#emcWbProjectCategory').fill('');
+   await page.locator('#emcWbCreateProjectBtn').click();await page.waitForFunction(()=>!EmcFormalUI._state.busy);
+   const projects=state.calls.filter(c=>c.uri==='/api/projects'&&c.method==='POST');assert.equal(projects.at(-1).body.platform,null);assert.equal(projects.at(-1).body.category,null);
+   await page.close();console.log('PASS custom category and platform, user-authored artifact, unspecified direction stays empty');
+  }
+
   const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));const state=await prepare(page,{guest:true,failAvatar:true});await ready(page);await page.locator('#copilotHistory').click();
   for(let i=0;i<2;i++){await page.locator('#copilotInput').fill('继续帮我完善生意规划，补充成本和需求验证步骤。');await page.locator('#copilotSend').click();await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);}
   await page.waitForFunction(()=>!window.EmcAvatarAgent._state.connecting);assert.equal(await page.evaluate(()=>sdkCalls.created),1);assert.ok((await page.locator('.social-message.theirs').last().innerText()).includes('完整报告结束'));
   assert.ok(state.calls.filter(c=>c.uri==='/api/agent/chat')[1].body.guest_history.some(t=>t.role==='assistant'&&t.text.includes('完整报告结束')));
+  assert.equal(await page.locator('#emcAvatarStage').isVisible(),false);assert.ok(await page.locator('.avatar-actions button').first().isVisible());
   assert.ok(await page.locator('.avatar-status').innerText().then(t=>t.includes('重试')));assert.deepEqual(errors,[]);await page.close();console.log('PASS guest long replies, conversation context, one automatic attempt, avatar failure fallback');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

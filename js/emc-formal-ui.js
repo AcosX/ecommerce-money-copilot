@@ -97,10 +97,14 @@
     nameInput.id = 'emcWbProjectName';
     nameInput.type = 'text';
     nameInput.maxLength = 80;
-    nameInput.value = '女装细分类目破零项目';
+    nameInput.placeholder = '填写你的经营项目名称';
     nameInput.setAttribute('aria-label', '经营项目名称');
     form.appendChild(nameInput);
 
+    [['emcWbProjectPlatform','经营平台（选填）'],['emcWbProjectCategory','经营类目（选填）']].forEach(function (spec) {
+      var input=make('input','emc-wb-input');input.id=spec[0];input.type='text';input.maxLength=64;input.placeholder=spec[1];input.setAttribute('aria-label',spec[1]);form.appendChild(input);
+    });
+    var contentInput=make('textarea','emc-wb-input');contentInput.id='emcWbArtifactNotes';contentInput.maxLength=4000;contentInput.placeholder='填写真实的经营方案或候选商品记录（最多 4000 字）';contentInput.setAttribute('aria-label','经营成果内容');form.appendChild(contentInput);
     var noteInput = make('input', 'emc-wb-input');
     noteInput.id = 'emcWbVerifyNote';
     noteInput.type = 'text';
@@ -239,11 +243,12 @@
   async function ensureProject() {
     if (state.selectedProjectId) return state.selectedProjectId;
     var nameEl = doc.getElementById('emcWbProjectName');
-    var name = (nameEl && nameEl.value.trim()) || '女装细分类目破零项目';
+    var name = nameEl && nameEl.value.trim();
+    if (!name) throw new Error('请先填写经营项目名称');
     var p = await Api.post('/api/projects', {
       name: name,
-      platform: 'xiaohongshu',
-      category: 'womenswear'
+      platform: doc.getElementById('emcWbProjectPlatform').value.trim() || null,
+      category: doc.getElementById('emcWbProjectCategory').value.trim() || null
     });
     state.projects.unshift(p);
     state.selectedProjectId = p.id;
@@ -269,41 +274,24 @@
     if (state.busy || !S.isLoggedIn()) return;
     state.busy = true;
     try {
+      var notes = doc.getElementById('emcWbArtifactNotes').value.trim();
+      if (origin === 'tutorial_copy') {
+        var records = global.EmcPractice?.records('demo') || [];
+        if (!records.some(function (record) { return record.id === 'L1'; })) throw new Error('请先完成自己的教学经营方案');
+        notes = global.EmcPractice.text('demo', 'L1');
+      }
+      if (!notes) throw new Error('请先填写真实的经营成果内容');
       var pid = await ensureProject();
-      var payload = origin === 'tutorial_copy'
-        ? {
-            project_id: pid,
-            artifact_type: 'business_plan',
-            schema_version: 1,
-            title: 'L1 经营方案（练习复制草稿）',
-            origin: 'tutorial_copy',
-            source_level_id: 'L1',
-            content: {
-              niche: '通勤半身裙',
-              platform: 'xiaohongshu',
-              differentiation: '小个子高腰显瘦实拍',
-              first_order_goal: { sku_count: 3, target_price_yuan: 79, window_days: 14 }
-            }
-          }
-        : {
-            project_id: pid,
-            artifact_type: 'product_selection',
-            schema_version: 1,
-            title: 'L2 正式选品单',
-            origin: 'formal',
-            content: {
-              items: [
-                {
-                  name: '高腰A字半身裙',
-                  source_platform: '1688',
-                  target_platform: 'xiaohongshu',
-                  supply_price_yuan: 32,
-                  retail_price_yuan: 79,
-                  scores: { heat: 85, competition: 72, growth: 80, margin: 88 }
-                }
-              ]
-            }
-          };
+      var selected = state.projects.find(function (project) { return project.id === pid; });
+      var payload = {
+        project_id: pid,
+        artifact_type: origin === 'tutorial_copy' ? 'business_plan' : 'product_selection',
+        schema_version: 1,
+        title: origin === 'tutorial_copy' ? 'L1 经营方案（练习复制草稿）' : 'L2 正式选品单',
+        origin: origin,
+        content: {summary: notes, platform: selected?.platform || null, category: selected?.category || null}
+      };
+      if (origin === 'tutorial_copy') payload.source_level_id = 'L1';
       var art = await Api.post('/api/artifacts', payload);
       state.artifacts.unshift(art);
       state.selectedArtifactId = art.id;

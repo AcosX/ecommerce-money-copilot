@@ -622,3 +622,25 @@ def test_restored_history_projects_only_provider_metadata(
     assert [turn["provider"] for turn in turns] == providers
     assert "internal_only" not in response.text
     assert all("llm_meta" not in turn for turn in turns)
+
+
+def test_agent_created_project_does_not_assume_platform_or_category(
+    client: TestClient, make_player, login_as
+) -> None:
+    player = make_player(display_name="方向未定的店主")
+    login_as(player)
+    response = client.post(
+        "/api/agent/tools/execute",
+        json={
+            "tool_name": "save_business_draft",
+            "arguments": {
+                "level_id": "L1",
+                "content": {"summary": "先比较不同项目，再决定经营方向"},
+            },
+        },
+    )
+    assert response.status_code == 200
+    projects = client.get("/api/projects").json()["items"]
+    assert len(projects) == 1
+    assert projects[0]["platform"] is None
+    assert projects[0]["category"] is None
