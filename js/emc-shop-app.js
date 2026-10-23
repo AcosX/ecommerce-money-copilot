@@ -263,7 +263,7 @@
     host.innerHTML=`<header class="journal-heading"><b>经营手帐</b><small>FIELD NOTES</small></header><p class="journal-now"><b>${welcome?'从这里开始':'正在学 · '+(journey.currentTask()?.topic||'六关回顾')}</b>${escape(welcome?'认识你的小店，先跟着小商做一件小事。':j.story.learn)}</p><div class="journal-counts"><span><strong>${j.records.length}</strong>份成果</span><span><strong>${j.methods.length}</strong>个方法</span></div><button type="button" data-panel="journal" aria-label="打开经营手帐">翻开手帐 <span aria-hidden="true">↗</span></button>`;host.querySelector('button').onclick=()=>openPanel('journal');
   }
   function renderJournalPanel(){
-    const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">这里收好你的经营成果和已经获得的方法。每次继续当前关卡，与小商一步步完成。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的成果</h4>${j.records.length?j.records.filter(r=>Number(r.id.slice(1))<=j.state.completed+1).map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${escape(r.status)} · 回看成果要求与审核记录</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有成果记录。从当前任务开始，和小商一起完成第一步。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.url||'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
+    const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">这里收好你的经营成果和已经获得的方法。每次继续当前关卡，与小商一步步完成。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的成果</h4>${j.records.length?j.records.map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${escape(r.status)} · 回看成果要求与审核记录</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有成果记录。从当前任务开始，和小商一起完成第一步。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.url||'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
   }
   function openMission(entry,level){if(mail.state().opening)return;document.querySelector('.copilot-dock')?.classList.remove('mobile-chat-open');closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level,entry==='conversation'?'submit':entry);else journey.open(entry);if(entry==='conversation'&&!journey.collectConversation())toast('先和小商完成当前这一步，再整理成果。');$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');const firstBtn=$('panelBody').querySelector('[data-j-action="begin"],.mail-attachment.primary,.j-button.primary');if(firstBtn)firstBtn.focus({preventScroll:true});});}
   function startMain(){openMission();}
@@ -292,6 +292,7 @@
     const text=sending?partnerName()+'正在回应…':!available?partnerName()+' · 文本聊天可用':partnerName()+' · '+chatSourceLabel();
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
+    renderChatSuggestions();
     if(panel==='companion'){
       const presence=$('panelBody').querySelector('.companion-presence');if(presence){const label=available?'就在岛上，随时聊聊':'文字对话随时可用';if(presence.textContent!==label)presence.textContent=label;presence.classList.toggle('away',!available);}
       $('panelBody').querySelectorAll('[data-companion-talk]').forEach(button=>{if(button.disabled!==!ready)button.disabled=!ready;});
@@ -398,8 +399,37 @@
   }
   function companionBrief(task,status,name){const state=serverAgentProject()?window.EmcAgentClient?.snapshot(serverAgentProject()):null;const prefix=state?.emotion&&state.patience<55&&!state.emotion.paused?state.emotion.example+' ':'';return prefix+(journey?.summary().view==='welcome'?'我是'+name+'，会陪你从零学习电商。先拆开我的第一封信，认识一下这间小店；不用急着准备成果。':M.brief(task,status,name));}
   const chatTurnMeta=new Map();let chatMetaEpoch=0;
+  function renderChatSuggestions(){
+    const host=$('copilotSuggestions');if(!host)return;
+    const task=currentCompanionTask(),welcome=journey?.summary().view==='welcome',scope=companionScope();
+    const key=scope+':'+(welcome?'welcome':task?.id||'review')+':'+(task?.status||'');
+    if(host.dataset.scope!==key){
+      host.dataset.scope=key;
+      const topic=task?.topic||'六关回顾';
+      const prompts=welcome?[
+        ['先认识一下小店','我是新手，请先介绍这间小店，告诉我现在只需要做哪一件事。'],
+        ['还没方向，也能开始吗？','我还没想好做什么生意，请从一个最关键的问题开始问我。']
+      ]:task?.status==='pending'?[
+        ['帮我看看确认进度','我正在做 '+task.id+'「'+task.name+'」，请查看本关成果的实际确认进度，告诉我现在要做什么。'],
+        ['等待时先做什么？','我正在做 '+task.id+'「'+task.name+'」，本关成果已经提交。等待确认期间，请只推荐一个可以继续的小步骤。']
+      ]:task?.status==='rejected'?[
+        ['先补哪一处？','我正在做 '+task.id+'「'+task.name+'」，请根据本关实际审核反馈，先带我补最关键的一处。'],
+        ['帮我梳理已有材料','我正在做 '+task.id+'「'+task.name+'」，请帮我检查本关已有的成果和材料，先指出一个最需要补充的信息，不要编造缺失内容。']
+      ]:[
+        [topic+'，先做哪一步？','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，请利用我已经提供的信息，带我做眼前的一小步，一次只问一个关键问题。'],
+        ['我还没想好，先问我一个问题','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，还拿不定主意，请先问我一个最关键的问题。']
+      ];
+      host.innerHTML='<small>可以这样问 · 点选后可修改</small>'+prompts.map(([label,prompt])=>`<button type="button" data-chat-suggestion="${escape(prompt)}">${escape(label)}</button>`).join('');
+    }
+    const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('button').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
+  }
+  $('copilotSuggestions').addEventListener('click',event=>{
+    const button=event.target.closest('[data-chat-suggestion]');if(!button||button.disabled)return;
+    audio.play('click');askCompanion(button.dataset.chatSuggestion);
+  });
   function renderSocialChat(){
     const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
+    renderChatSuggestions();
     $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
     const rows=C.history([...game.npc_chat,...[...eventMessages.values()].filter(e=>e.scope===companionScope())].sort((a,b)=>(Number(a.time)||0)-(Number(b.time)||0)),8000).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
     let markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><div class="message-content ${row.role==='assistant'?'markdown-body':'plain-text'}">${row.role==='assistant'?window.EmcMarkdown.render(row.text):escape(row.text).replaceAll('\n','<br>')}</div></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
