@@ -197,3 +197,10 @@ uv run pytest
 - `audit_events`：自增 `id`、`occurred_at`、`actor_player_id`、`action`、`target_type`、`target_id`、`request_id`、`details`（JSON）；只追加。
 - `idempotency_records`：`player_id` + `endpoint` + `key`（唯一）、`request_hash`、`response_status`、`response_body`、`created_at`、`expires_at`。
 - 教学进度相关表由 Phase 2 负责人以独立迁移添加。
+
+小商对话补充（2026-10-23）：`POST /api/agent/chat` 可选接收 `guest_history`，最多 12 条
+`{role: "user" | "assistant", text: string}`，每条文本不超过 2000 字符。仅游客采用客户端历史，
+作为本轮模型输入，不建立云端存档或授予权限；登录用户使用服务端本人、当前 `session_id` 的最近六轮。
+其他角色返回字段校验错误。知识库无相关结果时 `knowledge_citations` 为空。`roi_calculation` 仅根据
+有明确标签的金额计算，`breakeven_roi` 在毛利非正时为 `null`，并以 `missing_costs` 提示未计入费用；
+不再返回伪精确的 `score_4d` 或误标净利的 `estimated_net_profit_yuan`。
