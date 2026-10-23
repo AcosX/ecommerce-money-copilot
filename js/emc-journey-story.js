@@ -179,6 +179,6 @@
     if(support?.kind==='tools')support.hint=platform==='pinduoduo'?'妙手 / 逸淘官方入口':'逸淘小红书铺货工具入口';
     return {...chapter,paragraphs:[...chapter.paragraphs],steps:[...chapter.steps],support,bridge:index>0&&completed>=index?chapter.bridge:null};
   }
-  const welcome={title:'欢迎来到《第一单》',paragraphs:['这里是一场从零学习电商的小游戏。你会经营自己的小店，一边学，一边尝试把知识用起来。','我是{name}，你的经营伙伴。接下来我会写信给你，每次只带你做一件小事。不懂就问我，拿不准也可以慢慢想。','信里的附件可以取出来操作。先学一点、动手试一点，再带着成果回来；需要的平台和工具，我会在用到时介绍。'],button:'好，我们从哪里开始？'};
+  const welcome={title:'欢迎来到《电商搞钱参谋》',paragraphs:['这里是一场从零学习电商的小游戏。你会经营自己的小店，一边学，一边尝试把知识用起来。','我是{name}，你的经营伙伴。接下来我会写信给你，每次只带你做一件小事。不懂就问我，拿不准也可以慢慢想。','信里的附件可以取出来操作。先学一点、动手试一点，再带着成果回来；需要的平台和工具，我会在用到时介绍。'],button:'好，我们从哪里开始？'};
   return {get,ids:Object.keys(chapters),welcome};
 });

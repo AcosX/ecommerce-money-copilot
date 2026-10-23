@@ -32,6 +32,7 @@ function setup() {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../emc-agent-client.js'), 'utf8'), root);
   return {
     client: root.EmcAgentClient, calls,
+    setNative: fn => { root.EmcAvatarAgent = { nativeReply: fn }; },
     setUser: value => { user = value; },
     setOnline: value => { online = value; },
     setFail: value => { fail = value; },
@@ -167,4 +168,23 @@ test('verified calculation provenance survives transport', async () => {
   const result = await t.client.transport({ message: '售价100成本40算一下' });
   assert.equal(result.source, 'calculation');
   assert.equal(result.provider, 'verified_calculation');
+});
+
+test('native Web result preserves metadata and avoids a second chat or speech', async () => {
+  const t=setup();
+  t.setNative(async body=>({reply:'先确定一个候选商品',provider:'ai_gateway_live',avatar_spoken:true,ui_actions:[{type:'open_game_card',level_id:body.level_id}]}));
+  const result=await t.client.transport({message:'下一步',context:{task:{id:'L2'}}});
+  assert.equal(result.avatar_spoken,true);
+  assert.equal(result.ui_actions[0].level_id,'L2');
+  assert.equal(t.calls.length,0);
+});
+
+test('native connection failure before dispatch allows text; dispatched failure never repeats the model call', async () => {
+  const t=setup();
+  t.setNative(async()=>null);
+  assert.equal((await t.client.transport({message:'下一步'})).text,'先列预算');
+  assert.equal(t.calls.length,1);
+  t.setNative(async()=>{throw new Error('native request failed');});
+  await assert.rejects(t.client.transport({message:'重试'}),/native request failed/);
+  assert.equal(t.calls.length,1);
 });
