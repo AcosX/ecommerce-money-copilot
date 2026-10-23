@@ -104,7 +104,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("EMC_AI_REVIEW_MODEL", "GEMINI_REVIEW_MODEL"),
     )
     ai_timeout_seconds: float = Field(
-        default=8.0,
+        default=20.0,
         gt=0,
         validation_alias=AliasChoices("EMC_AI_TIMEOUT_SECONDS", "GEMINI_TIMEOUT_SECONDS"),
     )
