@@ -265,7 +265,7 @@
   function renderJournalPanel(){
     const j=journalState();$('panelBody').innerHTML=`<article class="journal-paper"><span class="eyebrow">${journey.isDemo()?'DEMO · 演示手帐':'MY FIELD NOTES'}</span><h3>把学到的，<br>变成自己的方法。</h3><p class="muted-note">工作纸是你的个人草稿，保存在当前浏览器。试玩与正式记录分开，填写或勾选都不会自动通关。</p><section class="journal-section"><h4>眼前这一小步</h4><p>${escape(j.story.firstAction)}</p><button class="small-button gold" data-mail-current>拆开当前来信 ↗</button></section><section class="journal-section"><h4>留下的工作纸</h4>${j.records.length?j.records.filter(r=>journey.isDemo()||Number(r.id.slice(1))<=j.state.completed+1).map(r=>`<button type="button" class="journal-record" data-mail-level="${r.id}"><span><b>${escape(r.title)}</b><small>${r.filled} 处记录 · 从来信附件继续整理</small></span><span>↗</span></button>`).join(''):'<p class="muted-note">还没有草稿。取出信里的实践附件，写下的想法会自动留在这里。</p>'}</section><section class="journal-section"><h4>已经带走的方法</h4>${j.methods.length?`<ul class="journal-methods">${j.methods.map(m=>`<li><a href="${escape(m.external?m.url:'assets/skills/'+m.id+'.zip')}" ${m.external?'target="_blank" rel="noopener noreferrer"':'download'}>${escape(m.name)} ↗</a></li>`).join('')}</ul>`:'<p class="muted-note">先把眼前的小事做成。获得的方法会收进这里。</p>'}</section></article>`;
   }
-  function openMission(entry,level){if(mail.state().opening)return;document.querySelector('.copilot-dock')?.classList.remove('mobile-chat-open');closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level,entry);else journey.open(entry);$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');const firstBtn=$('panelBody').querySelector('[data-j-action="begin"],.mail-attachment.primary,.j-button.primary');if(firstBtn)firstBtn.focus({preventScroll:true});});}
+  function openMission(entry,level){if(mail.state().opening)return;document.querySelector('.copilot-dock')?.classList.remove('mobile-chat-open');closePanel();mail.open(()=>{openPanel('journey','start');if(level)journey.openLevel(level,entry==='conversation'?'submit':entry);else journey.open(entry);if(entry==='conversation'&&!journey.collectConversation())toast('先和小商聊一聊你的条件，再整理成果。');$('drawer').setAttribute('role','dialog');$('drawer').setAttribute('aria-modal','true');const firstBtn=$('panelBody').querySelector('[data-j-action="begin"],.mail-attachment.primary,.j-button.primary');if(firstBtn)firstBtn.focus({preventScroll:true});});}
   function startMain(){openMission();}
 
   function showTask(id){
@@ -325,7 +325,7 @@
     if(!npcAvailable())return;
     audio.play('message');homeScene?.guide?.speak(text);
     bubbleKind=kind;bubbleUntil=performance.now()+(kind==='reminder'?6500:Math.max(12000,Math.min(24000,text.length*150)));
-    $('npcSpeech').textContent=text;$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||chatSourceLabel();$('npcBubble').hidden=false;
+    $('npcSpeech').innerHTML=window.EmcMarkdown.render(text);$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||chatSourceLabel();$('npcBubble').hidden=false;
     $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';$('npcMissionActions').hidden=!journey||!['reply','mission'].includes(kind);fitNpcCloud();
   }
   let visibleCompanionScope='',visibleCompanionLevel='';
@@ -352,8 +352,8 @@
   function readCompanion(){
     const scope=companionScope();if(scope!==visibleCompanionScope){if(chatWasCloud)game.npc_chat=localChatHistory;if(serverAgentProject()){if(!chatWasCloud)localChatHistory=game.npc_chat;game.npc_chat=[];chatWasCloud=true;}else chatWasCloud=false;agentScopes.delete(scope);visibleCompanionScope=scope;companionFeedback=null;companionQuote='';perkExpanded=false;}
     const level=currentCompanionTask()?.id||'first_order';if(level!==visibleCompanionLevel){visibleCompanionLevel=level;companionFeedback=null;companionQuote='';perkExpanded=false;}
-    if(serverAgentProject()){syncServerCompanion();const practice=M.enter(companionStore.read(),level),live=window.EmcAgentClient?.snapshot(serverAgentProject());return {...practice,affinity:live?.affinity??practice.affinity,source:live?'server':'local-practice'};}
-    const previous=companionStore.read(),next=M.enter(previous,level);if(previous.level!==next.level)companionSaveOk=window.EmcSession?.isLoggedIn()?true:companionStore.save(next);return next;
+    if(serverAgentProject()){syncServerCompanion();const practice=M.enter(companionStore.read(),level),live=window.EmcAgentClient?.snapshot(serverAgentProject());return {...practice,affinity:live?.affinity??practice.affinity,patience:live?.patience??practice.patience,source:live?'server':'local-practice'};}
+    const agent=window.EmcAgentClient?.snapshot(journey?.summary().project_id);if(agent)return {...M.enter(companionStore.read(),level),...agent};const previous=companionStore.read(),next=M.enter(previous,level);if(previous.level!==next.level)companionSaveOk=window.EmcSession?.isLoggedIn()?true:companionStore.save(next);return next;
   }
   function openCompanion(introduce=false){
     openPanel('companion');
@@ -363,7 +363,7 @@
     }
   }
   function askCompanion(text,send=false){
-    const prompt=String(text).slice(0,240);guidedPrompts.add(prompt);if(guidedPrompts.size>30)guidedPrompts.delete(guidedPrompts.values().next().value);
+    const prompt=String(text).slice(0,2000);guidedPrompts.add(prompt);if(guidedPrompts.size>30)guidedPrompts.delete(guidedPrompts.values().next().value);
     $('copilotInput').value=prompt;updateChatAvailability();
     $('copilotInput').focus({preventScroll:true});if(send)$('copilotForm').requestSubmit();
   }
@@ -372,13 +372,14 @@
     const status={ready:'一起开始',draft:'整理成果',pending:'成果确认中',rejected:'补齐材料'}[task?.status]||'准备最终试炼';
     const btn=(action,text,primary=false,talk=false)=>`<button type="button" class="${primary?'primary':'small-button'}" data-companion-action="${action}" ${talk?'data-companion-talk':''} ${talk&&!available?'disabled':''}>${text}</button>`;
     const meter=(id,label,value,description)=>`<div class="companion-meter ${id}"><label>${label}<b>${value}<small>/100</small></b></label><div class="companion-track" role="progressbar" aria-label="${label}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"><i style="width:${value}%"></i></div><p>${description}</p></div>`;
-    body.innerHTML=`<section class="companion-hero"><img class="companion-portrait" src="assets/game/characters/xiaoshang-portrait-v1.webp" alt="经营伙伴${name}的形象"><div class="companion-identity"><small>一起冲第一单</small><h3>${name}</h3><p>${M.relationship(state)}${state.emotion?' · '+escape(state.emotion.mood):''}</p><span class="companion-presence ${available?'':'away'}">${available?'就在岛上，随时聊聊':'转动小岛，让我回到视野'}</span></div></section><div class="companion-meters">${meter('affinity','好感度',state.affinity,'每一次认真交流，都会更了解彼此。')}${meter('patience','耐心值',state.patience,state.emotion?escape(state.emotion.paused?'成果审核中，停滞计时暂停。':state.emotion.example):state.patience<45?'先聚焦一件小事，基础问题也可以问。':'给出目标和依据，我陪你想得更深。')}</div><blockquote class="companion-quote">${escape(companionQuote||companionBrief(task,task?.status,partnerName()))}</blockquote>${last?`<div class="companion-turn-note" role="status"><b>${last.assessment.high_quality?'这一问，有目标也有依据。':'我们先把问题说具体。'}</b><br>好感度 ${last.state.last.affinity_delta>=0?'+':''}${last.state.last.affinity_delta} · 耐心值 ${last.state.last.patience_delta>=0?'+':''}${last.state.last.patience_delta}<div class="companion-dimensions">${last.assessment.dimensions.map(d=>`<span class="${d.met?'met':''}">${d.met?'✓':'＋'} ${d.label}</span>`).join('')}</div></div>`:''}<section class="companion-section"><span class="companion-current">${task?escape(task.id+' · '+task.topic):'最终试炼'} / ${status}</span><h4 class="companion-mission-title">${escape(task?.name||'卖出真实第一单')}</h4><p>${task?'这一步要交回：'+escape(task.deliverable):'六环节已完成。首单核验开放后，用真实订单完成最后的试炼。'}</p><div class="companion-actions">${btn('talk','一起拆这一步 →',true,true)}${btn('card','回看任务卡')}</div><div class="companion-actions">${btn('kit','打开本关锦囊')}${btn('deliver',task?.status==='pending'?'查看确认进度':'我来交成果')}</div></section><section class="companion-section"><h4>把问题交给我，一起往前走</h4><p>先说目标，再补充你知道的事实、范围和已经试过的办法。不必一次说全，我会接着问。</p><div class="companion-prompts">${btn('clarify','我拿不定主意，先问我最关键的信息。',false,true)}${btn('reason','帮我分清：哪些有依据，哪些还要验证？',false,true)}</div></section><section class="companion-section"><h4>藏着一份本关验证锦囊</h4><div class="companion-streak"><div><strong>${owned?'3':state.streak}/3</strong><br><small>${owned?'本关福利已解锁':'连续三次有目标、有依据的提问'}</small></div><div class="companion-seals" aria-hidden="true">${[1,2,3].map(n=>`<i class="${n<=(owned?3:state.streak)?'active':''}">✦</i>`).join('')}</div></div><p>在清楚的目标外，补足事实、范围、已尝试的动作中的两项。换个环节，伙伴重新就位。</p><div class="companion-perk"><b>${owned?'已解锁 · 本关验证锦囊':'未解锁 · 把判断变成可验证的下一步'}</b>${owned?`<div class="companion-actions">${btn('perk',perkExpanded?'收起锦囊':'打开专属锦囊')}</div>${perkExpanded?M.perk(task).map(item=>`<article><b>${escape(item.title)}</b><p>${escape(item.text)}</p></article>`).join(''):''}`:'<p>解锁后，会多一份拆假设、做对照、整理证据的检查清单。</p>'}</div></section><p class="companion-local-note">${state.source==='server'?'对话及好感度云端记录':'伙伴成长试运行'} · ${state.source==='server'?'对话记录按账号保存；当前项目筛选最近对话，耐心和锦囊存于本浏览器':companionSaveOk?'当前浏览器、当前账号与项目分别保存':'本地保存暂不可用，刷新可能丢失进度'}。${state.source==='server'?'云端好感度随交流更新；耐心和锦囊属于本地练习，不影响答疑或审核。':'提问质量按本地练习规则识别，答疑通过现有小商 Agent 进行。'}不会发放正式经验或替代成果核验。${state.source==='server'?'亲密度由服务端按账号维护。':'快捷提问和重复问题不重复计分。'}${state.emotion?'耐心低时会逐步催促、冷淡或刻薄吐槽，但仍会帮你完成任务。':'耐心值较低时会先拆小问题，不会关闭基础答疑或主线任务。'}</p>`;
+    body.innerHTML=`<section class="companion-hero"><img class="companion-portrait" src="assets/game/characters/xiaoshang-portrait-v1.webp" alt="经营伙伴${name}的形象"><div class="companion-identity"><small>一起冲第一单</small><h3>${name}</h3><p>${M.relationship(state)}${state.emotion?' · '+escape(state.emotion.mood):''}</p><span class="companion-presence ${available?'':'away'}">${available?'就在岛上，随时聊聊':'转动小岛，让我回到视野'}</span></div></section><div class="companion-meters">${meter('affinity','好感度',state.affinity,'每一次认真交流，都会更了解彼此。')}${meter('patience','耐心值',state.patience,state.emotion?escape(state.emotion.paused?'成果审核中，停滞计时暂停。':state.emotion.example):state.patience<45?'先聚焦一件小事，基础问题也可以问。':'给出目标和依据，我陪你想得更深。')}</div><blockquote class="companion-quote">${escape(companionQuote||companionBrief(task,task?.status,partnerName()))}</blockquote>${last?`<div class="companion-turn-note" role="status"><b>${last.assessment.high_quality?'这一问，有目标也有依据。':'我们先把问题说具体。'}</b><br>好感度 ${last.state.last.affinity_delta>=0?'+':''}${last.state.last.affinity_delta} · 耐心值 ${last.state.last.patience_delta>=0?'+':''}${last.state.last.patience_delta}<div class="companion-dimensions">${last.assessment.dimensions.map(d=>`<span class="${d.met?'met':''}">${d.met?'✓':'＋'} ${d.label}</span>`).join('')}</div></div>`:''}<section class="companion-section"><span class="companion-current">${task?escape(task.id+' · '+task.topic):'最终试炼'} / ${status}</span><h4 class="companion-mission-title">${escape(task?.name||'卖出真实第一单')}</h4><p>${task?'这一步要交回：'+escape(task.deliverable):'六环节已完成。首单核验开放后，用真实订单完成最后的试炼。'}</p><div class="companion-actions">${btn('talk','一起拆这一步 →',true,true)}${btn('card','回看任务卡')}</div><div class="companion-actions">${btn('kit','打开本关锦囊')}${btn('deliver',task?.status==='pending'?'查看确认进度':'我来交成果')}</div></section><section class="companion-section"><h4>把问题交给我，一起往前走</h4><p>先说目标，再补充你知道的事实、范围和已经试过的办法。不必一次说全，我会接着问。</p><div class="companion-prompts">${btn('clarify','我拿不定主意，先问我最关键的信息。',false,true)}${btn('reason','帮我分清：哪些有依据，哪些还要验证？',false,true)}</div></section><section class="companion-section"><h4>藏着一份本关验证锦囊</h4><div class="companion-streak"><div><strong>${owned?'3':state.streak}/3</strong><br><small>${owned?'本关福利已解锁':'连续三次有目标、有依据的提问'}</small></div><div class="companion-seals" aria-hidden="true">${[1,2,3].map(n=>`<i class="${n<=(owned?3:state.streak)?'active':''}">✦</i>`).join('')}</div></div><p>在清楚的目标外，补足事实、范围、已尝试的动作中的两项。换个环节，伙伴重新就位。</p><div class="companion-perk"><b>${owned?'已解锁 · 本关验证锦囊':'未解锁 · 把判断变成可验证的下一步'}</b>${owned?`<div class="companion-actions">${btn('perk',perkExpanded?'收起锦囊':'打开专属锦囊')}</div>${perkExpanded?M.perk(task).map(item=>`<article><b>${escape(item.title)}</b><p>${escape(item.text)}</p></article>`).join(''):''}`:'<p>解锁后，会多一份拆假设、做对照、整理证据的检查清单。</p>'}</div></section><p class="companion-local-note">${state.source==='server'?'对话及好感度云端记录':'伙伴成长试运行'} · ${state.source==='server'?'好感和耐心由小商 Agent 更新；登录后按账号保存':companionSaveOk?'当前浏览器、当前账号与项目分别保存':'本地保存暂不可用，刷新可能丢失进度'}。${state.source==='server'?'数值随交流更新，不影响答疑或审核。':'提问质量按本地练习规则识别，答疑通过现有小商 Agent 进行。'}不会发放正式经验或替代成果核验。${state.source==='server'?'亲密度由服务端按账号维护。':'快捷提问和重复问题不重复计分。'}${state.emotion?'耐心低时会逐步催促、冷淡或刻薄吐槽，但仍会帮你完成任务。':'耐心值较低时会先拆小问题，不会关闭基础答疑或主线任务。'}</p>`;
     body.scrollTop=scroll;
   }
   document.addEventListener('click',e=>{
     const action=e.target.closest('[data-companion-action]')?.dataset.companionAction;if(!action)return;
     if(['talk','clarify','reason','perk'].includes(action))audio.play('click');
-    if(action==='card')openMission();
+    if(action==='plan'){openMission('conversation','L1');}
+    else if(action==='card')openMission();
     else if(action==='kit')openMission('kit');
     else if(action==='deliver')openMission('submit');
     else if(action==='perk'){perkExpanded=!perkExpanded;if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();}
@@ -387,10 +388,10 @@
       askCompanion(action==='talk'?'我们开始「'+(task?.name||'真实第一单')+'」，先帮我拆成一个能执行的小步骤。':action==='clarify'?'我在做「'+(task?.name||'当前任务')+'」，还拿不定主意，请先问我最关键的信息。':'我在做「'+(task?.name||'当前任务')+'」，请帮我分清已有事实、假设和下一步验证办法。',true);
     }
   });
-  function chatSourceLabel(){const source=game.npc_chat.filter(row=>row.role==='assistant').at(-1)?.source;return source==='ai'||serverAgentProject()==='guest'?'AI 副驾':serverAgentProject()?'本地规则引导':'本地教学演示';}
+  function chatSourceLabel(){const source=game.npc_chat.filter(row=>row.role==='assistant').at(-1)?.source;return source?C.sourceLabel(source):serverAgentProject()?'小商':'本地教学演示';}
   function renderChatHistory(){
     const messages=game.npc_chat;
-    $('panelBody').innerHTML='<p class="muted-note">'+(serverAgentProject()?(serverAgentProject()==='guest'?'对话按当前浏览器游客会话保存在服务端。':'对话按当前账号与项目保存在服务端。'):'对话保存在当前浏览器。')+'演示回复会单独标记。</p><div class="chat-log">'+(messages.length?messages.map(m=>`<article class="chat-message ${m.role}"><header><b>${m.role==='user'?'你':escape(partnerName())}</b><small>${m.role==='assistant'?(m.source==='ai'?'AI 副驾':'本地教学演示'):'玩家'}${m.time?' · '+new Date(m.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</small></header><p>${escape(m.text)}</p></article>`).join(''):'<div class="chat-empty">还没有聊过天。<br>在底部向'+escape(partnerName())+'打个招呼吧。</div>')+'</div>';
+    $('panelBody').innerHTML='<p class="muted-note">'+(serverAgentProject()?(serverAgentProject()==='guest'?'对话按当前浏览器游客会话保存在服务端。':'对话按当前账号与项目保存在服务端。'):'对话保存在当前浏览器。')+'按记录标注回复来源。</p><div class="chat-log">'+(messages.length?messages.map(m=>`<article class="chat-message ${m.role}"><header><b>${m.role==='user'?'你':escape(partnerName())}</b><small>${m.role==='assistant'?C.sourceLabel(m.source):'玩家'}${m.time?' · '+new Date(m.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</small></header><div class="message-content ${m.role==='assistant'?'markdown-body':'plain-text'}">${m.role==='assistant'?window.EmcMarkdown.render(m.text):escape(m.text)}</div></article>`).join(''):'<div class="chat-empty">还没有聊过天。<br>在底部向'+escape(partnerName())+'打个招呼吧。</div>')+'</div>';
     $('panelBody').scrollTop=$('panelBody').scrollHeight;
   }
   function companionBrief(task,status,name){const state=serverAgentProject()?window.EmcAgentClient?.snapshot(serverAgentProject()):null;const prefix=state?.emotion&&state.patience<55&&!state.emotion.paused?state.emotion.example+' ':'';return prefix+(journey?.summary().view==='welcome'?'我是'+name+'，会陪你从零学习电商。先拆开我的第一封信，认识一下这间小店；不用急着准备成果。':M.brief(task,status,name));}
@@ -398,8 +399,9 @@
   function renderSocialChat(){
     const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
     $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
-    const rows=C.history(game.npc_chat,chatWasCloud?8000:2000).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
-    const markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
+    const rows=C.history(game.npc_chat,8000).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
+    let markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><div class="message-content ${row.role==='assistant'?'markdown-body':'plain-text'}">${row.role==='assistant'?window.EmcMarkdown.render(row.text):escape(row.text).replaceAll('\n','<br>')}</div></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
+    if(currentCompanionTask()?.id==='L1'&&rows.some(row=>row.role==='assistant'))markup+='<button type="button" class="j-button chat-plan-button" data-companion-action="plan">整理对话成果 →</button>';
     const renderKey=markup+'::'+chatMetaEpoch;
     if(host.dataset.renderKey!==renderKey){
       host.dataset.renderKey=renderKey;host.innerHTML=markup;
@@ -407,13 +409,13 @@
       if(nearBottom)host.scrollTop=host.scrollHeight;
     }
   }
-  function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:2000);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
+  function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],8000);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
   window.EmcOpenCompanionChat=(message,{send=false}={})=>{
     const dock=document.querySelector('.copilot-dock');
     if(panel) closePanel();
     if(innerWidth<=700) dock.classList.add('mobile-chat-open');
     renderSocialChat();
-    if(typeof message==='string'&&message.trim())$('copilotInput').value=message.slice(0,240);
+    if(typeof message==='string'&&message.trim())$('copilotInput').value=message.slice(0,2000);
     updateChatAvailability();
     $('copilotInput').focus({preventScroll:true});
     if(send&&$('copilotInput').value.trim()&&!$('copilotInput').disabled)$('copilotForm').requestSubmit();
@@ -423,7 +425,7 @@
   $('copilotInput').addEventListener('focus',()=>{if(panel&& !document.querySelector('.copilot-dock').classList.contains('mobile-chat-open'))closePanel();if(npcAvailable())startConversation();});
   $('copilotInput').addEventListener('blur',()=>{if(!sending&&$('npcBubble').hidden)finishConversation();});
   $('npcInteract').onclick=()=>{if(npcAvailable())openCompanion(true);};
-  const placeSocialChat=()=>{const nav=document.querySelector('.quest-peek').getBoundingClientRect(),dock=document.querySelector('.copilot-dock');dock.style.setProperty('--social-top',(nav.bottom+16)+'px');dock.style.setProperty('--social-right',(innerWidth-nav.right)+'px');dock.style.setProperty('--social-width',nav.width+'px');};
+  const placeSocialChat=()=>{const nav=document.querySelector('.quest-peek').getBoundingClientRect(),dock=document.querySelector('.copilot-dock');dock.style.setProperty('--social-top',(nav.bottom+16)+'px');dock.style.setProperty('--social-right',(innerWidth-nav.right)+'px');dock.style.setProperty('--social-width',Math.min(480,Math.max(360,innerWidth*.34))+'px');};
   new ResizeObserver(placeSocialChat).observe(document.querySelector('.quest-peek'));window.addEventListener('resize',placeSocialChat);placeSocialChat();
   $('companionAvatar').onclick=()=>openCompanion();
   $('copilotProfile').onclick=()=>{if(panel==='companion')closePanel();else openCompanion();};
@@ -431,16 +433,17 @@
   $('npcBubble').addEventListener('pointerenter',()=>{if(bubbleKind==='reminder'&&npcAvailable())homeScene.guide.setTalking(true);});
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
+  $('expandCompanionChat').onclick=()=>{const expanded=document.querySelector('.copilot-dock').classList.toggle('chat-expanded');$('expandCompanionChat').textContent=expanded?'收起':'展开';$('expandCompanionChat').setAttribute('aria-expanded',String(expanded));$('expandCompanionChat').setAttribute('aria-label',expanded?'收起对话阅读':'展开对话阅读');};
   $('closeMobileChat').onclick=()=>{document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','false');};
   $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
   $('copilotHistory').onclick=()=>{if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
   $('copilotForm').addEventListener('submit',async e=>{
-    e.preventDefault();const message=$('copilotInput').value.trim().slice(0,240);
+    e.preventDefault();const message=$('copilotInput').value.trim().slice(0,2000);
     if(sending||!message||paintDrag?.active)return;
     npcState=homeScene?.guide?.status(true)||null;
     if(npcAvailable())startConversation();
     if(panel!=='companion')closePanel();sending=true;
-    window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
+    void window.EmcAvatarAgent?.autoConnect?.();window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
@@ -452,6 +455,7 @@
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=(result.state||window.EmcSession?.isLoggedIn())?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
       appendChat('assistant',result.text,result.source,result);
+      journey?.recordConversation?.(message,result.text);
       window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{...result,text:result.text,source:result.source}}));
       if(result.saved_artifact&&journey)void journey.refresh({silent:true});
       if(Array.isArray(result.ui_actions)){

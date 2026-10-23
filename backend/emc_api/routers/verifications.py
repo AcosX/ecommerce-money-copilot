@@ -42,7 +42,7 @@ class VerificationSubmitIn(BaseModel):
 
     artifact_id: str = Field(min_length=1, max_length=64)
     artifact_version: int = Field(ge=1)
-    evidence_ids: list[str] = Field(min_length=1)
+    evidence_ids: list[str] = Field(default_factory=list)
     note: str | None = Field(default=None, max_length=2000)
 
 
@@ -204,6 +204,19 @@ def submit_verification(
         ).scalar_one_or_none()
         if current_rev is None:
             raise InvalidState("成果当前版本内容不存在")
+
+        if not body.evidence_ids:
+            content = current_rev.content or {}
+            report = content.get("planning_report") or content.get("summary") or ""
+            if (
+                artifact.artifact_type != "business_plan"
+                or not isinstance(report, str)
+                or len(report.strip()) < 40
+            ):
+                raise ValidationFailed.field(
+                    ["body", "evidence_ids"],
+                    "仅生意规划可不附文件提交，请填写至少 40 字的规划内容；其他成果需要证据附件",
+                )
 
         ev_rows = (
             s.execute(

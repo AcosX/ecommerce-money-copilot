@@ -534,3 +534,91 @@ def test_save_targets_selected_project_and_rejects_other_owner(client, make_play
         },
     )
     assert denied.status_code == 404
+
+
+def test_agent_scores_are_returned_and_persisted_per_player(client, make_player, login_as):
+    player = make_player()
+    login_as(player)
+    before = client.get("/api/agent/memory").json()["memory"]
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "message": "预算两千元，每周十小时，有家居货源，想在小红书经营收纳商品。",
+            "level_id": "L1",
+            "client_context": {"companion_state": {"affinity": 100, "patience": 100}},
+        },
+    )
+    assert response.status_code == 200
+    memory = response.json()["memory"]
+    assert memory["intimacy_score"] == before["intimacy_score"] + 3
+    assert memory["patience_score"] == before["patience_score"] + 2
+    persisted = client.get("/api/agent/memory").json()["memory"]
+    assert persisted["intimacy_score"] == memory["intimacy_score"]
+    assert persisted["patience_score"] == memory["patience_score"]
+    other = make_player()
+    login_as(other)
+    assert client.get("/api/agent/memory").json()["memory"]["patience_score"] == 80
+
+
+def test_project_history_is_filtered_before_recent_limit(client, make_player, login_as, db_session):
+    from emc_api.models import AuditEvent
+    from emc_api.timeutil import utcnow
+
+    owner = make_player(display_name="多项目店主")
+    other = make_player(display_name="其他店主")
+    for index, session_id in enumerate(["project-a"] + ["project-b"] * 12):
+        db_session.add(
+            AuditEvent(
+                action="agent.chat.turn",
+                actor_player_id=owner.id,
+                target_type="agent_session",
+                target_id=session_id,
+                occurred_at=utcnow(),
+                details={"user_message": f"问题 {index}", "reply": f"回答 {index}"},
+            )
+        )
+    db_session.commit()
+    login_as(owner)
+    global_turns = client.get("/api/agent/memory").json()["recent_conversation"]
+    assert len(global_turns) == 10
+    assert all(turn["session_id"] == "project-b" for turn in global_turns)
+    response = client.get("/api/agent/memory", params={"session_id": "project-a"})
+    assert response.status_code == 200
+    assert [turn["reply"] for turn in response.json()["recent_conversation"]] == ["回答 0"]
+    assert client.get("/api/agent/memory", params={"session_id": "x" * 65}).status_code == 422
+    login_as(other)
+    assert (
+        client.get("/api/agent/memory", params={"session_id": "project-a"}).json()[
+            "recent_conversation"
+        ]
+        == []
+    )
+
+
+def test_restored_history_projects_only_provider_metadata(
+    client, make_player, login_as, db_session
+):
+    from emc_api.services.audit import record_audit
+
+    owner = make_player()
+    login_as(owner)
+    providers = ["ai_gateway_live", "local_copilot_fallback", None]
+    for provider in providers:
+        details = {"user_message": "问题", "reply": "回答"}
+        if provider:
+            details["llm_meta"] = {"provider": provider, "internal_only": "not-for-clients"}
+        record_audit(
+            db_session,
+            "agent.chat.turn",
+            actor_player_id=owner.id,
+            target_type="agent_session",
+            target_id="source-test",
+            details=details,
+        )
+    db_session.commit()
+    response = client.get("/api/agent/memory", params={"session_id": "source-test"})
+    assert response.status_code == 200
+    turns = response.json()["recent_conversation"]
+    assert [turn["provider"] for turn in turns] == providers
+    assert "internal_only" not in response.text
+    assert all("llm_meta" not in turn for turn in turns)

@@ -37,3 +37,7 @@ user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest
 `node js/tests/emc-agent-dialogue-browser.cjs`（需要 Playwright，可用 `EMC_PLAYWRIGHT_MODULE` /
 `EMC_CHROMIUM` 指定模块与浏览器）。浏览器检查在本地临时端口提供页面，模拟 API，验证游客追问、
 日夜主题对比度和手机溢出；它不代表真实网关可用性。
+
+当前部署上游使用 `EMC_AI_BASE_URL=https://api.openai.com`，对话和预审模型均为
+`deepseek-v4-1-flash-261017`。API 密钥只放在本地 `.env` 或生产主机
+`/etc/ecommerce-money-copilot/app.env`，不进入 Git，也不下发浏览器。
