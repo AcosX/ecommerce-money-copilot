@@ -334,48 +334,53 @@ async def start_xingyun_e2e_session(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """SDK handshake. Provider credentials and the scoped callback key stay on the server."""
-    grant = xingyun_web.owned(db, settings, grant_id, player, lock=True)
-    request_id = secrets.token_hex(16)
     try:
         raw_body = await request.json()
     except Exception:
         raw_body = {}
-    # The SDK sends its protocol version in config. Ignore all client Brain/provider settings.
-    config = raw_body.get("config") if isinstance(raw_body, dict) else {}
-    version = (config or {}).get("sdk_version") if isinstance(config, dict) else None
-    payload = {
-        "config": {
-            "sdk_version": str(version or "2.4.1")[:64],
-            "framedata_proto_version": 2,
-            "walk_version": 3,
-            "raw_audio": (config or {}).get("raw_audio") is True,
-        },
-        "session_speak_req_id": 1,
-        "request_id": request_id,
-        "brain_config": {
-            "provider": "openai",
-            "base_url": settings.public_origin.rstrip("/") + "/api/agent/v1",
-            "api_key": xingyun_web.bearer(settings, grant_id),
-            "model": "xiaoshang-agent-v1",
-            "history_length": 0,
-        },
-        "features": {"auto_send_asr_to_llm": False},
-    }
-    data = await run_in_threadpool(
-        proxy_xingyun_session,
-        settings,
-        payload,
-        preset_id=preset or settings.xingyun_default_preset,
-        e2e=True,
-    )
-    session_id = str((data.get("data") or {}).get("session_id") or "")
-    if session_id:
-        grant.turn = {
-            **(grant.turn or {}),
-            "upstream": {"session_id": session_id, "request_id": request_id},
+
+    def handshake() -> dict[str, Any]:
+        grant = xingyun_web.owned(db, settings, grant_id, player, lock=True)
+        request_id = secrets.token_hex(16)
+        # The SDK sends its protocol version in config. Ignore all client Brain/provider settings.
+        config = raw_body.get("config") if isinstance(raw_body, dict) else {}
+        if not isinstance(config, dict):
+            config = {}
+        version = (config or {}).get("sdk_version") if isinstance(config, dict) else None
+        payload = {
+            "config": {
+                "sdk_version": str(version or "2.4.1")[:64],
+                "framedata_proto_version": 2,
+                "walk_version": 3,
+                "raw_audio": (config or {}).get("raw_audio") is True,
+            },
+            "session_speak_req_id": 1,
+            "request_id": request_id,
+            "brain_config": {
+                "provider": "openai",
+                "base_url": settings.public_origin.rstrip("/") + "/api/agent/v1",
+                "api_key": xingyun_web.bearer(settings, grant_id),
+                "model": "xiaoshang-agent-v1",
+                "history_length": 0,
+            },
+            "features": {"auto_send_asr_to_llm": False},
         }
-    db.commit()
-    return xingyun_web.public_session_response(data)
+        data = proxy_xingyun_session(
+            settings,
+            payload,
+            preset_id=preset or settings.xingyun_default_preset,
+            e2e=True,
+        )
+        session_id = str((data.get("data") or {}).get("session_id") or "")
+        if session_id:
+            grant.turn = {
+                **(grant.turn or {}),
+                "upstream": {"session_id": session_id, "request_id": request_id},
+            }
+        db.commit()
+        return xingyun_web.public_session_response(data)
+
+    return await run_in_threadpool(handshake)
 
 
 @sdk_router.delete("/agent/xingyun/e2e-session")
@@ -386,27 +391,30 @@ async def stop_xingyun_e2e_session(
     settings: Settings = Depends(get_app_settings),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    grant = xingyun_web.owned(db, settings, grant_id, player, lock=True, active=False)
     try:
         raw_body = await request.json()
         payload = raw_body if isinstance(raw_body, dict) else {}
     except Exception:
         payload = {}
-    upstream = (grant.turn or {}).get("upstream") or {}
-    # A receipt never authorizes terminating another connection. Late stop is idempotent.
-    if not upstream or (
-        payload.get("session_id") and payload["session_id"] != upstream.get("session_id")
-    ):
-        return {"error_code": 0}
-    result = await run_in_threadpool(
-        proxy_xingyun_stop_session,
-        settings,
-        {**upstream, "stop_reason": "web_client_disconnect"},
-        e2e=True,
-    )
-    grant.turn = {**(grant.turn or {}), "upstream": None}
-    db.commit()
-    return result
+
+    def teardown() -> dict[str, Any]:
+        grant = xingyun_web.owned(db, settings, grant_id, player, lock=True, active=False)
+        upstream = (grant.turn or {}).get("upstream") or {}
+        # A receipt never authorizes terminating another connection. Late stop is idempotent.
+        if not upstream or (
+            payload.get("session_id") and payload["session_id"] != upstream.get("session_id")
+        ):
+            return {"error_code": 0}
+        result = proxy_xingyun_stop_session(
+            settings,
+            {**upstream, "stop_reason": "web_client_disconnect"},
+            e2e=True,
+        )
+        grant.turn = {**(grant.turn or {}), "upstream": None}
+        db.commit()
+        return result
+
+    return await run_in_threadpool(teardown)
 
 
 @sdk_router.post("/agent/chat")

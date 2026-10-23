@@ -12,7 +12,7 @@ const csp=template.match(/Header setifempty Content-Security-Policy "([^"\n]+)"/
   await p.route(url+'/',async route=>{const response=await route.fetch();await route.fulfill({response,headers:{...response.headers(),'content-security-policy':csp,'permissions-policy':'geolocation=(), microphone=(self), camera=()'}});});
   p.on('pageerror',e=>errors.push(e.message));p.on('websocket',ws=>origins.add(new URL(ws.url()).origin));p.on('request',r=>{if(r.method()==='POST'&&/\/web-sessions\/[^/]+\/turns$/.test(new URL(r.url()).pathname))prepared++;if(new URL(r.url()).pathname==='/api/agent/chat')fallback++;});
   await p.goto(url+'/');await p.waitForFunction(()=>window.EmcAvatarAgent&&window.render_game_to_text,{},{timeout:45000});await p.locator('#opening').waitFor({state:'hidden',timeout:45000});
-  await p.evaluate(()=>EmcOpenCompanionChat('',{send:false}));await p.evaluate(()=>EmcAvatarAgent.connectXingyunSession());assert.equal(await p.evaluate(()=>EmcAvatarAgent._state.mode),'rtc');
+  await p.evaluate(()=>EmcOpenCompanionChat('',{send:false}));await p.evaluate(()=>EmcAvatarAgent.connectXingyunSession());assert.equal(await p.evaluate(()=>EmcAvatarAgent._state.mode),'rtc',JSON.stringify(await p.evaluate(()=>({error:EmcAvatarAgent._state.lastError,codes:EmcAvatarAgent._state.messages.map(m=>m.code)}))));
   await p.locator('#emcVoiceInput').click();await p.waitForFunction(()=>document.getElementById('copilotInput').value.includes('语音识别'),{},{timeout:35000});
   assert.equal(prepared,0);assert.equal(fallback,0);assert.equal(await p.evaluate(()=>EmcAvatarAgent._state.recording),false);
   assert.equal(await p.locator('#emcVoiceInput').getAttribute('aria-pressed'),'false');
