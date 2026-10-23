@@ -49,7 +49,7 @@ from .audit import record_audit
 from .storage import read_evidence_file
 
 RUBRIC_VERSION = "2026.10.v1"
-PROMPT_VERSION = "xiaoshang-agent-v1.4-dialogue"
+PROMPT_VERSION = "xiaoshang-agent-v1.4.1-grounded-calculation"
 
 # ---------------------------------------------------------------- 星云 3D 角色预设与网关签名
 
@@ -2146,6 +2146,17 @@ def run_companion_chat(
             "资源优势及下一步验证办法。不确定的信息标为待验证。"
             "信息足够或店主要求整理时，用 Markdown 输出完整《生意规划报告》，报告不受 180 字限制。"
             "可以引导店主点击‘整理对话成果’，检查后提交；不声称已审核通过。"
+        )
+    if roi_calc:
+        sys_prompt += (
+            "\n本轮已获得 calculation 工具验算结果。先用表格列出用户提供的费用和工具结果，"
+            "预算是周转资金，不是售价或单件成本。只解释本轮已有数据，"
+            "不要自行假设退货率、广告费、回款时间或预算分配，也不要扩展未经工具验算的衍生数字。"
+            "缺失参数就列为待补充；用户要求情景测算时先确认这些参数。"
+            "只要广告费、退货损耗、税费等尚未齐全，就不能把差额称为净利润，"
+            "扣掉一种费用也不代表已得到净利润。保本 ROI 只是已知成本下的估算，"
+            "超过它仍可能因缺失费用亏损；不要称为‘真赚’或保证盈利，"
+            "也不要编造毛利率安全阈值，直接断言商品健康或适合投放。"
         )
     llm_reply, llm_meta = adapter.complete_json_or_text(
         system_prompt=sys_prompt,

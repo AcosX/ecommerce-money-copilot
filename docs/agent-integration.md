@@ -41,3 +41,6 @@ user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest
 当前部署上游使用 `EMC_AI_BASE_URL=https://api.openai-next.com`，对话和预审模型均为
 `deepseek-v4-1-flash-261017`。API 密钥只放在本地 `.env` 或生产主机
 `/etc/ecommerce-money-copilot/app.env`，不进入 Git，也不下发浏览器。
+
+算账回复只解释已提供费用和工具验算结果，缺失费用列为待补充；不自行假设退货率、
+广告费或预算分配来衍生数字，不把不完整成本下的差额称为净利润或保证保本。
