@@ -50,7 +50,7 @@ function contrast(fg, bg) {
           posts.push(route.request().postDataJSON());
           result = {
             reply: posts.length === 1 ? '按已知成本，单笔差额51.05元，毛利率51.57%。广告费、退货和税费尚未计入。' : '加上刚才的运费，我们接着核对包材成本。',
-            provider: 'ai_gateway_live',
+            provider: 'verified_calculation',
             knowledge_citations: [{ title: '毛利与保本ROI', platform: '通用', category: '算账' }],
             roi_calculation: { selling_price: 99, total_cost: 47.95, unit_profit: 51.05, gross_margin_pct: 51.57, breakeven_roi: 1.94, verdict: '尚未计入广告费、退货损耗、税费' }
           };
@@ -67,6 +67,7 @@ function contrast(fg, bg) {
       assert.equal(await card.evaluate(el => el.open), false);
       await card.locator('summary').click();
       assert.match(await card.innerText(), /参考与计算/);
+      assert.match(await card.innerText(), /工具验算/);
       assert.doesNotMatch(await card.innerText(), /净利率|四维加权分/);
       for (const theme of ['day', 'night']) {
         await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);

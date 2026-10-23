@@ -210,7 +210,7 @@ uv run pytest
 
 `GET /api/agent/memory?session_id=<项目ID>` 可只取当前玩家该项目的最近 10 轮对话，筛选先于条数限制执行。省略该参数时保持玩家全局最近对话。`session_id` 为 1–64 字符，不能绕过登录玩家隔离。
 
-历史对话仅额外投影审计中已有的 `llm_meta.provider`，不暴露完整上游元数据。前端区分模型回答、本地规则回退与“来源未记录”的旧历史；刷新与存档规范化保留来源。
+历史对话仅额外投影审计中已有的 `llm_meta.provider`，不暴露完整上游元数据。前端区分模型回答、本地规则回退与“来源未记录”的旧历史；刷新与存档规范化保留来源。纯算账由工具直接生成费用明细，provider 为 `verified_calculation`，标注“工具验算”；混合规划、文案等任务继续由模型结合验算结果回答。
 
 小商对话补充（2026-10-23）：`POST /api/agent/chat` 可选接收 `guest_history`，最多 12 条
 `{role: "user" | "assistant", text: string}`，每条文本不超过 2000 字符。仅游客采用客户端历史，

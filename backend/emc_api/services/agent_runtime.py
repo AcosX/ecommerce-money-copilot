@@ -35,7 +35,9 @@ from ..models import (
 from ..timeutil import isoformat_utc, utcnow
 from .agent_dialogue import (
     calculate_unit_roi,
+    calculation_reply,
     dialogue_kind,
+    is_calculation_request,
     normalize_history,
     offline_reply,
 )
@@ -2158,28 +2160,33 @@ def run_companion_chat(
             "超过它仍可能因缺失费用亏损；不要称为‘真赚’或保证盈利，"
             "也不要编造毛利率安全阈值，直接断言商品健康或适合投放。"
         )
-    llm_reply, llm_meta = adapter.complete_json_or_text(
-        system_prompt=sys_prompt,
-        user_prompt=clean_msg,
-        conversation=conversation,
-        context={
-            "dialogue_kind": kind,
-            "server_progress": progress,
-            "shop": shop_ctx,
-            "memory": {
-                k: memory.get(k) for k in ("preferred_platform", "preferred_category", "key_notes")
+    if roi_calc and is_calculation_request(clean_msg) and not saved_draft and not review_info:
+        llm_reply = calculation_reply(roi_calc)
+        llm_meta = {"provider": "verified_calculation", "model": "decimal-unit-roi-v1"}
+    else:
+        llm_reply, llm_meta = adapter.complete_json_or_text(
+            system_prompt=sys_prompt,
+            user_prompt=clean_msg,
+            conversation=conversation,
+            context={
+                "dialogue_kind": kind,
+                "server_progress": progress,
+                "shop": shop_ctx,
+                "memory": {
+                    k: memory.get(k)
+                    for k in ("preferred_platform", "preferred_category", "key_notes")
+                },
+                "level_guide": level_guide,
+                "reference_material": kb_prompt_items,
+                "calculation": roi_calc,
+                "review": review_info,
+                "saved_draft": saved_draft,
+                "executed_ui_actions": ui_actions,
             },
-            "level_guide": level_guide,
-            "reference_material": kb_prompt_items,
-            "calculation": roi_calc,
-            "review": review_info,
-            "saved_draft": saved_draft,
-            "executed_ui_actions": ui_actions,
-        },
-        max_tokens=1600,
-    )
+            max_tokens=1600,
+        )
 
-    emotion = "encouraging"
+    emotion = "analytical" if roi_calc else "encouraging"
     ka_intent = "Explain"
 
     if not llm_reply:
@@ -2194,17 +2201,7 @@ def run_companion_chat(
         if roi_calc:
             emotion = "analytical"
             ka_intent = "Explain"
-            roi_text = (
-                f"按已知成本，保本 ROI ≈ {roi_calc['breakeven_roi']}。"
-                if roi_calc["breakeven_roi"] is not None
-                else "按已知成本已无正毛利，增加投放不能保本。"
-            )
-            llm_reply = (
-                f"售价 {roi_calc['selling_price']:g} 元，已知每单成本 "
-                f"{roi_calc['total_cost']:g} 元，差额 {roi_calc['unit_profit']:g} 元，"
-                f"毛利率 {roi_calc['gross_margin_pct']}%。{roi_text}"
-                f"{roi_calc['verdict']}，这不是净利润或收益保证。"
-            )
+            llm_reply = calculation_reply(roi_calc)
         elif saved_draft:
             emotion = "happy"
             ka_intent = "Approve"
