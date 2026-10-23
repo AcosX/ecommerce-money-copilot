@@ -44,6 +44,11 @@ async function prepare(page,{welcome=false}={}){
   assert.equal(await journal.locator('.journal-heading').isVisible(),true);assert.equal(await journal.locator('.journal-counts').isVisible(),true);
   assert.match(await journal.innerText(),/2份成果/);assert.equal(await journal.evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);
   const card=await journal.boundingBox();inside(card,width,height);
+  if(width>700){
+    // Reserve both the journal's tape/rotation and readable space under tool labels.
+    const labels=await page.locator('.shortcuts .shortcut>span').evaluateAll(nodes=>nodes.map(e=>({text:e.textContent,bottom:e.getBoundingClientRect().bottom})));
+    for(const label of labels)assert.ok(card.y-label.bottom>=24,`${label.text} is too close to the journal decoration: ${card.y-label.bottom}px`);
+  }
   const selectors=width<=700?['.player-card','.shortcuts','.quest-peek','.main-actions','.copilot-dock']:['.player-card','.shortcuts','.quest-peek','.copilot-dock'];
   for(const selector of selectors)separate(card,await page.locator(selector).boundingBox());
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
