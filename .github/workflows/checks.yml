@@ -24,9 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
       EMC_TEST_URL: http://127.0.0.1:5173/
-      EMC_SCREENSHOTS: ${{ runner.temp }}/emc-ui-shots
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +33,9 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/emc-browser" --no-save --package-lock=false playwright@1.56.1
       - run: node "$RUNNER_TEMP/emc-browser/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Journal, chat suggestions and existing panel regression
+        env:
+          EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
+          EMC_SCREENSHOTS: ${{ runner.temp }}/emc-ui-shots
         run: |
           python3 -m http.server 5173 --bind 127.0.0.1 > "$RUNNER_TEMP/emc-static.log" 2>&1 &
           server_pid=$!
