@@ -28,7 +28,7 @@ def test_agent_config_anonymous_and_authenticated(
     resp = client.get("/api/agent/config")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["architecture"]["selected_scheme"] == "scheme_3_xingyun_sdk_plus_fastapi_runtime"
+    assert data["architecture"]["selected_scheme"] == "xingyun_web_e2e_plus_fastapi_runtime"
     assert data["authenticated"] is False
     assert data["xingyun"]["gateway_server"] == "/api/agent/xingyun/session"
     preset_ids = {p["preset_id"] for p in data["xingyun"]["presets"]}
@@ -320,28 +320,16 @@ def test_ai_deliverable_review_l3_and_cross_player_protection(
     assert get_resp.json()["has_ai_review"] is False
 
 
-def test_openai_compatible_bridge_json_and_sse(client: TestClient) -> None:
-    json_resp = client.post(
-        "/api/agent/v1/chat/completions",
-        json={
-            "model": "xiaoshang-agent-v1",
-            "stream": False,
-            "messages": [{"role": "user", "content": "第二关选品有什么避坑重点？"}],
-        },
-    )
+def test_openai_compatible_bridge_json_and_sse(client: TestClient, settings) -> None:
+    from .test_xingyun_web import callback, setup_turn
+
+    grant, _, question = setup_turn(client, message="第二关选品有什么避坑重点？")
+    json_resp = callback(client, settings, grant, question)
     assert json_resp.status_code == 200
     payload = json_resp.json()
     assert payload["object"] == "chat.completion"
     assert len(payload["choices"][0]["message"]["content"]) > 10
-
-    sse_resp = client.post(
-        "/api/agent/v1/chat/completions",
-        json={
-            "model": "xiaoshang-agent-v1",
-            "stream": True,
-            "messages": [{"role": "user", "content": "你好小商"}],
-        },
-    )
+    sse_resp = callback(client, settings, grant, question, stream=True)
     assert sse_resp.status_code == 200
     assert "data: [DONE]" in sse_resp.text
 

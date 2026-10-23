@@ -4,6 +4,7 @@
   const doc=global.document;
   const agentState={presetId:'yingyi',presetSelected:false,pose:'idle',mode:'island',lastSpeechText:'',muted:false,sdk:null,connecting:null,autoAttempted:false,generation:0,lastError:null,messages:[]};
   const els={};
+  const ownerKey=()=>global.EmcSession?.current()?.player?.id||'guest';
   function make(tag,cls,text){const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
   function status(text){if(els.status)els.status.textContent=text;}
   function setPose(pose){agentState.pose=pose;const sdk=agentState.sdk;if(agentState.mode!=='rtc')return;try{if(pose==='think')sdk.think?.();else if(pose==='listen')sdk.listen?.();else if(pose==='idle')sdk.idle?.();}catch(_){}}
@@ -17,8 +18,8 @@
   function closeCopilotPanel(){doc.getElementById('closeMobileChat')?.click();}
   function openFormalWorkbench(){global.EmcOpenCompanionChat?.('我想查看当前关卡的成果要求',{send:true});}
   function requestBackendChat(message){global.EmcOpenCompanionChat?.(message,{send:true});return Promise.resolve({delegated:true});}
-  function loadSdk(){if(global.XmovAvatar)return Promise.resolve();return new Promise((resolve,reject)=>{const script=doc.createElement('script');script.src='js/vendor/xmovAvatar.min.js';script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('数字人资源加载失败'));};doc.head.append(script);});}
-  async function disconnect(){agentState.generation++;const sdk=agentState.sdk;agentState.sdk=null;agentState.mode='island';els.stage.hidden=true;els.stage.classList.remove('connecting');els.screen.hidden=true;els.connect.textContent='连接数字人';if(sdk)try{await sdk.destroy();}catch(_){}els.mount.replaceChildren();}
+  function loadSdk(){if(global.XingyunAvatarAgent)return Promise.resolve();return new Promise((resolve,reject)=>{const script=doc.createElement('script');script.src='js/vendor/xingyunAvatarAgent.8d03fe57.js';script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('数字人资源加载失败'));};doc.head.append(script);});}
+  async function disconnect(){await stopVoice();agentState.generation++;const sdk=agentState.sdk,grant=agentState.grant;agentState.sdk=null;agentState.grant=null;agentState.nativeError=null;agentState.mode='island';els.stage.hidden=true;els.stage.classList.remove('connecting');els.screen.hidden=true;els.connect.textContent='连接数字人';if(sdk)try{await sdk.destroy('web_client_disconnect');}catch(_){}if(grant)try{await global.EmcApi.delete('/api/agent/xingyun/web-sessions/'+grant.id);}catch(_){}els.mount.replaceChildren();}
   function connectXingyunSession(presetId){
     if(agentState.connecting)return agentState.connecting;
     if(agentState.mode==='rtc')return Promise.resolve(agentState.sdk);
@@ -32,24 +33,80 @@
         await loadSdk();if(generation!==agentState.generation)return null;
         agentState.presetId=presetId||config.xingyun.default_preset||'yingyi';els.select.value=agentState.presetId;
         els.stage.hidden=false;els.stage.classList.add('connecting');els.screen.hidden=false;
-        let ready,failed;
-        const loaded=new Promise((resolve,reject)=>{ready=resolve;failed=reject;});
-        timer=setTimeout(()=>failed(new Error('数字人连接超时')),30000);
-        sdk=new global.XmovAvatar({containerId:'#emcXingyunSdkMount',appId:config.xingyun.app_id,appSecret:'',gatewayServer:'/api/agent/xingyun/session?preset='+encodeURIComponent(agentState.presetId),enableLogger:false,
-          onMessage:message=>{agentState.messages.push({code:message.code,message:String(message.message||'').slice(0,200)});agentState.messages=agentState.messages.slice(-20);if([3101,3102,3103,3105,3504,3605,3606].includes(Number(message.code)))failed(new Error('数字人连接暂时不可用'));},
-          onStateChange:pose=>{agentState.pose=pose;},onStatusChange:value=>{if([0,5].includes(value))ready();}
+        const grant=await global.EmcApi.post('/api/agent/xingyun/web-sessions',{});
+        if(generation!==agentState.generation)return null;
+        agentState.grant={...grant,owner:ownerKey(),expiresAt:Date.now()+grant.expires_in*1000};
+        sdk=new global.XingyunAvatarAgent({container:els.mount,containerId:'#emcXingyunSdkMount',appId:config.xingyun.app_id,appSecret:'',gatewayServer:'/api/agent/xingyun/e2e-session?grant_id='+encodeURIComponent(grant.id)+'&preset='+encodeURIComponent(agentState.presetId),enableLogger:false,
+          onMessage:message=>{agentState.messages.push({code:message.code,message:String(message.message||'').slice(0,200)});agentState.messages=agentState.messages.slice(-20);},
+          agentCallbacks:{
+            onLLMResponse:event=>{if(generation===agentState.generation&&event.event==='done')agentState.nativeReplies=(agentState.nativeReplies||0)+1;},
+            onError:()=>{if(generation===agentState.generation){agentState.nativeError=new Error('数字人会话暂时不可用');void stopVoice();}},
+            onASRResult:event=>{if(generation===agentState.generation&&agentState.recording&&event.isFinal&&event.text?.trim()){const input=doc.getElementById('copilotInput');if(input&&!input.disabled){input.value=event.text.trim().slice(0,2000);input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();}void stopVoice();status('已转为文字，确认后点击发送。');}},
+            onAgentStateChange:state=>{if(generation===agentState.generation)agentState.nativeState=state;},
+            onSpeakStateChange:event=>{if(generation===agentState.generation){agentState.pose=event.state==='speak_start'?'speak':'idle';if(event.state==='speak_start')agentState.nativeSpeechStarts=(agentState.nativeSpeechStarts||0)+1;}}
+          }
         });
         agentState.sdk=sdk;
-        await Promise.all([sdk.init({onDownloadProgress:progress=>{if(generation!==agentState.generation)return;status('正在准备小商的形象… '+Math.round(progress)+'%');if(progress>=100)ready();}}),loaded]);
-        if(generation!==agentState.generation){await sdk.destroy();return null;}
+        await Promise.race([sdk.init(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('数字人连接超时')),20000);})]);
+        if(generation!==agentState.generation){await sdk.destroy('superseded');return null;}
+        if(sdk.getAgentState()!=='running')throw new Error('数字人会话尚未就绪');
         agentState.mode='rtc';els.stage.classList.remove('connecting');applyVolume();els.connect.textContent='断开数字人';status('数字人已连接，可使用静音图标控制声音。');
-        if(agentState.lastSpeechText)speakText(agentState.lastSpeechText);
         return sdk;
       }catch(error){agentState.lastError={name:error?.name||'ConnectionError',message:error?.message||'数字人连接失败'};if(generation===agentState.generation){await disconnect();status('小商继续在岛上陪你，数字人暂时没连上，可以重试。');}return null;}
       finally{clearTimeout(timer);agentState.connecting=null;els.connect.disabled=false;}
     })();return agentState.connecting;
   }
-  function autoConnect(){if(agentState.autoAttempted)return agentState.connecting;agentState.autoAttempted=true;return connectXingyunSession(agentState.presetSelected?agentState.presetId:undefined);}
+  function autoConnect(){if(agentState.autoAttempted)return agentState.connecting||Promise.resolve(agentState.sdk);agentState.autoAttempted=true;return connectXingyunSession(agentState.presetSelected?agentState.presetId:undefined);}
+  async function nativeReply(body,{signal}={}){
+    if(signal?.aborted)throw new Error('对话已取消');
+    if(agentState.grant&&(agentState.grant.owner!==ownerKey()||agentState.grant.expiresAt<Date.now()+30000)){
+      await disconnect();agentState.autoAttempted=false;
+    }
+    const sdk=await autoConnect();
+    if(!sdk)return null; // failed before dispatch: the ordinary text transport can continue
+    if(signal?.aborted)throw new Error('对话已取消');
+    const generation=agentState.generation,owner=ownerKey(),grant=agentState.grant;
+    if(!grant||grant.owner!==owner)throw new Error('账号已切换，请重新发送');
+    const turn=await global.EmcApi.post('/api/agent/xingyun/web-sessions/'+grant.id+'/turns',{...body,preset_id:agentState.presetId},{signal});
+    agentState.nativeError=null;
+    const abort=()=>{try{sdk.interrupt('user');}catch(_){}};
+    signal?.addEventListener('abort',abort,{once:true});
+    try{
+      await sdk.ask(body.message+"\n["+turn.ticket+"]");
+      const deadline=Date.now()+35000;
+      while(Date.now()<deadline){
+        if(signal?.aborted||generation!==agentState.generation||owner!==ownerKey())throw new Error('对话已取消');
+        const data=await global.EmcApi.get('/api/agent/xingyun/web-sessions/'+grant.id+'/turns/'+turn.id,{signal});
+        if(data.state==='done')return {...data.result,avatar_spoken:true};
+        if(data.state==='failed'||agentState.nativeError)throw new Error('这条消息未能完成，请重试');
+        await new Promise(resolve=>setTimeout(resolve,600));
+      }
+      // Never repeat a dispatched request through another model/transport.
+      throw new Error('小商仍在处理这条消息，请稍后重试');
+    }catch(error){await disconnect();agentState.autoAttempted=false;throw error;}finally{signal?.removeEventListener('abort',abort);}
+  }
+  async function stopVoice(){
+    clearTimeout(agentState.voiceTimer);
+    if(!agentState.recording)return;
+    agentState.recording=false;
+    els.voice?.setAttribute('aria-pressed','false');els.voice?.setAttribute('aria-label','语音输入');
+    try{await agentState.sdk?.stopASR();}catch(_){}
+  }
+  async function toggleVoice(){
+    if(agentState.recording){await stopVoice();return;}
+    const input=doc.getElementById('copilotInput');if(!input||input.disabled)return;
+    els.voice.disabled=true;
+    try{
+      const sdk=await autoConnect();if(!sdk)throw new Error('语音暂时不可用，可以继续打字。');
+      await sdk.interrupt('user');
+      agentState.recording=true;
+      await sdk.startASR();
+      els.voice.setAttribute('aria-pressed','true');els.voice.setAttribute('aria-label','结束语音输入');
+      status('正在听，识别完成后请确认文字再发送。');
+      agentState.voiceTimer=setTimeout(()=>{void stopVoice();},30000);
+    }catch(_){await stopVoice();status('未能开启语音，请检查浏览器麦克风权限，也可以继续打字。');}
+    finally{els.voice.disabled=false;}
+  }
   async function setPreset(id){if(!['yingyi','xingya','huahua'].includes(id))return;agentState.presetSelected=true;const connected=agentState.mode==='rtc'||Boolean(agentState.connecting),pending=agentState.connecting;await disconnect();if(pending)await pending;agentState.presetId=id;if(connected)await connectXingyunSession(id);}
   function start(){
     if(els.stage)return;
@@ -62,11 +119,12 @@
     const stage=make('section','emc-avatar-stage');stage.id='emcAvatarStage';stage.hidden=true;stage.setAttribute('aria-label','小商数字人');
     const screen=make('div','avatar-screen');screen.hidden=true;const mount=make('div');mount.id='emcXingyunSdkMount';screen.append(mount);stage.append(screen);
     const mute=make('button','avatar-mute');mute.type='button';mute.id='emcAvatarMuteBtn';mute.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4Z"/><path class="volume-on" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="volume-off" d="m16 9 6 6m0-6-6 6"/></svg>';mute.onclick=()=>setMuted(!agentState.muted);stage.append(mute);footer.append(stage);
+    const voice=make('button','copilot-voice');voice.type='button';voice.id='emcVoiceInput';voice.setAttribute('aria-label','语音输入');voice.setAttribute('aria-pressed','false');voice.title='语音输入';voice.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>';voice.onclick=()=>{void toggleVoice();};doc.getElementById('copilotForm')?.insertBefore(voice,doc.getElementById('copilotSend'));
     dock.insertBefore(footer,doc.getElementById('copilotStatus'));
-    Object.assign(els,{stage,screen,mount,connect,status:line,select,mute});setMuted(agentState.muted);
+    Object.assign(els,{stage,screen,mount,connect,status:line,select,mute,voice});setMuted(agentState.muted);
     doc.addEventListener('visibilitychange',()=>{if(!doc.hidden)setTimeout(applyVolume,0);});
-    global.addEventListener('emc:companion-reply',event=>{const answer=event.detail?.text;if(answer)speakText(answer);});
-    global.addEventListener('emc:companion-thinking',()=>setPose('think'));
+    global.addEventListener('emc:companion-reply',event=>{const answer=event.detail?.text;if(answer&&!event.detail?.avatar_spoken)speakText(answer);});
+    global.addEventListener('emc:companion-thinking',()=>{void stopVoice();interruptSpeech();setPose('think');});
     global.addEventListener('pagehide',()=>{void disconnect();});
   }
   function buildAgentCardElement(resp) {
@@ -173,6 +231,6 @@
   }
 
 
-  global.EmcAvatarAgent={start,setPreset,setPose,setMuted,speakText,interrupt:interruptSpeech,connectXingyunSession,autoConnect,disconnect,askBackend:requestBackendChat,runDeliverablePreReview,buildAgentCardElement,openCopilot:openCopilotPanel,closeCopilot:closeCopilotPanel,openFormalWorkbench,_state:agentState};
+  global.EmcAvatarAgent={start,nativeReply,stopVoice,setPreset,setPose,setMuted,speakText,interrupt:interruptSpeech,connectXingyunSession,autoConnect,disconnect,askBackend:requestBackendChat,runDeliverablePreReview,buildAgentCardElement,openCopilot:openCopilotPanel,closeCopilot:closeCopilotPanel,openFormalWorkbench,_state:agentState};
   if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start);else start();
 })(window);

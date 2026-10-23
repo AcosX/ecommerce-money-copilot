@@ -484,7 +484,7 @@
       const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
       if(!serverAgentProject()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
-      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},40000);});
+      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},65000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=(result.state||window.EmcSession?.isLoggedIn())?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
