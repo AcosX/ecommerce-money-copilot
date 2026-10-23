@@ -27,6 +27,7 @@ from emc_api.timeutil import utcnow
 from .conftest import alembic_config, create_test_database, drop_test_database, url_string
 
 EXPECTED_TABLES = {
+    "xingyun_web_sessions",
     "review_jobs",
     "players",
     "sessions",

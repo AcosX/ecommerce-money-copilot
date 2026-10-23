@@ -36,7 +36,7 @@
         const selected=found.find(p=>p.id===project?.id)||found[0]||null;
         if(!selected){project=null;artifacts=[];verifications=[];return;}
         const [arts,subs]=await Promise.all([pages('/api/artifacts?project_id='+encodeURIComponent(selected.id)),pages('/api/verifications')]);if(token!==epoch)return;
-        project=selected;artifacts=arts;verifications=subs;for(const sub of subs){if(sub.status!=='pending')options.notify?.({id:sub.id+':'+sub.status,time:sub.decided_at||sub.created_at,text:`${J.LEVELS.find(l=>l.type===sub.snapshot?.artifact_type)?.id||'本关'} 审核${sub.status==='approved'?'通过':'需要补充'}：${sub.reviews?.at(-1)?.reason||sub.rejection_reason||'请查看对应关卡的审核详情。'}`});}if(view==='setup'&&!draft.saved){draft.platform=selected.platform;draft.category=selected.category;draft.shop_name=selected.name;view='task';}
+        project=selected;artifacts=arts;verifications=subs.filter(sub=>sub.snapshot?.project_id===selected.id||arts.some(art=>art.id===sub.artifact_id));for(const sub of verifications){if(sub.status!=='pending')options.notify?.({id:sub.id+':'+sub.status,time:sub.decided_at||sub.created_at,text:`${J.LEVELS.find(l=>l.type===sub.snapshot?.artifact_type)?.id||'本关'} 审核${sub.status==='approved'?'通过':'需要补充'}：${sub.reviews?.at(-1)?.reason||sub.rejection_reason||'请查看对应关卡的审核详情。'}`});}if(view==='setup'&&!draft.saved){draft.platform=selected.platform;draft.category=selected.category;draft.shop_name=selected.name;view='task';}
         const next=progress();if(view==='welcome'&&next.completed>0)view='task';
         if(!previousProject&&!['submit','setup','supplies','kit'].includes(view))selectLevel(next.current?.id||'L6');
       }catch(e){if(token===epoch&&!silent)error=e.message||'暂时没能同步经营进度。';}

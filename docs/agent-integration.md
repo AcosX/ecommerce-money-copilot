@@ -18,7 +18,7 @@
 
 验证：`node --test js/tests/*.test.cjs`、后端 MariaDB `uv run pytest`、
 `js/tests/emc-agent-browser.cjs` 和六关 `js/tests/emc-journey-browser.cjs`。
-真实星云 SDK 鉴权、安卓微信/OIDC 往返及最后一单认证，仍需在对应真实场景验收。
+网页端原生星云会话已真实验收，见 [xingyun-web.md](./xingyun-web.md)。安卓微信/OIDC 往返和独立首单成就仍需在对应场景验收。
 
 2026-10-23 对话调优：登录对话在数据库查询时按玩家和 `session_id` 过滤，最近六轮作为真实
 user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest_history`，只接受 user/assistant
@@ -47,3 +47,8 @@ user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest
 同时传入验算结果并约束其说明缺失参数；不把不完整成本下的差额称为净利润或保证保本。
 
 2026-10-23 单步带关：当前任务、前序成果和审核队列已接入唯一聊天。最新行为与验收边界以 [guided-journey.md](./guided-journey.md) 为准；旧文中的规则预审和工作纸不再是通关流程。
+
+2026-10-23 Web E2E：主要网页传输切换到 `XingyunAvatarAgent`，回调使用同一个
+`run_companion_chat`，模型密钥仍只在服务器。`0003_xingyun_web` 只存短期传输授权和当前消息回执，
+不另建 Agent 记忆。普通文字 `/agent/chat` 在原生会话尚未建立时可继续使用；已发送的原生请求不会
+自动重复调用文字接口。语音识别结果必须先经用户在原输入框确认。完整协议和权限见网页端说明。
