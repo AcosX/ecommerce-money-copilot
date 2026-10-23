@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import secrets
 import time
@@ -480,7 +481,9 @@ async def openai_compatible_agent_bridge(
     chat_res = await run_in_threadpool(
         xingyun_web.complete, db, settings, request.headers.get("authorization", ""), user_msg
     )
-    reply_text = chat_res["spoken_text"]
+    # Vendor subtitle widgets use innerHTML. Keep model text inert there too;
+    # the canonical Markdown reply stays intact in the authenticated receipt.
+    reply_text = html.escape(chat_res["spoken_text"], quote=True)
     completion_id = f"chatcmpl-emc-{int(time.time() * 1000)}"
     created_ts = int(time.time())
     model_name = str(payload.get("model") or "xiaoshang-agent-v1")
