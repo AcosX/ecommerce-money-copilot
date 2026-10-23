@@ -305,6 +305,22 @@ class IdempotencyRecord(Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
 
 
+class XingyunWebSession(Base):
+    """Short-lived native Web transport; the upstream never receives a login cookie."""
+
+    __tablename__ = "xingyun_web_sessions"
+    __table_args__ = (
+        CheckConstraint("turn IS NULL OR json_valid(turn)", name="turn_json"),
+        TABLE_OPTIONS,
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_id: Mapped[str | None] = mapped_column(ID, ForeignKey("players.id", ondelete="CASCADE"))
+    session_id_hash: Mapped[str | None] = mapped_column(SHA256)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    turn: Mapped[Any | None] = mapped_column(JSONText())
+
+
 APPEND_ONLY_MODELS: tuple[type[Base], ...] = (AuditEvent, VerificationReview, ArtifactRevision)
 
 
