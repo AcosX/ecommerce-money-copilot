@@ -383,14 +383,16 @@
 
 /* Agent 工具轨迹与算账卡片 */
 .emc-agent-card {
-  background: rgba(10, 19, 38, 0.92);
-  border: 2px solid var(--av-mint);
+  background: var(--surface2, #eef0ff);
+  border: 1px solid var(--line, #2e4974);
   border-radius: 10px;
   padding: 8px 10px;
   font-size: 11px;
   line-height: 1.55;
-  color: var(--av-ink);
+  color: var(--ink, #18294d);
   align-self: stretch;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .emc-agent-card-head {
@@ -400,7 +402,18 @@
   gap: 6px;
   margin-bottom: 5px;
   font-weight: 700;
-  color: var(--av-gold);
+  color: var(--ink, #18294d);
+  cursor: pointer;
+}
+
+.emc-agent-card-head:focus-visible {
+  outline: 2px solid var(--line, #2e4974);
+  outline-offset: 3px;
+}
+
+.emc-agent-card-source {
+  color: var(--ink, #18294d);
+  font-weight: 400;
 }
 
 .emc-agent-tools {
@@ -416,16 +429,16 @@
   border-radius: 5px;
   background: rgba(91, 141, 239, 0.18);
   border: 1px solid var(--av-blue);
-  color: #b8d0ff;
+  color: var(--ink, #18294d);
 }
 
 .emc-agent-roi {
   margin-top: 5px;
   padding: 6px 8px;
   background: rgba(255, 217, 74, 0.12);
-  border-left: 3px solid var(--av-gold);
+  border-left: 3px solid var(--line, #2e4974);
   border-radius: 4px;
-  color: var(--av-ink);
+  color: var(--ink, #18294d);
 }
 
 /* AI 成果预审结果卡片 */

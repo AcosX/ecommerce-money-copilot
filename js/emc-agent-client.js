@@ -65,6 +65,8 @@
     const project = typeof context.project_id === 'string' ? context.project_id : null;
     const level = String(context.task?.id || context.level || 'L1');
     const levelId = /^L[1-6]$/.test(level) ? level : 'L1';
+    const platform = String(context.platform || context.journey?.platform || '').slice(0, 32);
+    const category = String(context.category || context.journey?.category || '').slice(0, 64);
     const session = loggedIn() && project && project.length <= 64 ? project : 'island-guest';
     const body = {
       message: message.trim().slice(0, 2000),
@@ -74,15 +76,27 @@
         current_view: String(context.page_context?.page || 'shop').slice(0, 32),
         source: 'island-companion',
         companion_name: String(context.companion_name || '小商').slice(0, 24),
-        platform: String(context.platform || '').slice(0, 32),
-        category: String(context.category || '').slice(0, 64),
+        platform,
+        category,
+        current_task: {
+          id: levelId,
+          name: String(context.task?.name || '').slice(0, 100),
+          deliverable: String(context.task?.deliverable || '').slice(0, 300)
+        },
         active_project: project && loggedIn() ? {
           id: project,
-          platform: String(context.platform || '').slice(0, 32),
-          category: String(context.category || '').slice(0, 64)
+          platform,
+          category
         } : null
       }
     };
+    if (!loggedIn()) {
+      const recent = Array.isArray(context.history) ? context.history : [];
+      body.guest_history = recent.filter(turn =>
+        turn && ['user', 'assistant'].includes(turn.role) && typeof turn.text === 'string' && turn.text.trim()
+      ).slice(-12).map(turn => ({ role: turn.role, text: turn.text.trim().slice(0, 2000) }));
+      if (body.guest_history.at(-1)?.role === 'user' && body.guest_history.at(-1).text === body.message) body.guest_history.pop();
+    }
     const requester = keyFor(project);
     const result = await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
     if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');

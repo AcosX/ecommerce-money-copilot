@@ -398,7 +398,7 @@
   function renderSocialChat(){
     const host=$('socialMessages');if(!host)return;const state=readCompanion(),name=partnerName();
     $('socialName').textContent=name;$('socialAffinity').textContent=state.affinity+'/100';$('socialPatience').textContent=state.patience+'/100';$('companionAvatar').setAttribute('aria-label','查看'+name+'的详情');
-    const rows=C.history(game.npc_chat,chatWasCloud?8000:400).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
+    const rows=C.history(game.npc_chat,chatWasCloud?8000:2000).slice(-30),nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<60;
     const markup=rows.length?rows.map((row,idx)=>`<article class="social-message ${row.role==='user'?'mine':'theirs'}" data-chat-idx="${idx}"><small>${row.role==='user'?'我':escape(name)}</small><p>${escape(row.text).replaceAll('\n','<br>')}</p></article>`).join(''):`<article class="social-message theirs"><small>${escape(name)}</small><p>${escape(companionBrief(currentCompanionTask(),currentCompanionTask()?.status,name))}</p></article>`;
     const renderKey=markup+'::'+chatMetaEpoch;
     if(host.dataset.renderKey!==renderKey){
@@ -407,7 +407,7 @@
       if(nearBottom)host.scrollTop=host.scrollHeight;
     }
   }
-  function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:400);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
+  function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],chatWasCloud?8000:2000);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
   window.EmcOpenCompanionChat=(message,{send=false}={})=>{
     const dock=document.querySelector('.copilot-dock');
     if(panel) closePanel();
@@ -444,7 +444,7 @@
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
-      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat).slice(-12)};
+      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
       if(!serverAgentProject()&&!journey?.isDemo()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},40000);});

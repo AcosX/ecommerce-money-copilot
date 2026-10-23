@@ -770,18 +770,18 @@
     var hasRoi = resp.roi_calculation && typeof resp.roi_calculation === 'object';
     var hasArtifact = resp.saved_artifact && (resp.saved_artifact.id || resp.saved_artifact.artifact_id);
     var hasCitations = Array.isArray(resp.knowledge_citations) && resp.knowledge_citations.length > 0;
-    if (!hasTools && !hasRoi && !hasArtifact && !hasCitations) return null;
+    if (!hasRoi && !hasArtifact && !hasCitations) return null;
 
-    var card = make('div', 'emc-agent-card');
+    var card = make('details', 'emc-agent-card');
     card.setAttribute('data-emc-agent-card', '');
 
-    var head = make('div', 'emc-agent-card-head');
-    head.appendChild(make('span', '', '小商 Agent 工具链与推演'));
-    var prov = make('span', '', (resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 大模型' : 'Copilot 引擎') + ' · ' + (resp.model || 'xiaoshang-v1'));
+    var head = make('summary', 'emc-agent-card-head');
+    head.appendChild(make('span', '', '参考与计算'));
+    var prov = make('span', 'emc-agent-card-source', resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 回复' : '本地辅助');
     head.appendChild(prov);
     card.appendChild(head);
 
-    if (hasTools) {
+    if (hasTools && hasArtifact) {
       var toolsBox = make('div', 'emc-agent-tools');
       toolList.forEach(function (tc) {
         var chip = make('span', 'emc-agent-tool-chip', '⚙ ' + tc.tool + (tc.summary ? '：' + tc.summary : ''));
@@ -807,14 +807,13 @@
       roiBox.setAttribute('data-emc-roi-card', '');
       var retail = r.retail_price_yuan != null ? r.retail_price_yuan : r.selling_price;
       var supply = r.supply_price_yuan != null ? r.supply_price_yuan : r.total_cost;
-      var netProfit = r.estimated_net_profit_yuan != null ? r.estimated_net_profit_yuan : r.unit_profit;
+      var profit = r.unit_profit != null ? r.unit_profit : r.estimated_net_profit_yuan;
       var marginPct = r.margin_rate_pct != null ? r.margin_rate_pct : r.gross_margin_pct;
-      var scoreTx = r.score_4d ? ' · 四维加权分 ' + r.score_4d.weighted_total : '';
       roiBox.textContent =
         '【选品算账】售价 ¥' + retail +
-        ' / 拿货 ¥' + supply +
-        ' → 预估净利 ¥' + netProfit +
-        '（净利率 ' + marginPct + '%' + scoreTx + '）· ' + (r.verdict || ('保本 ROI ' + (r.breakeven_roi || '')));
+        ' / 已知成本 ¥' + (r.total_cost != null ? r.total_cost : supply) +
+        ' → 单笔差额 ¥' + profit +
+        '（毛利率 ' + marginPct + '%）· ' + (r.verdict || ('保本 ROI ' + (r.breakeven_roi ?? '无法保本')));
       card.appendChild(roiBox);
     }
 
