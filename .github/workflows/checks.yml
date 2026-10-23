@@ -20,6 +20,35 @@ jobs:
           node-version: '22'
       - run: node --test js/tests/*.test.cjs
 
+  frontend-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
+      EMC_TEST_URL: http://127.0.0.1:5173/
+      EMC_SCREENSHOTS: ${{ runner.temp }}/emc-ui-shots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/emc-browser" --no-save --package-lock=false playwright@1.56.1
+      - run: node "$RUNNER_TEMP/emc-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Journal, chat suggestions and existing panel regression
+        run: |
+          python3 -m http.server 5173 --bind 127.0.0.1 > "$RUNNER_TEMP/emc-static.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          export EMC_CHROMIUM="$(node -e 'process.stdout.write(require(process.env.EMC_PLAYWRIGHT_MODULE).chromium.executablePath())')"
+          node js/tests/emc-journal-prompts-browser.cjs
+          node js/tests/emc-centered-panels-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-ui-screenshots
+          path: ${{ runner.temp }}/emc-ui-shots
+          if-no-files-found: ignore
+
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 15

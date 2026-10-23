@@ -29,3 +29,10 @@
 @media(prefers-reduced-motion:reduce){.j-button,.small-button{transition:none}}
 
 .copilot-dock .avatar-settings{display:block;flex:1}.avatar-settings summary,.coach-finish summary{font-size:11px;color:var(--muted);cursor:pointer;min-height:32px;padding:6px 3px}.avatar-settings[open] select,.avatar-settings[open] button{margin-top:6px}.coach-finish{align-self:flex-end;font-size:11px;margin-top:8px}.coach-finish .j-button{margin:8px 0}.j-tool-link{display:block;padding:14px;margin:12px 0;border:1px solid #8da59b;border-radius:5px}
+
+/* Suggestions stay beside the one chat input, never open a parallel task surface. */
+.copilot-suggestions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;min-width:0;padding:4px 0 8px}
+.copilot-suggestions>small{flex-basis:100%;font-size:10px;color:var(--muted);line-height:1.6}
+.copilot-dock .copilot-suggestions button{appearance:none;width:auto;height:auto;max-width:100%;min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface2);color:var(--ink);font-size:11px;line-height:1.6;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.copilot-dock .copilot-suggestions button:hover:not(:disabled){background:var(--gold)}
+@media(max-width:700px){.copilot-dock:not(.mobile-chat-open) .copilot-suggestions{display:none}.copilot-dock .copilot-suggestions button{min-height:40px}.copilot-suggestions{gap:5px;padding-bottom:6px}.keyboard-open .copilot-dock .copilot-suggestions{display:none}}
