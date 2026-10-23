@@ -122,6 +122,7 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    const page=await browser.newPage({viewport:{width:1440,height:900}});const state=await prepare(page);await ready(page);
    await page.evaluate(()=>{let host=document.getElementById('emcRealWorkbench');if(!host){host=document.createElement('div');host.id='emcRealWorkbench';document.body.append(host);}host.classList.add('emc-workbench-modal');EmcFormalUI.openWorkbench();});
    assert.equal(await page.locator('#emcWbProjectName').inputValue(),'');
+   assert.equal(await page.locator('#emcWbArtifactNotes').getAttribute('maxlength'),'4000');
    await page.locator('#emcWbProjectName').fill('宠物用品试验项目');await page.locator('#emcWbProjectPlatform').fill('淘宝');await page.locator('#emcWbProjectCategory').fill('宠物用品');
    await page.locator('#emcWbCreateProjectBtn').click();await page.waitForFunction(()=>EmcFormalUI._state.selectedProjectId==='prj_custom');
    const project=state.calls.find(c=>c.uri==='/api/projects'&&c.method==='POST');assert.deepEqual(project.body,{name:'宠物用品试验项目',platform:'淘宝',category:'宠物用品'});
