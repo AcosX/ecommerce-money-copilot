@@ -85,10 +85,95 @@ def calculate_unit_roi(message: str) -> dict[str, Any] | None:
         "supply_price_yuan": float(cost),
         "margin_rate_pct": float(round(margin * 100, 2)),
         "missing_costs": missing,
+        "cost_breakdown": {"综合成本": float(total)}
+        if total_given is not None
+        else {
+            name: float(value)
+            for name, value in (
+                ("拿货成本", cost),
+                ("运费", shipping),
+                ("包材", packaging),
+                ("平台费用", fee if commission is not None else None),
+            )
+            if value is not None
+        },
         "verdict": ("按提供的综合成本估算，" + missing[0])
         if total_given is not None
         else ("按已提供成本估算，尚未计入" + "、".join(missing)),
     }
+
+
+def is_calculation_request(message: str) -> bool:
+    """Keep open-ended writing, planning and scenario tasks with the model."""
+    return bool(re.search(r"(?<!预)算|毛利|利润|roi", message, re.IGNORECASE)) and not any(
+        word in message
+        for word in (
+            "文案",
+            "笔记",
+            "询价",
+            "规划",
+            "计划",
+            "方案",
+            "建议",
+            "比较",
+            "对比",
+            "值不值得",
+            "情景",
+            "敏感性",
+            "假设",
+            "预算分配",
+            "草稿",
+            "保存",
+            "审核",
+            "写",
+            "分析",
+            "选品",
+            "上架",
+            "推广",
+            "投放",
+        )
+    )
+
+
+def calculation_reply(calculation: dict[str, Any]) -> str:
+    """Render money from validated tool output, without model-invented scenarios."""
+    rows = [
+        "按你提供的数据核算：",
+        "",
+        "| 项目 | 金额 |",
+        "| --- | ---: |",
+        f"| 售价 | {calculation['selling_price']:.2f} 元 |",
+    ]
+    rows.extend(
+        f"| {name} | {value:.2f} 元 |" for name, value in calculation["cost_breakdown"].items()
+    )
+    rows.extend(
+        [
+            f"| 已知成本合计 | {calculation['total_cost']:.2f} 元 |",
+            f"| 每单差额（按已知成本） | {calculation['unit_profit']:.2f} 元 |",
+            f"| 毛利率（按已知成本） | {calculation['gross_margin_pct']:.2f}% |",
+        ]
+    )
+    if calculation["breakeven_roi"] is not None:
+        rows.extend(
+            [
+                f"| 保本 ROI（按已知成本） | {calculation['breakeven_roi']:.2f} |",
+                "",
+                "保本 ROI = 售价 ÷ 每单差额，广告 ROI 指广告带来的销售额 ÷ 广告支出。"
+                "这条保本线只基于目前已知成本，补齐其他费用后需要重新计算，超过它仍不保证盈利。",
+            ]
+        )
+    else:
+        rows.extend(["", "按已知成本已无正毛利，增加广告投放无法保本。"])
+    rows.extend(
+        [
+            "",
+            "待补充或核对：" + "、".join(calculation["missing_costs"]) + "。",
+            "以上差额不是净利润。预算是周转资金，不作为售价或单件成本。"
+            "把缺失费用补齐后，我们再核算；不会代入未提供的退货率或广告费。",
+        ]
+    )
+    return "\n".join(rows)
 
 
 def offline_reply(
