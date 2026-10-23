@@ -78,7 +78,7 @@
     }
     function rewardCard(){
       const won=celebration?.levels.map(id=>J.level(id))||[task()],state=progress(),p=profile(),drops=won.flatMap(l=>J.rewards(l.id,p.platform));
-      return `<section class="j-reward-screen" role="status"><span class="j-label">${won.map(l=>l.id).join(' + ')} · 成果确认通过</span><div class="j-reward-seal" aria-hidden="true">✓<span>STEP COMPLETE</span></div><h3 class="j-task-title">这一步，做成了。</h3><p class="j-description">${won.map(l=>esc(l.title)).join('、')}</p><div class="j-earned-xp">+${celebration?.xp||160}<small>经营经验</small></div>${celebration&&celebration.to>celebration.from?`<div class="j-growth-earned"><small>小店进入新阶段</small><b>${J.GROWTH[celebration.to-1]}</b><span>${J.GROWTH[celebration.from-1]} → ${J.GROWTH[celebration.to-1]}</span></div>`:''}${drops.length?`<section class="j-drops"><h4>你的新锦囊 <span>✦</span></h4>${drops.map(r=>resource(r)).join('')}</section>`:'<p class="j-muted">这次的经营成果已经记入你的成长进度。</p>'}<p class="j-muted">${state.current?'下一张任务卡已解锁：'+esc(state.current.title):'六关已认可，你获得了经营训练结业资格；真实第一单是独立挑战。'}</p><div class="j-reward-actions">${button('next',state.current?'带上锦囊，继续下一关 →':'查看结业与破零挑战 →','primary wide')}</div>${button('supplies','回看已获得的锦囊','quiet')}</section>`;
+      return `<section class="j-reward-screen" role="status"><span class="j-label">${won.map(l=>l.id).join(' + ')} · 成果确认通过</span><div class="j-reward-seal" aria-hidden="true">✓<span>STEP COMPLETE</span></div><h3 class="j-task-title">这一步，做成了。</h3><p class="j-description">${won.map(l=>esc(l.title)).join('、')}</p><div class="j-earned-xp">+${celebration?.xp||160}<small>经营经验</small></div>${celebration&&celebration.to>celebration.from?`<div class="j-growth-earned"><small>小店进入新阶段</small><b>${J.GROWTH[celebration.to-1]}</b><span>${J.GROWTH[celebration.from-1]} → ${J.GROWTH[celebration.to-1]}</span></div>`:''}${drops.length?`<section class="j-drops"><h4>你的新锦囊 <span>✦</span></h4>${drops.map(r=>resource(r)).join('')}</section>`:'<p class="j-muted">这次的经营成果已经记入你的成长进度。</p>'}<p class="j-muted">${state.current?'下一张任务卡已解锁：'+esc(state.current.title):'六关已认可，你获得了经营训练结业资格；真实首单是独立挑战。'}</p><div class="j-reward-actions">${button('next',state.current?'带上锦囊，继续下一关 →':'查看结业与破零挑战 →','primary wide')}</div>${button('supplies','回看已获得的锦囊','quiet')}</section>`;
     }
     function roadmap(){
       const state=progress();
@@ -104,7 +104,7 @@
     }
     async function ensureProject(){
       if(project)return project;
-      const p=profile();const created=await Api.post('/api/projects',{name:p.shop_name,platform:p.platform,category:p.category,description:'第一单经营旅程；使用 '+p.agent},{idempotencyKey:attempt.projectKey});return created;
+      const p=profile();const created=await Api.post('/api/projects',{name:p.shop_name,platform:p.platform,category:p.category,description:'电商搞钱参谋经营旅程；使用 '+p.agent},{idempotencyKey:attempt.projectKey});return created;
     }
     async function submit(){
       if(!confirmed){error='请先检查成果并勾选确认。';render();return;}
