@@ -101,7 +101,14 @@ def prepare(
     if old.get("state") in {"prepared", "processing"}:
         raise InvalidState("上一条消息仍在处理中")
     context = dict(body.get("client_context") or {})
-    project_id = (context.get("active_project") or {}).get("id")
+    active_project = context.get("active_project") or {}
+    if not isinstance(active_project, dict):
+        raise ValidationFailed("经营项目格式不正确")
+    project_id = active_project.get("id")
+    if project_id is not None and (not isinstance(project_id, str) or len(project_id) > 64):
+        raise ValidationFailed("经营项目编号不正确")
+    if body.get("level_id") and body["level_id"] not in {"L1", "L2", "L3", "L4", "L5", "L6"}:
+        raise ValidationFailed("关卡编号不正确")
     if project_id:
         project = db.get(BusinessProject, project_id)
         if not player or not project or project.owner_id != player.id:

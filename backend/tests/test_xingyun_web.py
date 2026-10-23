@@ -245,3 +245,46 @@ def test_disconnect_during_generation_suppresses_late_reply(client, settings, mo
         finally:
             release.set()
         assert future.result(timeout=5).status_code == 409
+
+
+def test_gateway_stop_wait_does_not_block_unrelated_requests(client, settings, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from time import monotonic
+
+    grant, _, _ = setup_turn(client)
+    starting, stopping, release = Event(), Event(), Event()
+    original_owned = xingyun_web.owned
+
+    def owned(*args, **kwargs):
+        if kwargs.get("active") is False:
+            stopping.set()
+        return original_owned(*args, **kwargs)
+
+    def proxy(*args, **kwargs):
+        starting.set()
+        release.wait(5)
+        return {"error_code": 0, "data": {"session_id": "test-gateway"}}
+
+    monkeypatch.setattr(xingyun_web, "owned", owned)
+    monkeypatch.setattr("emc_api.routers.agent.proxy_xingyun_session", proxy)
+    monkeypatch.setattr(
+        "emc_api.routers.agent.proxy_xingyun_stop_session",
+        lambda *args, **kwargs: {"error_code": 0},
+    )
+    endpoint = "/api/agent/xingyun/e2e-session?grant_id=" + grant
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(client.post, endpoint, json={"config": []})
+        assert starting.wait(3)
+        second = executor.submit(
+            client.request, "DELETE", endpoint, json={"session_id": "test-gateway"}
+        )
+        try:
+            assert stopping.wait(3)
+            start = monotonic()
+            assert client.get("/api/health").status_code == 200
+            assert monotonic() - start < 2
+        finally:
+            release.set()
+        assert first.result(timeout=5).status_code == 200
+        assert second.result(timeout=5).status_code == 200

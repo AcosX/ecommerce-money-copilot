@@ -47,7 +47,7 @@
           }
         });
         agentState.sdk=sdk;
-        await Promise.race([sdk.init(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('数字人连接超时')),20000);})]);
+        await Promise.race([sdk.init(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('数字人连接超时')),30000);})]);
         if(generation!==agentState.generation){await sdk.destroy('superseded');return null;}
         if(sdk.getAgentState()!=='running')throw new Error('数字人会话尚未就绪');
         agentState.mode='rtc';els.stage.classList.remove('connecting');applyVolume();els.connect.textContent='断开数字人';status('数字人已连接，可使用静音图标控制声音。');
