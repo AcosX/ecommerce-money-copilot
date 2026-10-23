@@ -17,7 +17,7 @@ const inside = (r,w,h,label) => assert.ok(r && r.x >= -1 && r.y >= -1 && right(r
 const near = (a,b,label) => assert.ok(Math.abs(a-b) <= 2, `${label}: ${a} vs ${b}`);
 
 async function prepare(page,{advanced=true,history=true,welcomeFlag=false}={}) {
-  const calls = [];
+  const calls = [], turns = new Map();
   const project = {id:'prj_composer',name:'聊天回归小店',platform:'xiaohongshu',category:'服装',version:1};
   const artifacts = advanced ? J.LEVELS.slice(0,2).map((level,i) => ({id:'art_composer'+i,project_id:project.id,level_id:level.id,artifact_type:level.type,origin:'formal',title:level.deliverable,status:'submitted',revision:1,version:1,content:{notes:'真实成果记录与来源待审核'}})) : [];
   const verifications = artifacts.map((a,i) => ({id:'ver_composer'+i,project_id:project.id,artifact_id:a.id,level_id:a.level_id,status:'pending',created_at:'2026-10-23T01:00:00Z'}));
@@ -25,40 +25,40 @@ async function prepare(page,{advanced=true,history=true,welcomeFlag=false}={}) {
   await page.addInitScript(({welcomeFlag}) => {
     if (welcomeFlag) localStorage.setItem('emc-journey-welcome-v1','1');
     localStorage.setItem('emc-journey-entry-v1',JSON.stringify({saved:true,shop_name:'聊天回归小店',partner_name:'小商',platform:'xiaohongshu',category:'服装',agent:'Codex'}));
-    window.sdkCalls = {created:0,destroyed:0,volumes:[],speeches:[],subtitleAttempts:0,subtitleIntercepted:0,subtitleOff:0,options:[]};
-    // Mimic the SDK's default subtitle renderer. With no proxy handler this fixture
-    // really inserts an overlay, making subtitle suppression a behavioral assertion.
-    window.XmovAvatar = class {
+    window.sdkCalls = {created:0,destroyed:0,volumes:[],asks:[],manualSpeeches:[],subtitleAttempts:0,interrupts:0,replyEvents:[]};
+    addEventListener("emc:companion-reply",event=>window.sdkCalls.replyEvents.push(Boolean(event.detail?.avatar_spoken)));
+    // Leave the SDK subtitle widget in the real DOM: product CSS must hide it.
+    window.XingyunAvatarAgent = class {
       constructor(options) {
         this.options = options;
+        this.state = "initializing";
         window.sdkCalls.created++;
-        window.sdkCalls.options.push({subtitleOn:typeof options.proxyWidget?.subtitle_on,subtitleOff:typeof options.proxyWidget?.subtitle_off});
       }
-      async init({onDownloadProgress}) {
-        await fetch(this.options.gatewayServer,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-        const canvas = document.createElement('canvas'); canvas.width=76; canvas.height=100;
-        canvas.style.cssText='width:100%;height:100%';
-        document.querySelector(this.options.containerId).append(canvas);
-        onDownloadProgress(100); this.options.onStatusChange(0);
+      async init() {
+        await fetch(this.options.gatewayServer,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+        const canvas = document.createElement("canvas"); canvas.width=76; canvas.height=100;
+        canvas.style.cssText="width:100%;height:100%";
+        this.options.container.append(canvas);
+        this.state = "running";
+        this.options.agentCallbacks.onAgentStateChange("running");
       }
+      getAgentState() { return this.state; }
       setVolume(value) { window.sdkCalls.volumes.push(value); }
-      speak(text) {
-        window.sdkCalls.speeches.push(text); window.sdkCalls.subtitleAttempts++;
-        this.options.onStateChange('speak');
-        if (typeof this.options.proxyWidget?.subtitle_on === 'function') {
-          window.sdkCalls.subtitleIntercepted++; this.options.proxyWidget.subtitle_on({type:'subtitle_on',text});
-        } else {
-          const caption=document.createElement('div');caption.className='fake-sdk-subtitle';caption.textContent=text;
-          caption.style.cssText='position:absolute;inset:0;background:#111;color:white';
-          document.querySelector(this.options.containerId).append(caption);
-        }
+      async ask(text) {
+        window.sdkCalls.asks.push(text);
+        if (!/\n\[EMC:fixture-turn-\d+\]$/.test(text)) throw new Error("Native ask must use a prepared turn ticket");
+        const widget=document.createElement("div");widget.className="avatar-sdk-widget-container";
+        const caption=document.createElement("div");caption.className="fake-sdk-subtitle";caption.textContent=text;
+        caption.style.cssText="position:absolute;inset:0;background:#111;color:white";
+        widget.append(caption);this.options.container.append(widget);window.sdkCalls.subtitleAttempts++;
+        this.options.agentCallbacks.onLLMResponse({event:"done"});
+        this.options.agentCallbacks.onSpeakStateChange({state:"speak_start"});
       }
-      interrupt() {
-        if (typeof this.options.proxyWidget?.subtitle_off === 'function') { window.sdkCalls.subtitleOff++; this.options.proxyWidget.subtitle_off({type:'subtitle_off'}); }
-        else document.querySelector('.fake-sdk-subtitle')?.remove();
-      }
+      speak(text) { window.sdkCalls.manualSpeeches.push(text); }
+      interrupt() { window.sdkCalls.interrupts++; }
       think() {} listen() {} idle() {}
-      async destroy() { this.interrupt(); window.sdkCalls.destroyed++; }
+      async stopASR() {}
+      async destroy() { this.interrupt(); this.state="closed"; window.sdkCalls.destroyed++; }
     };
   },{welcomeFlag});
   await page.route('**/api/**',async route => {
@@ -72,11 +72,19 @@ async function prepare(page,{advanced=true,history=true,welcomeFlag=false}={}) {
     else if (uri==='/api/verifications') result={items:verifications,next_cursor:null};
     else if (uri==='/api/agent/memory') result={memory:{intimacy_score:88,patience_score:96,interactions_count:recent.length,current_focus_level:advanced?'L3':'L1'},recent_conversation:recent};
     else if (uri==='/api/agent/config') result={xingyun:{app_id:'fixture-avatar',default_preset:'yingyi'}};
-    else if (uri==='/api/agent/xingyun/session') result={error_code:0,data:{session_id:'fixture-avatar-session'}};
-    else if (uri==='/api/agent/chat') {
-      const turn=calls.filter(c=>c.uri==='/api/agent/chat').length;
-      result={reply:`第 ${turn} 轮：先确认这款裤子的颜色。\n\n`+Array.from({length:8},(_,i)=>`- 拍摄检查 ${i+1}：使用自然光，背景保持干净，主体占画面三分之二。`).join('\n')+'\n\n你先告诉我裤子是什么颜色，我们再只做下一步。',provider:'ai_gateway_live'};
+    else if (uri==='/api/agent/xingyun/web-sessions' && req.method()==='POST') result={id:'fixture-grant-'+calls.length,expires_in:900};
+    else if (uri==='/api/agent/xingyun/e2e-session') result={error_code:0,data:{session_id:'fixture-native-session'}};
+    else if (/^\/api\/agent\/xingyun\/web-sessions\/[^/]+\/turns$/.test(uri) && req.method()==='POST') {
+      const id='fixture-turn-'+(turns.size+1);
+      turns.set(id,{body,polls:0});
+      result={id,ticket:'EMC:'+id};
     }
+    else if (/^\/api\/agent\/xingyun\/web-sessions\/[^/]+\/turns\/[^/]+$/.test(uri) && req.method()==='GET') {
+      const turn=turns.get(uri.split('/').at(-1));assert.ok(turn,'Poll refers to a prepared question');
+      turn.polls++;
+      result=turn.polls===1?{state:'pending'}:{state:'done',result:{reply:`第 ${turns.size} 轮：先确认这款裤子的颜色。\n\n`+Array.from({length:8},(_,i)=>`- 拍摄检查 ${i+1}：使用自然光，背景保持干净，主体占画面三分之二。`).join('\n')+'\n\n你先告诉我裤子是什么颜色，我们再只做下一步。',provider:'ai_gateway_live'}};
+    }
+    else if (uri==='/api/agent/chat') throw new Error('A native question must never also use ordinary chat');
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
   });
   await page.goto(base);
@@ -86,20 +94,26 @@ async function prepare(page,{advanced=true,history=true,welcomeFlag=false}={}) {
   await page.evaluate(()=>document.getElementById('bootSkip')?.click());
   await page.locator('#opening').waitFor({state:'hidden',timeout:45000});
   if(history) await page.waitForFunction(()=>document.querySelectorAll('#socialMessages .social-message.mine').length>=3);
-  return {calls};
+  return {calls,turns};
 }
 
 async function openChat(page,width) {
   await page.locator(width<=700?'#copilotHistory':'#expandCompanionChat').click();
   await page.locator('#copilotSuggestions').waitFor({state:'visible'});
 }
+const nativePosts = fixture => fixture.calls.filter(c=>c.method==='POST' && /^\/api\/agent\/xingyun\/web-sessions\/[^/]+\/turns$/.test(c.uri));
 async function send(page,fixture,text) {
-  const count=fixture.calls.filter(c=>c.uri==='/api/agent/chat').length;
+  const count=nativePosts(fixture).length;
   await page.locator('#copilotInput').fill(text);
   await page.locator('#copilotSend').click();
   await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);
-  assert.equal(fixture.calls.filter(c=>c.uri==='/api/agent/chat').length,count+1);
-  await page.waitForFunction(()=>EmcAvatarAgent._state.mode==='rtc' && sdkCalls.speeches.length>0);
+  assert.equal(nativePosts(fixture).length,count+1);
+  assert.equal(fixture.calls.filter(c=>c.uri==='/api/agent/chat').length,0,'Native transport never repeats a question through ordinary chat');
+  await page.waitForFunction(n=>EmcAvatarAgent._state.mode==='rtc' && sdkCalls.asks.length===n && sdkCalls.replyEvents.length===n,count+1);
+  const native=await page.evaluate(()=>({...sdkCalls}));
+  assert.equal(native.manualSpeeches.length,0,'Native answers are already spoken by the SDK');
+  assert.ok(native.replyEvents.every(Boolean),'Replies preserve avatar_spoken');
+  assert.ok([...fixture.turns.values()].every(turn=>turn.polls>=2),'Prepared turns exercise pending and completed polling');
 }
 async function boxes(page) {
   const entries=await Promise.all(['.copilot-dock','.social-heading','#socialMessages','.copilot-compose','#copilotSuggestions','#emcAvatarStage','#copilotForm','.copilot-compose-toolbar'].map(async s=>[s,await page.locator(s).boundingBox()]));
@@ -171,13 +185,13 @@ async function settingsPopover(page,width,height) {
       const suggestions=page.locator('#copilotSuggestions');
       assert.doesNotMatch(await suggestions.innerText(),/先认识一下小店|还没方向/,'Existing L3 users get current task guidance');
       assert.match(await suggestions.innerText(),/L3/);
-      const count=fixture.calls.filter(c=>c.uri==='/api/agent/chat').length;
+      const count=nativePosts(fixture).length;
       await suggestions.getByRole('button').first().click();
       const prompt=await page.locator('#copilotInput').inputValue(); assert.match(prompt,/L3/);
-      assert.equal(fixture.calls.filter(c=>c.uri==='/api/agent/chat').length,count,'Suggestion only fills editable input');
+      assert.equal(nativePosts(fixture).length,count,'Suggestion only fills editable input');
       await send(page,fixture,prompt+' 我补充：裤子是黑色。');
       if(width>700)for(let i=2;i<=3;i++)await send(page,fixture,`第 ${i} 个问题：我现在只需要做什么？`);
-      const posted=fixture.calls.filter(c=>c.uri==='/api/agent/chat');
+      const posted=nativePosts(fixture);
       assert.equal(posted[0].body.level_id,'L3');assert.match(posted[0].body.message,/我补充：裤子是黑色/);
       assert.doesNotMatch(await suggestions.innerText(),/先认识一下小店/);
       await compactGeometry(page,width,height,{scroll:true});
@@ -185,14 +199,15 @@ async function settingsPopover(page,width,height) {
       assert.equal(await page.locator('.copilot-compose-toolbar #copilotFinish').count(),1);
       assert.equal(await page.locator('#socialMessages [data-companion-action=report],#socialMessages .coach-finish').count(),0,'Report never floats in transcript');
       const sdk=await page.evaluate(()=>({...sdkCalls,mode:EmcAvatarAgent._state.mode,pose:EmcAvatarAgent._state.pose}));
-      assert.equal(sdk.mode,'rtc');assert.equal(sdk.pose,'speak');assert.ok(sdk.speeches.length>0);
-      assert.ok(sdk.options.every(o=>o.subtitleOn==='function'&&o.subtitleOff==='function'),'SDK receives both subtitle proxies');
-      assert.ok(sdk.subtitleAttempts>0);assert.equal(sdk.subtitleIntercepted,sdk.subtitleAttempts);
-      assert.equal(await page.locator('.fake-sdk-subtitle').count(),0,'Speaking does not create duplicate subtitles');
+      assert.equal(sdk.mode,'rtc');assert.equal(sdk.pose,'speak');assert.ok(sdk.asks.length>0);
+      assert.equal(sdk.manualSpeeches.length,0,'Native speech is not repeated manually');
+      assert.ok(sdk.subtitleAttempts>0);
+      assert.ok(await page.locator('.fake-sdk-subtitle').count()>0,'Native SDK attempted to render its own subtitles');
+      assert.equal(await page.locator('.avatar-sdk-widget-container:visible,.fake-sdk-subtitle:visible').count(),0,'Native duplicate subtitles stay hidden by product CSS');
       await page.locator('#emcAvatarMuteBtn').click();assert.equal(await page.locator('#emcAvatarMuteBtn').getAttribute('aria-pressed'),'true');assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),0);
       await page.locator('#emcAvatarMuteBtn').click();assert.equal(await page.evaluate(()=>sdkCalls.volumes.at(-1)),1);
       await settingsPopover(page,width,height);
-      assert.ok(await page.evaluate(()=>sdkCalls.subtitleOff>0),'SDK subtitle-off handler survives disconnect');
+      assert.ok(await page.evaluate(()=>sdkCalls.interrupts>0),'Native interruption survives disconnect');
       await compactGeometry(page,width,height);
       await page.screenshot({path:path.join(shots,`expanded-${width}x${height}.png`)});
       if(width<=700) {
@@ -208,7 +223,7 @@ async function settingsPopover(page,width,height) {
         assert.match(await page.locator('#copilotInput').inputValue(),/保留的可编辑内容/);
       }
       assert.deepEqual(errors,[]);await page.close();
-      console.log(`PASS ${width}x${height}: compact geometry, scoped editable prompts, scrolling, subtitle interception, voice/avatar controls, popover and mobile keyboard`);
+      console.log(`PASS ${width}x${height}: compact geometry, scoped editable prompts, scrolling, native asks without duplicate transport or speech, hidden subtitles, avatar controls, popover and mobile keyboard`);
     }
     // A player with L1 history and no welcome flag must also avoid stale onboarding.
     const old=await browser.newPage({viewport:{width:790,height:700}});

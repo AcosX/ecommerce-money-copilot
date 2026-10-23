@@ -1726,7 +1726,7 @@ def _detect_level_from_message(msg: str, default_level: str = "L1") -> str:
         ),
         (
             "L6",
-            ["第六关", "第6关", "复盘", "放大", "第一单", "月度", "gmv"],
+            ["第六关", "第6关", "复盘", "放大", "首单", "第一单", "月度", "gmv"],
         ),
     ]
     lower = msg.lower()
