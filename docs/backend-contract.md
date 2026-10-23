@@ -7,7 +7,7 @@
 - 关卡团队：关卡内容、玩法、教学交互；游客教学存档（localStorage）与教学进度接口（Phase 2）。
 - 后端：身份会话、经营项目、正式成果、证据附件、人工审核、审计、部署。
 - Acos Connect：注册、登录、邮箱验证、找回密码、游戏风格登录页。本项目不保存密码，不持有 Acos Connect 令牌于浏览器。
-- V1 不实现：平台对接、自动核验、真实 AI 执行。预留扩展点：成果 `content.extensions`（对象）与认证申请 `method`（V1 固定 `manual_review`）。
+- 当前不接管外部电商账号。2026-10-23 起真实 Agent 对话与持久化自动审核已接入；新提交 `method=agent_review`，保留历史 `manual_review`。人工复核继续可用，细则见 [单步带关说明](./guided-journey.md)。
 
 ## 2. 环境、域名与容量（#5）
 
@@ -181,7 +181,7 @@ uv run pytest
 - 项目创建：`{"name": "1–80 字", "platform": "可选", "category": "可选", "description": "≤ 2000 字，可选"}`；项目字段另有 `status`（`active` / `archived`）、`version`、`created_at`、`updated_at`。
 - 成果创建：`{"project_id", "artifact_type", "schema_version", "title", "content", "origin": "formal|tutorial_copy", "source_level_id"}`。
 - 成果修改：`{"version", "title"?, "content"?}`；内容变化生成新 revision，`version` 加 1。
-- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。L1 `business_plan` 可不附文件，但冻结的 `content.planning_report`（兼容 `summary`）须至少 40 字；可附 `conversation` 对话记录。其他类型仍须证据附件。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
+- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。规划、选品、复盘可直接提交至少 40 字的 `content.report_text`（兼容 `planning_report`、`summary`），可附 `conversation`。上架可提交 http(s) `listing_url`；其他成果需附件，L3/L5 核心图片要求由前端及真实审核共同检查。链接不自动抓取，也不因提交链接就认定在售。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
 - 审核：`{"decision": "approved|rejected", "reason": "驳回必填，1–2000 字"}`；申请非 pending 返回 409 `invalid_state`；审核员不能审核本人申请（403）。
 
 ## 10. 数据表（初始迁移）
@@ -193,7 +193,8 @@ uv run pytest
 - `artifact_revisions`：`artifact_id` + `revision`（唯一）、`content`（JSON）、`content_sha256`、`created_by`、`created_at`。
 - `evidence_files`：`id`、`owner_id`、`submission_id`（可空）、`storage_key`、`original_filename`、`content_type`、`size_bytes`、`sha256`、`created_at`。
 - `verification_submissions`：`id`、`artifact_id`、`owner_id`、`artifact_revision`、`snapshot`（JSON）、`snapshot_sha256`、`note`、`method`、`status`、`created_at`、`decided_at`；同一成果最多一个 pending（数据库唯一约束保证）。
-- `verification_reviews`：`id`、`submission_id`、`reviewer_id`、`decision`、`reason`、`created_at`；只追加。
+- `verification_reviews`：`id`、`submission_id`、`reviewer_id`（Agent 为空）、`source`（manual/agent）、`report`（结构化依据）、`decision`、`reason`、`created_at`；只追加。
+- `review_jobs`（迁移 0002）：以 submission_id 为主键，包含状态、尝试次数、下次尝试时间、租约 token/到期时间、快照散列、rubric/model、错误码与报告。查询申请额外返回 `agent_review={state, attempts, rubric_version, report}`；审核历史额外返回 source/report。
 - `audit_events`：自增 `id`、`occurred_at`、`actor_player_id`、`action`、`target_type`、`target_id`、`request_id`、`details`（JSON）；只追加。
 - `idempotency_records`：`player_id` + `endpoint` + `key`（唯一）、`request_hash`、`response_status`、`response_body`、`created_at`、`expires_at`。
 - 教学进度相关表由 Phase 2 负责人以独立迁移添加。
