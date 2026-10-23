@@ -11,7 +11,7 @@ const report='# 生意规划报告\n\n## 顾客与方向\n预算 **2000 元**，
 '> 先小步验证，再决定进货。\n\n```text\n单笔利润 = 售价 - 全部成本\n```\n\n'+
 '## 下一步\n'+Array.from({length:12},(_,i)=>`${i+1}. 比较商品 ${i+1} 的需求、竞争、运费和退货风险，并记录数据来源与日期。`).join('\n')+
 '\n\n**完整报告结束**\n\n<script>window.pwned=true</script><img src=x onerror="window.pwned=true">[危险链接](javascript:alert(1))';
-async function prepare(page,{guest=false,failAvatar=false}={}){
+async function prepare(page,{guest=false,failAvatar=false,restoreHistory=false}={}){
  const state={calls:[],artifacts:[],verifications:[],turns:0};
  await page.addInitScript(({guest})=>{
   localStorage.setItem('emc-journey-entry-v1',JSON.stringify({saved:true,shop_name:'小满杂货铺',partner_name:'小商',platform:'xiaohongshu',category:'家居收纳',agent:'Codex'}));
@@ -30,7 +30,7 @@ async function prepare(page,{guest=false,failAvatar=false}={}){
   else if(uri==='/api/projects'&&method==='GET')result={items:guest?[]:[{id:'prj_conversation',name:'小满杂货铺',platform:'xiaohongshu',category:'家居收纳',version:1}],next_cursor:null};
   else if(uri==='/api/artifacts'&&method==='GET')result={items:state.artifacts,next_cursor:null};
   else if(uri==='/api/verifications'&&method==='GET')result={items:state.verifications,next_cursor:null};
-  else if(uri==='/api/agent/memory')result={memory:{intimacy_score:47,patience_score:86,interactions_count:3,current_focus_level:'L1'},recent_conversation:[]};
+  else if(uri==='/api/agent/memory')result={memory:{intimacy_score:47,patience_score:86,interactions_count:3,current_focus_level:'L1'},recent_conversation:restoreHistory?[{session_id:'prj_conversation',user_message:'问题一',reply:'模型回复',provider:'ai_gateway_live'},{session_id:'prj_conversation',user_message:'问题二',reply:'规则回复',provider:'local_copilot_fallback'},{session_id:'prj_conversation',user_message:'问题三',reply:'旧回复'}]:[]};
   else if(uri==='/api/agent/config')result={xingyun:{app_id:'fixture-app',default_preset:'yingyi'}};
   else if(uri==='/api/agent/xingyun/session')result=failAvatar?{error_code:5001}:{error_code:0,data:{session_id:'fixture-session'}};
   else if(uri==='/api/agent/chat'){state.turns++;result={reply:report,provider:'ai_gateway_live',memory:{intimacy_score:47+state.turns*3,patience_score:86+state.turns*2,interactions_count:3+state.turns,current_focus_level:'L1'}};}
@@ -45,7 +45,7 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.EMC_CHROMIUM||'/usr/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--ignore-gpu-blocklist','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
-  for(const [width,height] of [[1440,900],[390,844],[320,568]]){
+  for(const [width,height] of (process.env.EMC_HISTORY_ONLY?[]:[[1440,900],[390,844],[320,568]])){
    const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
    const state=await prepare(page);await ready(page);
    await page.locator('#continueButton').click();await page.locator('.mail-welcome').waitFor();
@@ -83,6 +83,19 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
    const artifact=state.calls.find(call=>call.uri==='/api/artifacts'&&call.method==='POST');assert.equal(artifact.body.content.delivery_method,'conversation');assert.ok(artifact.body.content.conversation.length>=2);
    assert.deepEqual(errors,[]);await page.close();console.log('PASS',width,height,'letters, Markdown, full reply, automatic avatar, Agent meters, L1 no-upload submission');
   }
+  {
+   const page=await browser.newPage({viewport:{width:1440,height:900}});await prepare(page,{restoreHistory:true});await ready(page);
+   for(let i=0;i<2;i++){
+    await page.waitForFunction(()=>JSON.parse(render_game_to_text()).chat.history_count===6);
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('emc:route-restore',{cancelable:true,detail:{view:'history'}})));await page.locator('.chat-log').waitFor();
+    const labels=await page.locator('.chat-message.assistant header small').allTextContents();
+    assert.deepEqual(labels,['AI 副驾','本地规则引导','历史回复 · 来源未记录']);
+    assert.equal(await page.evaluate(()=>JSON.parse(render_game_to_text()).chat.reply_source),'history');
+    if(i===0)await page.reload();
+   }
+   await page.close();console.log('PASS restored AI, fallback and unrecorded history labels survive reload');
+  }
+  if(process.env.EMC_HISTORY_ONLY)return;
   const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));const state=await prepare(page,{guest:true,failAvatar:true});await ready(page);await page.locator('#copilotHistory').click();
   for(let i=0;i<2;i++){await page.locator('#copilotInput').fill('继续帮我完善生意规划，补充成本和需求验证步骤。');await page.locator('#copilotSend').click();await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);}
   await page.waitForFunction(()=>!window.EmcAvatarAgent._state.connecting);assert.equal(await page.evaluate(()=>sdkCalls.created),1);assert.ok((await page.locator('.social-message.theirs').last().innerText()).includes('完整报告结束'));
