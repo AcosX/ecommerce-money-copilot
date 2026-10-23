@@ -142,7 +142,7 @@ def make_artifact(db: Session) -> tuple[Player, Artifact]:
         created_at=now,
         updated_at=now,
     )
-    content = {"goal": "第一单"}
+    content = {"goal": "首单"}
     revision = ArtifactRevision(
         artifact_id=artifact.id,
         revision=1,
@@ -165,7 +165,7 @@ def make_artifact(db: Session) -> tuple[Player, Artifact]:
 def make_submission(
     db: Session, player: Player, artifact: Artifact, status: str = "pending"
 ) -> VerificationSubmission:
-    snapshot = {"content": {"goal": "第一单"}}
+    snapshot = {"content": {"goal": "首单"}}
     submission = VerificationSubmission(
         id=ids.new_id(ids.VERIFICATION),
         artifact_id=artifact.id,
