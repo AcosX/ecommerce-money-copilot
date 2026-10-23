@@ -101,12 +101,14 @@
       if (body.guest_history.at(-1)?.role === 'user' && body.guest_history.at(-1).text === body.message) body.guest_history.pop();
     }
     const requester = keyFor(project);
-    const result = await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
+    const native = await root.EmcAvatarAgent?.nativeReply?.(body, { signal });
+    const result = native || await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
     if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');
     if (requester !== keyFor(project)) throw new Error('账号或经营项目已切换');
     if (result.memory) cache.set(requester, view(result.memory));
     return {
       text: result.reply,
+      avatar_spoken: Boolean(result.avatar_spoken),
       source: replySource(result.provider),
       provider: result.provider || 'unknown',
       model: result.model || 'xiaoshang-v1',
