@@ -153,3 +153,48 @@ def test_model_gateway_uses_configured_timeout_and_single_v1(monkeypatch):
     messages = json.loads(requests[0].content)["messages"]
     assert [m["role"] for m in messages] == ["system", "user", "user", "assistant", "user"]
     assert messages[-1]["content"] == "继续"
+
+
+@pytest.mark.parametrize(
+    "message,expected_cost,expected_profit",
+    [
+        ("预算2000，售价99，拿货35，运费6，包材2，佣金5%，算一下", 47.95, 51.05),
+        ("售价30，成本35，帮我算毛利", 35, -5),
+        ("售价100，综合成本80，运费10，核算一下", 80, 20),
+    ],
+)
+def test_direct_calculation_uses_verified_output_without_model(
+    monkeypatch, message, expected_cost, expected_profit
+):
+    def must_not_generate(*args, **kwargs):
+        pytest.fail("Direct calculation must not request invented model arithmetic")
+
+    monkeypatch.setattr(runtime.AgentProviderAdapter, "complete_json_or_text", must_not_generate)
+    result = runtime.run_companion_chat(None, config(), player_id=None, message=message)
+    assert result["provider"] == "verified_calculation"
+    assert result["roi_calculation"]["total_cost"] == expected_cost
+    assert result["roi_calculation"]["unit_profit"] == expected_profit
+    assert f"{expected_cost:.2f} 元" in result["reply"]
+    assert f"{expected_profit:.2f} 元" in result["reply"]
+    assert "不是净利润" in result["reply"]
+    assert "退货" in result["reply"]
+    assert "| 项目 |" in result["reply"]
+    if expected_profit <= 0:
+        assert "无正毛利" in result["reply"]
+        assert "| 保本 ROI" not in result["reply"]
+
+
+def test_calculation_with_writing_task_still_reaches_model(monkeypatch):
+    captured = {}
+
+    def complete(self, **kwargs):
+        captured.update(kwargs)
+        return "这是一段按已知条件写的商品文案。", {"provider": "ai_gateway_live"}
+
+    monkeypatch.setattr(runtime.AgentProviderAdapter, "complete_json_or_text", complete)
+    result = runtime.run_companion_chat(
+        None, config(), player_id=None, message="售价99拿货35，算一下毛利并写一条商品文案"
+    )
+    assert result["provider"] == "ai_gateway_live"
+    assert "商品文案" in result["reply"]
+    assert captured["context"]["calculation"]["unit_profit"] == 64

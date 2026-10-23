@@ -41,3 +41,7 @@ user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest
 当前部署上游使用 `EMC_AI_BASE_URL=https://api.openai.com`，对话和预审模型均为
 `deepseek-v4-1-flash-261017`。API 密钥只放在本地 `.env` 或生产主机
 `/etc/ecommerce-money-copilot/app.env`，不进入 Git，也不下发浏览器。
+
+纯算账请求直接以 Decimal 工具验算结果生成费用明细，provider 为 `verified_calculation`，
+界面和恢复的历史均标注“工具验算”，不调用模型扩展数字。混合文案、规划和情景任务继续使用模型，
+同时传入验算结果并约束其说明缺失参数；不把不完整成本下的差额称为净利润或保证保本。

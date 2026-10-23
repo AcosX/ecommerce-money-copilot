@@ -155,8 +155,16 @@ test('journey profile and current task reach model context', async () => {
 
 test('restored history distinguishes recorded AI, fallback and unrecorded sources', async () => {
   const t = setup();
-  for (const [provider, source] of [['ai_gateway_live','ai'],['ai_gateway','ai'],['local_copilot_fallback','local-guide'],['local_copilot','local-guide'],[null,'history'],['future-provider','history']]) {
+  for (const [provider, source] of [['ai_gateway_live','ai'],['ai_gateway','ai'],['verified_calculation','calculation'],['local_copilot_fallback','local-guide'],['local_copilot','local-guide'],[null,'history'],['future-provider','history']]) {
     t.setHistoryProvider(provider);
     assert.equal((await t.client.history('proj_1')).items[0].reply.source,source);
   }
+});
+
+test('verified calculation provenance survives transport', async () => {
+  const t = setup();
+  t.setProvider('verified_calculation');
+  const result = await t.client.transport({ message: '售价100成本40算一下' });
+  assert.equal(result.source, 'calculation');
+  assert.equal(result.provider, 'verified_calculation');
 });

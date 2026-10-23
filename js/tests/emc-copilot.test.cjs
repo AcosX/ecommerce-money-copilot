@@ -17,3 +17,11 @@ test('history normalization and labels preserve unknown legacy provenance',()=>{
   assert.equal(C.sourceLabel('local-guide'),'本地规则引导');
   const g=G.create();g.npc_chat=rows;assert.deepEqual(G.normalize(g).npc_chat,rows);
 });
+
+test('tool calculations keep their source through replies and local history',async()=>{
+  const reply=await C.reply('算账',{}, {transport:async()=>({text:'已知成本40元',source:'calculation'})});
+  assert.equal(reply.source,'calculation');
+  const rows=C.history([{role:'assistant',text:reply.text,source:reply.source}]);
+  assert.equal(rows[0].source,'calculation');
+  assert.equal(C.sourceLabel(rows[0].source),'工具验算');
+});
