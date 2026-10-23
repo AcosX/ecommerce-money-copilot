@@ -202,7 +202,7 @@ uv run pytest
 ### 2026-10-23 小商对话与数字人
 
 - `/api/agent/chat` 的 `memory.intimacy_score`、`memory.patience_score` 是前端好感、耐心的数值来源。登录用户从服务器记忆更新，不采信客户端传入的分数；游客仅在本次浏览器会话延续显示，不产生经营奖励。
-- 聊天 `client_context.conversation` 可传最近的 user/assistant 对话作为参考，不作为身份、进度或工具权限。L1 可在对话里生成完整规划，前端检查后仍走现有成果及认证接口，冻结文本，不因省略附件自动认证。
+- 游客聊天 `guest_history` 可传最近的 user/assistant 对话作为参考，不作为身份、进度或工具权限；登录对话使用服务端本人当前项目的历史。L1 可在对话里生成完整规划，前端检查后仍走现有成果及认证接口，冻结文本，不因省略附件自动认证。
 - 数字人使用仓库内 XmovAvatar SDK，经同源 `/api/agent/xingyun/session` 由服务器签名。首次发送消息自动尝试连接一次，失败仍可文字对话，支持重试、暂停与断开。前端不接触服务端 AppSecret。
 - Markdown 使用本地 vendored marked 15.0.12 / DOMPurify 3.3.3。只渲染回复，过滤脚本、事件、图片与危险链接；用户消息作为文本显示。
 
@@ -211,3 +211,10 @@ uv run pytest
 `GET /api/agent/memory?session_id=<项目ID>` 可只取当前玩家该项目的最近 10 轮对话，筛选先于条数限制执行。省略该参数时保持玩家全局最近对话。`session_id` 为 1–64 字符，不能绕过登录玩家隔离。
 
 历史对话仅额外投影审计中已有的 `llm_meta.provider`，不暴露完整上游元数据。前端区分模型回答、本地规则回退与“来源未记录”的旧历史；刷新与存档规范化保留来源。
+
+小商对话补充（2026-10-23）：`POST /api/agent/chat` 可选接收 `guest_history`，最多 12 条
+`{role: "user" | "assistant", text: string}`，每条文本不超过 2000 字符。仅游客采用客户端历史，
+作为本轮模型输入，不建立云端存档或授予权限；登录用户使用服务端本人、当前 `session_id` 的最近六轮。
+其他角色返回字段校验错误。知识库无相关结果时 `knowledge_citations` 为空。`roi_calculation` 仅根据
+有明确标签的金额计算，`breakeven_roi` 在毛利非正时为 `null`，并以 `missing_costs` 提示未计入费用；
+不再返回伪精确的 `score_4d` 或误标净利的 `estimated_net_profit_yuan`。

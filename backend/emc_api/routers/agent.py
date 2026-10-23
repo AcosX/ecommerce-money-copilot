@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
@@ -50,6 +50,11 @@ router = APIRouter(tags=["agent"])
 sdk_router = APIRouter(tags=["agent-sdk"])
 
 
+class GuestChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(max_length=2000)
+
+
 class CompanionChatIn(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -62,6 +67,7 @@ class CompanionChatIn(BaseModel):
     preset_id: str | None = Field(default=None, max_length=32)
     session_id: str | None = Field(default=None, max_length=64)
     client_context: dict[str, Any] | None = Field(default=None)
+    guest_history: list[GuestChatMessage] = Field(default_factory=list, max_length=12)
 
 
 class ToolExecuteIn(BaseModel):
@@ -323,6 +329,9 @@ def companion_chat(
         preset_id=body.preset_id,
         client_context=merged_context,
         session_id=body.session_id,
+        guest_history=[item.model_dump() for item in body.guest_history]
+        if player is None
+        else None,
     )
 
 

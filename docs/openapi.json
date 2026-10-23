@@ -1896,6 +1896,14 @@
               }
             ],
             "title": "Client Context"
+          },
+          "guest_history": {
+            "items": {
+              "$ref": "#/components/schemas/GuestChatMessage"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Guest History"
           }
         },
         "type": "object",
@@ -1903,6 +1911,29 @@
           "message"
         ],
         "title": "CompanionChatIn"
+      },
+      "GuestChatMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "GuestChatMessage"
       },
       "HTTPValidationError": {
         "properties": {

@@ -447,7 +447,7 @@
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
-      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat).slice(-12)};
+      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
       if(!serverAgentProject()&&!journey?.isDemo()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},40000);});

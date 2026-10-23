@@ -99,7 +99,7 @@ async function ready(page){await page.goto(base);await page.waitForFunction(()=>
   const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));const state=await prepare(page,{guest:true,failAvatar:true});await ready(page);await page.locator('#copilotHistory').click();
   for(let i=0;i<2;i++){await page.locator('#copilotInput').fill('继续帮我完善生意规划，补充成本和需求验证步骤。');await page.locator('#copilotSend').click();await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);}
   await page.waitForFunction(()=>!window.EmcAvatarAgent._state.connecting);assert.equal(await page.evaluate(()=>sdkCalls.created),1);assert.ok((await page.locator('.social-message.theirs').last().innerText()).includes('完整报告结束'));
-  assert.ok(state.calls.filter(c=>c.uri==='/api/agent/chat')[1].body.client_context.conversation.some(t=>t.role==='assistant'&&t.text.includes('完整报告结束')));
+  assert.ok(state.calls.filter(c=>c.uri==='/api/agent/chat')[1].body.guest_history.some(t=>t.role==='assistant'&&t.text.includes('完整报告结束')));
   assert.ok(await page.locator('.avatar-status').innerText().then(t=>t.includes('重试')));assert.deepEqual(errors,[]);await page.close();console.log('PASS guest long replies, conversation context, one automatic attempt, avatar failure fallback');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
