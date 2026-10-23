@@ -18,6 +18,7 @@
   const loggedIn = () => Boolean(root.EmcSession?.isLoggedIn() && identity() !== 'guest');
   const keyFor = id => identity() + ':' + String(id || 'guest');
   const clamp = v => Math.max(0, Math.min(100, Number(v) || 0));
+  const replySource = provider => provider === 'verified_calculation' ? 'calculation' : ['ai_gateway_live', 'ai_gateway'].includes(provider) ? 'ai' : ['local_copilot', 'local_copilot_fallback'].includes(provider) ? 'local-guide' : 'history';
   function snapshot(id) { return cache.get(keyFor(id)) || null; }
   function view(memory) {
     const score = clamp(memory?.intimacy_score ?? 20);
@@ -49,7 +50,7 @@
     return {
       items: rows.map(turn => ({
         message: turn.user_message || '',
-        reply: { text: turn.reply || '', source: ['ai_gateway_live','ai_gateway'].includes(turn.provider) ? 'ai' : ['local_copilot','local_copilot_fallback'].includes(turn.provider) ? 'local-guide' : 'history' },
+        reply: { text: turn.reply || '', source: replySource(turn.provider) },
         time: turn.occurred_at
       })),
       next_before: null
@@ -105,7 +106,7 @@
     if (result.memory) cache.set(requester, view(result.memory));
     return {
       text: result.reply,
-      source: result.provider === 'ai_gateway_live' || result.provider === 'ai_gateway' ? 'ai' : 'local-guide',
+      source: replySource(result.provider),
       provider: result.provider || 'unknown',
       model: result.model || 'xiaoshang-v1',
       emotion: result.emotion || null,

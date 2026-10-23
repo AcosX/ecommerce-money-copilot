@@ -464,7 +464,7 @@
       if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();
       if(change.unlocked){audio.play('reward');toast('连问三次有依据的问题 · 本关验证锦囊已解锁');}
 
-      if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch){startConversation();speak(result.text,'reply',result.source==='ai'?'AI 副驾':result.state?'本地规则引导':'本地教学演示');}
+      if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch){startConversation();speak(result.text,'reply',C.sourceLabel(result.source));}
     }catch(error){
       if(scope!==companionScope()){toast('账号或经营项目已切换，请重新发起对话。');return;}
       $('copilotInput').value=message;

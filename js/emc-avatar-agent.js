@@ -82,7 +82,7 @@
 
     var head = make('summary', 'emc-agent-card-head');
     head.appendChild(make('span', '', '参考与计算'));
-    var prov = make('span', 'emc-agent-card-source', resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 回复' : '本地辅助');
+    var prov = make('span', 'emc-agent-card-source', resp.provider === 'verified_calculation' ? '工具验算' : resp.provider === 'ai_gateway' || resp.provider === 'ai_gateway_live' ? 'AI 回复' : '本地辅助');
     head.appendChild(prov);
     card.appendChild(head);
 
