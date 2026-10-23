@@ -104,7 +104,7 @@
     [['emcWbProjectPlatform','经营平台（选填）'],['emcWbProjectCategory','经营类目（选填）']].forEach(function (spec) {
       var input=make('input','emc-wb-input');input.id=spec[0];input.type='text';input.maxLength=64;input.placeholder=spec[1];input.setAttribute('aria-label',spec[1]);form.appendChild(input);
     });
-    var contentInput=make('textarea','emc-wb-input');contentInput.id='emcWbArtifactNotes';contentInput.maxLength=12000;contentInput.placeholder='填写真实的经营方案或候选商品记录';contentInput.setAttribute('aria-label','经营成果内容');form.appendChild(contentInput);
+    var contentInput=make('textarea','emc-wb-input');contentInput.id='emcWbArtifactNotes';contentInput.maxLength=4000;contentInput.placeholder='填写真实的经营方案或候选商品记录（最多 4000 字）';contentInput.setAttribute('aria-label','经营成果内容');form.appendChild(contentInput);
     var noteInput = make('input', 'emc-wb-input');
     noteInput.id = 'emcWbVerifyNote';
     noteInput.type = 'text';
