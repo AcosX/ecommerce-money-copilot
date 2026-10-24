@@ -1,0 +1,20 @@
+/* 只调整任务信纸内部内容，不改变信纸与信封的尺寸、背景及边框。 */
+.mail-art-content .j-focus-card .mail-attachment-heading{position:static;background:transparent;min-height:78px;padding:0 135px 12px 0;margin:0 0 14px;display:flex;align-items:flex-start;}
+.mail-art-content .j-focus-card .mail-attachment-heading>span{position:relative;top:10px;left:8px;flex:none;font-size:11px;line-height:1.6;}
+.mail-art-content .j-focus-card>.j-label{display:block;font-size:11px;line-height:1.6;margin:0 0 8px;}
+.mail-art-content .j-focus-card .j-task-title{font-size:25px;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere;}
+.mail-art-content .j-focus-card>.j-description{font-size:12px;line-height:1.85;margin:0 0 18px;}
+.mail-art-content .j-focus-card .j-deliverable{margin:18px 0;padding:14px 16px;}
+.mail-art-content .j-focus-card .j-deliverable>span{font-size:11px;line-height:1.6;}
+.mail-art-content .j-focus-card .j-deliverable h4{font-size:17px;line-height:1.5;margin:6px 0 12px;}
+.mail-art-content .j-focus-card .j-deliverable ul{font-size:12px;line-height:1.85;padding-left:18px;}
+.mail-art-content .j-focus-card .j-deliverable li+li{margin-top:4px;}
+.mail-art-content .j-focus-card .j-deliverable p{font-size:11px;line-height:1.8;margin:14px 0 0;}
+.mail-art-content .j-focus-card>.j-coach-handoff{font-size:12px;line-height:1.85;margin:18px 0 12px;}
+.mail-art-content .j-focus-card>.j-button{margin:12px 0;line-height:1.6;min-height:44px;}
+@media(max-width:700px){
+ .mail-art-content .j-focus-card .mail-attachment-heading{min-height:68px;padding-right:90px;margin-bottom:12px;}
+ .mail-art-content .j-focus-card .j-task-title{font-size:21px;margin-bottom:12px;}
+ .mail-art-content .j-focus-card .j-deliverable{padding:12px;margin:14px 0;}
+ .mail-art-content .j-focus-card .j-deliverable h4{font-size:16px;}
+}

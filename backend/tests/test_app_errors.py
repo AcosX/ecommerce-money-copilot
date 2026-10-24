@@ -206,6 +206,8 @@ def static_root(tmp_path: Path) -> Path:
     (root / "assets").mkdir(parents=True)
     (root / "css").mkdir()
     (root / "js").mkdir()
+    (root / "tools").mkdir()
+    (root / "tools" / "models.html").write_text("<title>模型展示中心</title>", encoding="utf-8")
     (root / "backend").mkdir()
     (root / "docs").mkdir()
     (root / "index.html").write_text("<!doctype html><title>emc</title>", encoding="utf-8")
@@ -229,6 +231,7 @@ def test_dev_serves_allowlisted_static(app_factory, settings, static_root: Path)
         assert c.get("/assets/npc.png").content == b"\x89PNG fake"
         assert c.get("/css/emc-login.css").status_code == 200
         assert c.get("/js/emc-api.js").status_code == 200
+        assert "模型展示中心" in c.get("/tools/models.html").text
         assert c.get("/api/health").status_code == 200
 
 
@@ -258,6 +261,7 @@ def test_non_dev_does_not_serve_static(app_factory, static_root: Path) -> None:
     with TestClient(app_factory(static_root=static_root), base_url=TEST_ORIGIN) as c:
         assert c.get("/").status_code == 404
         assert c.get("/assets/npc.png").status_code == 404
+        assert c.get("/tools/models.html").status_code == 404
 
 
 def test_prod_hides_openapi(app_factory, settings) -> None:

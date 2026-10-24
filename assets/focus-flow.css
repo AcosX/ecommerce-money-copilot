@@ -43,21 +43,3 @@
 
 /* The single chat renders sanitized business content; keep the small avatar free of duplicate widgets. */
 #emcXingyunSdkMount .avatar-sdk-widget-container{display:none!important}
-
-/* 保留原信封与信纸，仅调整任务标题的留白和滚动排版。 */
-.mail-art-content .mail-attachment-sheet.j-focus-card{position:relative;background:#fcf8ec;background-clip:padding-box;border:24px solid transparent;border-image:url('./game/mail/letter-paper-v1.webp') 110 / 24px / 0 stretch;border-radius:0;box-shadow:none;padding:22px 20px 24px;scroll-padding-top:20px;min-width:0;}
-.mail-art-content .j-focus-card .mail-attachment-heading{position:static;display:flex;flex-direction:row;align-items:flex-start;justify-content:flex-start;min-height:clamp(90px,12vw,130px);padding:0 42% 12px 0;margin:0 0 14px;gap:8px;background:transparent;box-sizing:border-box;}
-.mail-art-content .j-focus-card .mail-attachment-heading>span{display:inline-block;font-size:11px;line-height:1.6;padding:6px 10px;}
-.mail-art-content .j-focus-card>.j-label{display:block;font-size:11px;line-height:1.6;}
-.mail-art-content .j-focus-card .j-task-title{font-size:26px;line-height:1.45;margin:10px 0 14px;overflow-wrap:anywhere;}
-
-@media(max-width:700px){
- .mail-art-content .mail-attachment-sheet.j-focus-card{border-width:18px;border-image-width:18px;padding:18px 14px 20px;}
- .mail-art-content .j-focus-card .mail-attachment-heading{padding-bottom:12px;margin-bottom:14px;}
- .mail-art-content .j-focus-card .j-task-title{font-size:22px;}
- .mail-art-content .j-focus-card .j-deliverable{padding:12px;margin:18px 0;}
-}
-
-/* 从原信纸按比例取出邮戳区域；九宫格边框只延展直线，不拉伸图案。 */
-.mail-art-content .j-focus-card:before{content:'';position:absolute;top:14px;right:14px;width:clamp(100px,32%,170px);aspect-ratio:390/240;background:url('./game/mail/letter-paper-v1.webp') 84.699% 8.176% / 287.692% 584.167% no-repeat;pointer-events:none;}
-.mail-extracted-stage:has(>.j-focus-card):before{inset:50px -14px -8px;background-size:100% auto;background-position:center bottom;}
