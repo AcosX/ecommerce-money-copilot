@@ -40,6 +40,11 @@
     <LocationMatch "^/(assets|css|js)/">
         Require all granted
     </LocationMatch>
+    # Public read-only model showcase. Keep other tools and recording scripts private.
+    <LocationMatch "^/tools/(models\.(html|css|js)|model-showcase\.(css|js)|building-evolution\.(html|css|js)|buildings-preview\.html|island-buildings-preview\.html|building-diy\.(css|js))$">
+        Require all granted
+        Header set Cache-Control "no-cache"
+    </LocationMatch>
     <LocationMatch "^/(api|auth|admin)/">
         Require all granted
     </LocationMatch>
