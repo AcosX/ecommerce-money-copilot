@@ -119,7 +119,19 @@ async function boxes(page) {
   const entries=await Promise.all(['.copilot-dock','.social-heading','#socialMessages','.copilot-compose','#copilotSuggestions','#emcAvatarStage','#copilotForm','.copilot-compose-toolbar'].map(async s=>[s,await page.locator(s).boundingBox()]));
   return Object.fromEntries(entries);
 }
+async function identityGeometry(page) {
+  const name=await page.locator('#socialName').boundingBox(),portrait=await page.locator('#companionAvatar').boundingBox(),stats=await page.locator('.social-stats').boundingBox(),close=await page.locator('#closeMobileChat').boundingBox();
+  assert.ok(name.width>=26&&name.height<=24,'Companion name stays on one line');
+  assert.ok(name.x>=right(portrait)+4&&stats.x>=right(portrait)+4,'Identity stays beside portrait');
+  assert.ok(stats.y>=bottom(name)-1,'Stats stay below name');
+  assert.ok(close.x>=right(stats)+4,'Close stays to the right of stats');
+  if(await page.locator('#expandCompanionChat').isVisible()){const expand=await page.locator('#expandCompanionChat').boundingBox();assert.ok(expand.x>=right(stats)+4&&close.x>=right(expand)+4,'Expand and close have separate columns');}
+}
 async function compactGeometry(page,width,height,{scroll=false}={}) {
+  await identityGeometry(page);
+  const question=await page.locator('[data-chat-suggestion]').last().boundingBox(),image=await page.locator('#chatPickImage').boundingBox();
+  assert.ok(image.x>=right(question)+4,'Image button follows the second suggestion');
+  assert.ok(Math.abs(image.y+image.height/2-question.y-question.height/2)<=2,'Image and second suggestion share a row');
   const b=await boxes(page),dock=b['.copilot-dock'],head=b['.social-heading'],messages=b['#socialMessages'],composer=b['.copilot-compose'],suggestions=b['#copilotSuggestions'],avatar=b['#emcAvatarStage'],form=b['#copilotForm'],toolbar=b['.copilot-compose-toolbar'];
   for(const [name,box] of Object.entries(b)) inside(box,width,height,name);
   assert.ok(bottom(head)<=messages.y+2,'Identity precedes transcript');
@@ -129,7 +141,7 @@ async function compactGeometry(page,width,height,{scroll=false}={}) {
   assert.ok(avatar.height<=102 && avatar.width<=78,'Avatar remains a small companion');
   assert.ok(right(suggestions)<=avatar.x+2,'Suggestions and avatar are side by side');
   assert.ok(suggestions.y<bottom(avatar) && avatar.y<bottom(suggestions),'Suggestions and avatar share a row');
-  const toolsBottom=bottom(await page.locator('.chat-media-tools').boundingBox());
+  const toolsBottom=bottom(await page.locator('.copilot-companion-tools').boundingBox());
   assert.ok(form.y-toolsBottom>=-2 && form.y-toolsBottom<=12,`Input gap is ${form.y-toolsBottom}px`);
   assert.ok(toolbar.y-bottom(form)>=-2 && toolbar.y-bottom(form)<=12,'Toolbar stays next to input');
   assert.ok(bottom(dock)-bottom(toolbar)<=28,'No blank area beneath composer toolbar');
@@ -182,6 +194,7 @@ if(require.main===module)(async()=>{
         for(const s of ['#socialMessages','#copilotSuggestions','.copilot-compose-toolbar','#emcAvatarStage'])assert.equal(await page.locator(s).isVisible(),false,s+' hidden while collapsed');
         assert.ok((await page.locator('.copilot-dock').boundingBox()).height<=100,'Mobile dock remains compact');
       }
+      if(width>700)await identityGeometry(page);
       await openChat(page,width);
       const suggestions=page.locator('#copilotSuggestions');
       assert.doesNotMatch(await suggestions.innerText(),/先认识一下小店|还没方向/,'Existing L3 users get current task guidance');
