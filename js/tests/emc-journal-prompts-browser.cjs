@@ -56,7 +56,11 @@ async function prepare(page,{welcome=false}={}){
   await page.getByRole('button',{name:'打开经营手帐',exact:true}).click();
   const drawer=page.locator('#drawer.centered-panel');await drawer.waitFor();inside(await drawer.boundingBox(),width,height);
   assert.equal(await page.locator('.journal-record').count(),2);assert.equal(await page.locator('.journal-section').count(),3);
-  assert.ok(await page.locator('.journal-paper').evaluate(e=>parseFloat(getComputedStyle(e).lineHeight)>=20));
+  await page.waitForFunction(()=>{const e=document.querySelector('.journal-paper');return e&&parseFloat(getComputedStyle(e).lineHeight)>=20;}).catch(async error=>{
+    await page.screenshot({path:path.join(shots,`journal-style-failure-${width}.png`)});
+    console.error('journal style',await page.locator('.journal-paper').evaluate(e=>({font:getComputedStyle(e).font,lineHeight:getComputedStyle(e).lineHeight,html:e.outerHTML.slice(0,200)})));
+    throw error;
+  });
   assert.ok(await page.locator('.journal-section').first().evaluate(e=>parseFloat(getComputedStyle(e).borderTopWidth)>0));
   assert.equal(await page.locator('.journal-record').first().evaluate(e=>getComputedStyle(e).display),'flex');
   assert.ok(await page.locator('#panelBody').evaluate(e=>e.scrollWidth<=e.clientWidth+1));
@@ -72,7 +76,7 @@ async function prepare(page,{welcome=false}={}){
   // Select a different task through the same journal and check prompt context updates.
   if(width<=700)await page.locator('#closeMobileChat').click();
   await page.getByRole('button',{name:'打开经营手帐',exact:true}).click();await page.locator('[data-mail-level=L1]').click();await page.waitForFunction(()=>JSON.parse(render_game_to_text()).journey.active==='L1');await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).mail.opening);await page.keyboard.press('Escape');
-  if(width<=700)await page.locator('#copilotHistory').click();
+  if(width<=700)await page.locator('#openCompanionChat').click();
   await suggestions.getByRole('button').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L1/);assert.doesNotMatch(await page.locator('#copilotInput').inputValue(),/L2/);
   const input=page.locator('#copilotInput');const original=await input.inputValue();await input.fill(original+' 我补充的情况。');
   const submitted=page.waitForRequest(r=>r.url().endsWith('/api/agent/chat'));

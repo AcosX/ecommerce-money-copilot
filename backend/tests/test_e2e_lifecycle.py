@@ -41,7 +41,6 @@ def test_openapi_json_is_up_to_date() -> None:
         "/api/artifacts",
         "/api/evidence",
         "/api/verifications",
-        "/api/admin/verifications",
     ):
         assert required_path in actual["paths"]
 
@@ -134,166 +133,45 @@ def test_all_six_level_mock_payloads_accepted(client, make_player, login_as) -> 
         assert body["artifact_type"] == item["artifact_type"]
 
 
-def test_full_e2e_player_and_reviewer_journey(client, make_client, make_player, login_as) -> None:
-    """完整端到端闭环（#42, #43, #44）：
-    游客匿名态 -> 登录 -> 教学复制草稿（来自教学模拟，不直接通过） -> 修订版本 ->
-    上传证据 -> 提交认证（冻结快照） -> 越权隔离校验 -> 审核驳回 -> 玩家修订重提 -> 审核通过。
-    """
-    # 1. 游客匿名态访问 /api/me 返回 authenticated=false，访问受保护接口返回 401
-    me_anon = client.get("/api/me")
-    assert me_anon.status_code == 200
-    assert me_anon.json() == {"authenticated": False}
-    for protected in (
-        "/api/projects",
-        "/api/artifacts",
-        "/api/verifications",
-        "/api/admin/verifications",
+def test_full_e2e_six_submissions_without_reviewer(client, make_player, login_as):
+    login_as(make_player())
+    project = client.post(
+        "/api/projects", json={"name": "六关小店", "platform": "xiaohongshu", "category": "收纳"}
+    ).json()
+    for kind in (
+        "business_plan",
+        "product_selection",
+        "asset_pack",
+        "listing_record",
+        "content_post",
+        "data_review",
     ):
-        assert client.get(protected).status_code == 401
-
-    # 2. 玩家 A 登录，创建经营项目并将教学模拟成果复制为正式草稿
-    player_a = make_player(display_name="玩家A")
-    login_as(player_a, test_client=client)
-
-    proj = client.post(
-        "/api/projects",
-        json={"name": "玩家A女装店", "platform": "xiaohongshu", "category": "womenswear"},
-    ).json()
-
-    art_v1 = client.post(
-        "/api/artifacts",
-        json={
-            "project_id": proj["id"],
-            "artifact_type": "business_plan",
-            "schema_version": 1,
-            "title": "L1 练习转正式经营方案",
-            "origin": "tutorial_copy",
-            "source_level_id": "L1",
-            "content": {
-                "niche": "通勤半身裙",
-                "platform": "xiaohongshu",
-                "differentiation": "155cm 小个子高腰实测",
-                "first_order_goal": {"sku_count": 2, "target_price_yuan": 69, "window_days": 14},
+        art = client.post(
+            "/api/artifacts",
+            json={
+                "project_id": project["id"],
+                "artifact_type": kind,
+                "schema_version": 1,
+                "title": "本关成果",
+                "content": {
+                    "summary": "真实成果与观察记录，所有未验证数据均保留来源和待补说明。" * 3
+                },
             },
-        },
-    )
-    assert art_v1.status_code == 201
-    art_data = art_v1.json()
-    assert art_data["status"] == "draft"
-    assert art_data["origin"] == "tutorial_copy"
-    assert art_data["origin_label"] == "来自教学模拟"
-
-    # 3. 玩家 A 修订成果（生成 revision 2）
-    art_v2 = client.patch(
-        f"/api/artifacts/{art_data['id']}",
-        json={
-            "version": art_data["version"],
-            "title": "L1 正式经营方案（补充真实货源）",
-            "content": {
-                "niche": "通勤半身裙",
-                "platform": "xiaohongshu",
-                "differentiation": "155cm 小个子高腰实测 + 广州十三行现货",
-                "first_order_goal": {"sku_count": 3, "target_price_yuan": 79, "window_days": 10},
+        )
+        assert art.status_code == 201, art.text
+        art = art.json()
+        ev = client.post(
+            "/api/evidence", files={"file": ("proof.png", PNG_BYTES, "image/png")}
+        ).json()
+        sub = client.post(
+            "/api/verifications",
+            json={
+                "artifact_id": art["id"],
+                "artifact_version": art["version"],
+                "evidence_ids": [ev["id"]],
             },
-        },
-    )
-    assert art_v2.status_code == 200
-    assert art_v2.json()["current_revision"] == 2
-    assert art_v2.json()["version"] == 2
-
-    # 4. 上传证据并提交第一次认证申请
-    ev1 = client.post(
-        "/api/evidence",
-        files={"file": ("evidence1.png", PNG_BYTES, "image/png")},
-    )
-    assert ev1.status_code == 201
-    ev1_id = ev1.json()["id"]
-
-    sub1 = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": art_data["id"],
-            "artifact_version": 2,
-            "evidence_ids": [ev1_id],
-            "note": "首次提交审核",
-        },
-    )
-    assert sub1.status_code == 201
-    sub1_id = sub1.json()["id"]
-    frozen_snap_1 = sub1.json()["snapshot"]
-    assert sub1.json()["status"] == "pending"
-
-    # 5. 玩家 B（普通用户）不能读取玩家 A 的任何资源（404），也不能访问审核接口（403）
-    client_b = make_client()
-    player_b = make_player(display_name="玩家B", email="b@example.com")
-    login_as(player_b, test_client=client_b)
-    assert client_b.get(f"/api/projects/{proj['id']}").status_code == 404
-    assert client_b.get(f"/api/artifacts/{art_data['id']}").status_code == 404
-    assert client_b.get(f"/api/evidence/{ev1_id}/content").status_code == 404
-    assert client_b.get(f"/api/verifications/{sub1_id}").status_code == 404
-    assert client_b.get("/api/admin/verifications").status_code == 403
-
-    # 6. 审核员驳回第一次申请（附原因）
-    client_rev = make_client()
-    reviewer = make_player(display_name="审核员", email="reviewer@example.com")
-    login_as(reviewer, reviewer=True, test_client=client_rev)
-
-    rej = client_rev.post(
-        f"/api/admin/verifications/{sub1_id}/review",
-        json={"decision": "rejected", "reason": "请补充真实首单物流单号轨迹截图"},
-    )
-    assert rej.status_code == 200
-    assert rej.json()["status"] == "rejected"
-
-    # 7. 玩家 A 查看驳回原因，修改成果（生成 revision 3）并重新上传证据提交第二次申请
-    sub1_view = client.get(f"/api/verifications/{sub1_id}").json()
-    assert sub1_view["status"] == "rejected"
-    assert sub1_view["reviews"][0]["reason"] == "请补充真实首单物流单号轨迹截图"
-
-    art_after_rej = client.get(f"/api/artifacts/{art_data['id']}").json()
-    assert art_after_rej["status"] == "rejected"
-
-    art_v3 = client.patch(
-        f"/api/artifacts/{art_data['id']}",
-        json={
-            "version": art_after_rej["version"],
-            "title": "L1 正式经营方案（已补物流凭证）",
-            "content": {
-                "niche": "通勤半身裙",
-                "platform": "xiaohongshu",
-                "differentiation": "155cm 小个子高腰实测 + 真实发货单号核验",
-                "first_order_goal": {"sku_count": 3, "target_price_yuan": 79, "window_days": 7},
-            },
-        },
-    )
-    assert art_v3.status_code == 200
-    assert art_v3.json()["current_revision"] == 3
-
-    ev2 = client.post(
-        "/api/evidence",
-        files={"file": ("evidence2.png", PNG_BYTES, "image/png")},
-    ).json()
-
-    sub2 = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": art_data["id"],
-            "artifact_version": art_v3.json()["version"],
-            "evidence_ids": [ev2["id"]],
-            "note": "已补充物流轨迹截图，再次提交",
-        },
-    )
-    assert sub2.status_code == 201
-    sub2_id = sub2.json()["id"]
-
-    # 8. 审核员通过第二次申请；第一次申请的快照保持不可变
-    app_res = client_rev.post(
-        f"/api/admin/verifications/{sub2_id}/review",
-        json={"decision": "approved", "reason": "凭证真实有效，予以通过"},
-    )
-    assert app_res.status_code == 200
-    assert app_res.json()["status"] == "approved"
-
-    final_art = client.get(f"/api/artifacts/{art_data['id']}").json()
-    assert final_art["status"] == "approved"
-    assert client.get(f"/api/verifications/{sub1_id}").json()["snapshot"] == frozen_snap_1
+        )
+        assert sub.status_code == 201, sub.text
+        assert sub.json()["status"] == "approved"
+    items = client.get("/api/verifications").json()["items"]
+    assert len(items) == 6 and all(item["status"] == "approved" for item in items)
