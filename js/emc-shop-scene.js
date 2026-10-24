@@ -1,4 +1,4 @@
-import {startShopUpgrade} from './emc-shop-upgrade.js?v=upgrade3';
+import {startShopUpgrade} from './emc-shop-upgrade.js?v=upgrade4-clock';
 import {bindBuildingParts,syncBuildingParts,createBuildingEnvironment} from './emc-building-parts.js?v=buildings4';
 import * as THREE from 'three';
 import './emc-render-quality.js';
@@ -59,7 +59,7 @@ export class ShopScene{
       this.baseShopObjects.forEach(obj=>{this.root.remove(obj);disposeGeometry(obj);});this.baseShopObjects=[];this.root.add(group);pendingShop=null;this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);if(entry.modular)this.createModuleSign(group);else this.createShopSign(group,entry.sign,size.y*scale);this.paintUniforms.roofY.value=group.position.y+size.y*scale*([0,.55,.67,.67,.82,.90][stage]);this.source='tripo_model';this.guide=new IslandGuide(this);await this.guide.ready;if(this.disposed)return;this.canPaint=this.paintMaterials.length>0||!!this.buildingParts?.length;this.sync();this.options.onModelLoaded?.(this.canPaint);
     }catch(error){if(pendingIsland)disposeAsset(pendingIsland.scene);if(pendingShop)disposeAsset(pendingShop.scene);if(!this.disposed){this.options.onModelError?.(error);throw error;}}
   }
-  async upgradeTo(level,{onStart=()=>{},onReveal=()=>{}}={}){
+  async upgradeTo(level,{onStart=()=>{},onReveal=()=>{},animationTime}={}){
     if(this.upgradePromise){await this.upgradePromise;if(this.disposed||level<=this.modelLevel)return false;}
     if(level<=this.modelLevel||this.disposed)return false;
     const run=async()=>{
@@ -75,7 +75,7 @@ export class ShopScene{
         asset.scene.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){this.materials.push(m);if(!entry.modular&&entry.wall_mask==='cream'){installPartTint(m,this.paintUniforms);this.paintMaterials.push(m);}}});
         this.root.add(group);this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);if(entry.modular)this.createModuleSign(group);else this.createShopSign(group,entry.sign,size.y*scale);
         this.textureStatus.shop=countTexturedMeshes(asset.scene);this.canPaint=this.paintMaterials.length>0||!!parts?.length;this.paintUniforms.roofY.value=group.position.y+size.y*scale*([.55,.55,.67,.67,.82,.90][level]);this.previewPartName=null;this.paintUniforms.preview.value=0;this.sync();return [group,this.shopSign,this.signBoard].filter(Boolean);
-      },{onReveal});
+      },{onReveal,animationTime});
       let completed;try{completed=await this.upgradeEffect.promise;}finally{this.upgradeEffect=null;}
       if(this.shopModel===group){oldObjects.forEach(disposeAsset);this.materials=this.materials.filter(m=>!oldMaterials.has(m));this.texturePixels?.clear();this.renderer.shadowMap.needsUpdate=true;this.render();}else disposeAsset(group);return completed;
     };
