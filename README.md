@@ -32,11 +32,11 @@
 前端无需构建。推荐通过本地 HTTP 服务运行（3D 模型使用 ES modules，不建议直接打开 file://）：
 
 ```powershell
-cd C:\Dev\ACC\ecommerce-money-copilot
+cd ecommerce-money-copilot
 python -m http.server 5189 --bind 127.0.0.1
 ```
 
-浏览器打开 `http://127.0.0.1:5189/`。此命令仅提供静态前端，账号和持久化接口需启动后端，见 [backend/README.md](backend/README.md)。可选本地 Docker 测试栈见 [deploy/README.md](deploy/README.md)；生产使用 VM3 的版本化部署。Agent 架构见 [docs/agent-integration.md](docs/agent-integration.md)。
+浏览器打开 `http://127.0.0.1:5189/`。此命令仅提供静态前端，账号和持久化接口需启动后端，见 [backend/README.md](backend/README.md)。可选本地 Docker 测试栈见 [deploy/README.md](deploy/README.md)；服务器部署模板见 [运维说明](docs/operations.md)。Agent 架构见 [docs/agent-integration.md](docs/agent-integration.md)。
 
 ## 技术栈与目录
 
@@ -46,13 +46,6 @@ python -m http.server 5189 --bind 127.0.0.1
 - `js/tests/`、`tests/frontend/`：前端单元和浏览器检查。
 - `tools/`：模型生成、压缩、角色制作及独立预览工具；命令行工具可能不被页面直接引用，仍是制作流程的一部分。
 - `docs/`：接口契约、开发与运维文档；`deploy/`：部署配置。
-
-## 清理与归档
-
-2026-10-22 核对引用后，将 7 张未使用的成就设计稿移入工作区 `../_archive/cleanup-20261022/unused-achievements/`，保留页面使用的 `first-order-certificate-v5.png`。归档是本机文件，不属于仓库，也不随站点部署。
-当前业务模块均有引用，角色制作源文件、模型生成脚本及预览验收入口继续保留。
-
-新版六级建筑发布资源统一位于 `assets/models/buildings/`，由 `assets/models/manifest.json` 指向；低级原模型与后三级模块建筑均保留几何，按设备选择 web/lite 贴图。39 个废弃发布资产与旧生成脚本（约 146 MiB）已移出项目，位于本机 `../_archive/ecommerce-assets-retired-20261022/`，不随站点部署。当前岛屿原始源网格、角色与模块制作源文件继续保留。
 
 ## 模型展示
 
@@ -69,3 +62,7 @@ python -m http.server 5189 --bind 127.0.0.1
 - 当前为 Demo 版本：游客模式可完整体验教学流程，绑定平台 / 真实选品单等实操环节预留了「引导注册」入口。
 
 当前关卡与小商单步带关、真实审核及部署变化见 [引导流程说明](docs/guided-journey.md)。
+
+## 公开发布与安全
+
+公开前需完成 [发布检查](docs/public-release.md)。报告安全问题请参照 [SECURITY.md](SECURITY.md)，不要在公开 Issue 中贴密钥或用户数据。

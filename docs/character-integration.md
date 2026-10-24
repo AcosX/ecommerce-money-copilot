@@ -37,6 +37,6 @@
 
 ## Key Insights
 
-旧角色为程序化几何，没有单独的 GLB；旧实现已复制到本机 `local-archive`。当前表情源模型仍用于构建，不属于废弃资产。
+旧角色为程序化几何，没有单独的 GLB；旧实现已复制到本机 仓库外的本地归档目录。当前表情源模型仍用于构建，不属于废弃资产。
 
 验证入口：`node js/tests/emc-island-character-browser.cjs`。浏览器测试依赖由 `EMC_PLAYWRIGHT_MODULE` 指定；覆盖高清/流畅、桌面/移动端、对话、遮挡、来信、失败重试。
