@@ -19,7 +19,7 @@ test('新物品逐件已读并汇总分类，重复奖励不重复提示',()=>{
 test('旧存档迁移不误报历史奖励，已读列表只接受已拥有物品',()=>{
  const old=G.create();old.side=[G.SIDE[0].id];delete old.inventory_seen;const migrated=G.normalize(old);assert.deepEqual(G.unreadInventory(migrated),[]);
  const g=G.normalize({...old,inventory_seen:['decor:cat','decor:ufo','decor:ufo','wall:'+G.COLORS[0],'bogus',null]});assert.deepEqual(g.inventory_seen,['decor:ufo','wall:'+G.COLORS[0]]);
- assert.ok(G.unreadInventory(g).some(i=>i.category==='wall'));assert.ok(G.unreadInventory(g).some(i=>i.category==='sign'));assert.ok(G.unreadInventory(g).some(i=>i.category==='roof'));assert.ok(!G.unreadInventory(g).some(i=>i.category==='decor'));
+ assert.ok(G.unreadInventory(g).some(i=>i.category==='wall'));assert.ok(G.unreadInventory(g).some(i=>i.category==='sign'));assert.ok(G.unreadInventory(g).some(i=>i.category==='roof'));assert.ok(G.unreadInventory(g).filter(i=>i.category==='decor').every(i=>G.DECOR.find(d=>d.id===i.id).available));
 });
 test('逐件已读状态可随教学存档保存恢复，保留尚未查看的奖励',()=>{
  const g=G.create();G.SIDE.slice(0,2).forEach(t=>G.complete(g,t.id,t.answer));G.markInventorySeen(g,'decor:ufo');
@@ -27,3 +27,5 @@ test('逐件已读状态可随教学存档保存恢复，保留尚未查看的�
  const restored=G.normalize(S.decode(JSON.stringify(data)).data.levels.L1.exercise_result.shop_game_v1);
  assert.deepEqual(G.unreadInventory(restored).map(i=>i.key),['decor:ramen']);assert.deepEqual(restored,g);
 });
+
+test('导入装饰默认可用，超过六件的摆放存档完整保留',()=>{const g=G.create();G.SIDE.forEach(t=>G.complete(g,t.id,t.answer));g.placements=G.DECOR.map(d=>({id:d.id,anchor:'ground',x:0,y:0,z:0,rotation:0}));const saved=G.normalize(g);assert.equal(saved.placements.length,11);assert.deepEqual(saved.placements,g.placements);const fresh=G.create();assert.equal(G.inventoryItems(fresh).filter(i=>i.category==='decor').length,5);assert.equal(G.normalize({...fresh,placements:g.placements}).placements.length,5);});

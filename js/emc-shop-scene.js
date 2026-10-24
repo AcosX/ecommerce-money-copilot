@@ -5,7 +5,7 @@ import './emc-render-quality.js';
 import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
-import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
+import {createDecoration} from './emc-decorations.js?v=20261025-imported1';
 import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-terrain10';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
@@ -346,7 +346,7 @@ export class ShopScene{
   loop(){if(this.disposed)return;this.frame=requestAnimationFrame(()=>this.loop());if(this.container.hidden||document.hidden){this.lastFrame=performance.now();return;}const now=performance.now();if(now-(this.lastFrame||0)<1000/this.quality.fps-1)return;const dt=Math.min(.1,(now-(this.lastFrame||now))/1000);this.lastFrame=now;if(!this.options.readOnly)this.controls.update();this.upgradeEffect?.update(dt);if(this.guide){this.guide.update(dt);this.dirty=true;}if(this.dirty)this.draw();}
   dispose(){this.upgradeEffect?.cancel();this.loadController.abort(new Error('场景已关闭'));clearTimeout(this.pendingDrag?.timer);this.clearDecorPreview();this.disposed=true;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();this.controls.dispose();this.guide?.dispose();this.scene.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});new Set(this.materials).forEach(disposeMaterial);this.texturePixels?.clear();this.surfaceCache?.clear();this.environmentTarget?.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
-function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
+function disposeGeometry(obj){obj.userData.disposed=true;obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
 function disposeAsset(obj){obj.traverse(child=>{child.geometry?.dispose();if(child.material)(Array.isArray(child.material)?child.material:[child.material]).forEach(disposeMaterial);});}
 // 优先使用资产内的部位遮罩；旧模型回退色相/空间判定，保留木纹与明暗。

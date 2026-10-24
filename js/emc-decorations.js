@@ -1,8 +1,35 @@
 import * as THREE from 'three';
+import {loadTexturedModel} from './emc-model-loader.js';
 import {batchDecoration} from './emc-model-performance.js';
 
 // 小型装饰采用真实立体几何；底面统一归零，兼容已有存档的摆放坐标。
+const importedDecorations=new Set(['deepseek-logo','deepseek-fumo','claude','claude-code','chatgpt']);
+
+// 保持同步的拖放接口，模型与贴图按需加载，独立实例避免预览污染正式材质。
+function importedDecoration(scene,id){
+  const root=new THREE.Group();root.userData.decorationId=id;root.userData.loadState='loading';
+  const placeholder=new THREE.Mesh(new THREE.BoxGeometry(.6,.6,.6),scene.mat('#c8c2ac'));
+  placeholder.position.y=.3;root.add(placeholder);
+  loadTexturedModel('assets/models/decorations/'+id+'.glb',{signal:scene.loadController?.signal}).then(gltf=>{
+    const model=gltf.scene;
+    const release=()=>model.traverse(o=>{o.geometry?.dispose();for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[]){Object.values(m).forEach(v=>{if(v?.isTexture)v.dispose();});m.dispose();}});
+    if(scene.disposed||root.userData.disposed){release();return;}
+    const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());
+    model.scale.multiplyScalar(1.25/Math.max(size.x,size.y,size.z,.001));
+    model.updateMatrixWorld(true);box.setFromObject(model);const center=box.getCenter(new THREE.Vector3());
+    model.position.x-=center.x;model.position.z-=center.z;model.position.y-=box.min.y;
+    const preview=scene.decorPreview===root;
+    model.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;for(const m of Array.isArray(o.material)?o.material:[o.material]){if(!scene.materials.includes(m))scene.materials.push(m);if(preview){m.transparent=true;m.opacity=.6;m.depthWrite=false;scene.decorPreviewMaterials.push(m);}}});
+    root.remove(placeholder);placeholder.geometry.dispose();root.add(model);root.userData.loadState='ready';
+    if(scene.decorPreview===root)scene.decorPreviewBox?.setFromObject(root);
+    if(scene.selected===id)scene.selection?.setFromObject(root);
+    scene.renderer.shadowMap.needsUpdate=true;scene.render();
+  }).catch(error=>{if(scene.disposed||root.userData.disposed)return;root.userData.loadState='error';placeholder.material.color.set('#ef7768');console.error('装饰模型加载失败：'+id,error);scene.render();});
+  return root;
+}
+
 export function createDecoration(scene,id){
+  if(importedDecorations.has(id))return importedDecoration(scene,id);
   const root=new THREE.Group();root.userData.decorationId=id;
   const mat=(color,extra={})=>Object.assign(scene.mat(color),extra);
   const metal=mat('#59646a',{metalness:.35,roughness:.55}),silver=mat('#a7b6b4',{metalness:.45,roughness:.5});

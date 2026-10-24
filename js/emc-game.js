@@ -26,6 +26,13 @@
     {id:'iterate',level:'L6',name:'做一次有依据的调整',topic:'会复盘',xp:80,question:'怎样让下一次复盘更有价值？',options:['每天同时改掉全部设置','只记住偶然卖得好的那天','记录假设、调整内容和结果，再决定是否保留'],answer:2,why:'记录变化及其依据，能让经营经验逐步成为可复用的方法。'}
   ];
   const DECOR=[
+    ...[
+      ['deepseek-logo','DeepSeek 鲸鱼','#506aff'],
+      ['deepseek-fumo','DeepSeek Fumo','#687caf'],
+      ['claude','Claude','#d78d70'],
+      ['claude-code','Claude Code','#d78d70'],
+      ['chatgpt','ChatGPT','#57ac91']
+    ].map(([id,name,color])=>({id,name,color,available:true,thumbnail:'assets/models/decorations/'+id+'.png'})),
     {id:'ufo',name:'飞碟招牌',tag:'给灵感一个着陆点',cell:0,color:'#70d7cb'},
     {id:'ramen',name:'深夜拉面灯',tag:'夜里也有烟火气',cell:1,color:'#ff826d'},
     {id:'flowers',name:'窗边小花箱',tag:'先种下一个小目标',cell:2,color:'#e9be5b'},
@@ -43,7 +50,7 @@
   ].map(task=>({...task,xp:20,level:'side',topic:'支线探索'}));
   const COLORS=['#eee0c5','#a6c4b0','#a8bdd4','#d4b8a2','#c4b6d8'];
   const PALETTES={wall:COLORS,sign:['#9c531e','#407766','#426a9c','#805284','#cc9741'],roof:['#bd3f23','#517b61','#4c6e97','#715589','#806453']};
-  function create(){return {schema_version:1,graphics_quality:'auto',theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'小商',companion_named:true};}
+  function create(){return {schema_version:1,graphics_quality:'auto',theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)).concat(DECOR.filter(d=>d.available).map(d=>'decor:'+d.id)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'小商',companion_named:true};}
   function normalize(value){
     const s=create();if(!value||value.schema_version!==1)return s;
     s.graphics_quality=['auto','smooth','detail'].includes(value.graphics_quality)?value.graphics_quality:'auto';
@@ -60,7 +67,7 @@
     s.shop_name=typeof value.shop_name==='string'?value.shop_name.trim().slice(0,12)||s.shop_name:s.shop_name;
     if(Array.isArray(value.placements)){
       const seen=new Set();
-      s.placements=value.placements.slice(0,6).filter(p=>p&&DECOR.some(d=>d.id===p.id)&&s.side.some(id=>SIDE.find(t=>t.id===id).reward===p.id)&&!seen.has(p.id)&&seen.add(p.id)).map(p=>({id:p.id,anchor:p.anchor==='roof'?'roof':'ground',x:clamp(p.x,-4,4),y:clamp(p.y,p.anchor==='roof'?-3:0,12),z:clamp(p.z,-3.5,3.5),rotation:clamp(p.rotation,-Math.PI*2,Math.PI*2)}));
+      s.placements=value.placements.slice(0,DECOR.length).filter(p=>p&&DECOR.some(d=>d.id===p.id&&(d.available||s.side.some(id=>SIDE.find(t=>t.id===id)?.reward===p.id)))&&!seen.has(p.id)&&seen.add(p.id)).map(p=>({id:p.id,anchor:p.anchor==='roof'?'roof':'ground',x:clamp(p.x,-4,4),y:clamp(p.y,p.anchor==='roof'?-3:0,12),z:clamp(p.z,-3.5,3.5),rotation:clamp(p.rotation,-Math.PI*2,Math.PI*2)}));
     }
     const available=inventoryItems(s).map(item=>item.key),valid=new Set(available);
     // 旧存档已有物品作为已读迁移，避免把历史奖励都误报成新获得。
@@ -69,7 +76,7 @@
   }
   function inventoryItems(s){
     const colors=Object.entries(PALETTES).flatMap(([category,values])=>values.map(color=>({key:category+':'+color,category,color})));
-    return colors.concat(DECOR.filter(d=>s.side.some(id=>SIDE.find(t=>t.id===id)?.reward===d.id)).map(d=>({key:'decor:'+d.id,category:'decor',id:d.id})));
+    return colors.concat(DECOR.filter(d=>d.available||s.side.some(id=>SIDE.find(t=>t.id===id)?.reward===d.id)).map(d=>({key:'decor:'+d.id,category:'decor',id:d.id})));
   }
   function unreadInventory(s){const seen=new Set(s.inventory_seen);return inventoryItems(s).filter(item=>!seen.has(item.key));}
   function markInventorySeen(s,key){
