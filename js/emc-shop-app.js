@@ -12,9 +12,8 @@
   let tutorial=loaded.data;
   const rawGame=tutorial.levels.L1.exercise_result.shop_game_v1;
   let game=G.normalize(rawGame),panel=null,tab='main',activeTask=null,answer=null,feedback=null,selected=null,toastTimer,bagTab='wall',paintDrag=null,paintUndo=null;
-  let continueLogin=null,chatWasCloud=false,localChatHistory=game.npc_chat;
+  let chatWasCloud=false,localChatHistory=game.npc_chat;
   const partnerName=()=>game.companion_name;
-  if(!game.companion_named)game.companion_name='小商';
   const growthStage=()=>journey?journey.progress().stage-1:G.stage(game);
   const mainTask=()=>{if(!journey)return G.current(game);const current=journey.progress().current;return current?{id:current.id,name:current.title,topic:current.topic}:{id:'L6',name:'查看六关审核结果',topic:'训练进度'};};
   const futureGame=rawGame&&rawGame.schema_version>1;
@@ -161,12 +160,12 @@
     panel=name;activeTask=null;answer=null;feedback=null;
     $('drawer').hidden=false;$('drawer').classList.toggle('backpack',name==='inventory');$('drawer').classList.toggle('journey-card',name==='journey');$('drawer').classList.toggle('companion-panel',name==='companion');renderPanel();$('closePanel').focus({preventScroll:true});
   }
-  function closePanel(){mail.close();continueLogin=null;if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('role');$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
+  function closePanel(){mail.close();if(panel)audio.play('close');window.EmcRoute?.onView('island');cancelPaint();panel=null;$('drawer').removeAttribute('aria-modal');$('drawer').removeAttribute('role');$('drawer').hidden=true;activeTask=null;answer=null;feedback=null;}
   function renderPanel(){
-    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],journal:['MY SHOP JOURNAL','经营手帐'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],partner:['HELLO, PARTNER','给伙伴起个名字'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
+    const titles={quests:['A LITTLE DETOUR','支线小挑战'],inventory:['LITTLE THINGS, BIG IDEAS','装饰背包'],collection:['GROW AT YOUR OWN PACE','成长图鉴'],journal:['MY SHOP JOURNAL','经营手帐'],settings:['MAKE IT YOURS','小店设置'],history:['CONVERSATIONS ON THE ISLAND','和'+partnerName()+'的对话'],missions:['YOUR JOURNEY','任务导航'],journey:['A LETTER FOR YOU',partnerName()+'的任务来信'],companion:['YOUR BUSINESS PARTNER','我的伙伴']};
     $('panelBody').classList.toggle('journey-body',panel==='journey');
     $('panelEyebrow').textContent=titles[panel][0];$('panelTitle').textContent=titles[panel][1];
-    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='partner')renderPartnerSetup();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();if($('panelBody').querySelector('.award-view'))$('panelTitle').textContent='通关证书';
+    if(panel==='journal')renderJournalPanel();if(panel==='missions')renderMissionList();if(panel==='companion')renderCompanion();if(panel==='journey')journey?.render();if(panel==='quests')renderQuests();if(panel==='inventory')renderInventory();if(panel==='collection')renderCollection();if(panel==='settings')renderSettings();if(panel==='history')renderChatHistory();if($('panelBody').querySelector('.award-view'))$('panelTitle').textContent='通关证书';
   }
   function renderMissionList(){
     const p=journey.profile(),state=journey.progress(),labels={approved:'已完成',pending:'确认中',rejected:'待补充',ready:'进行中',draft:'草稿',locked:'未解锁'};
@@ -227,30 +226,13 @@
     $('copilotProfile').setAttribute('aria-label','查看'+name+'的角色面板');$('copilotProfile').title=name+' · 我的伙伴';
     $('copilotInput').placeholder='问问'+name+'，下一步怎么做…';$('copilotInput').setAttribute('aria-label','给'+name+'发消息');updateChatAvailability();
   }
-  function partnerField(){return `<label for="partnerNameInput">伙伴名称</label><input id="partnerNameInput" maxlength="24" value="${escape(partnerName())}" autocomplete="off" aria-describedby="partnerNameHint partnerNameError"><p class="muted-note" id="partnerNameHint">1—12 个中英文字或数字，也可用空格、·、_、-。以后可以修改。</p><p id="partnerNameError" class="muted-note" role="status"></p>`;}
-  function partnerSettings(){return `<section class="setting-field" aria-label="伙伴设置">${partnerField()}<button class="small-button gold" id="savePartnerName">保存伙伴名称</button><p class="muted-note">伙伴会用这个名字陪你对话，名字也会传给 AI。</p></section>`;}
-  function renderPartnerSetup(){
-    $('panelBody').innerHTML=`<p class="quest-question">开店的路上，有个伙伴陪你一起。你想怎么称呼 TA？</p><div class="setting-field">${partnerField()}<button class="small-button gold" id="confirmPartnerName">${continueLogin?'保存并继续登录 / 注册':'认识我的伙伴'}</button></div><p class="muted-note">伙伴名称保存在本浏览器的教学存档中，与账号昵称分开。</p>`;
-  }
-  function savePartnerName(setup){
-    const name=C.validName($('partnerNameInput').value);if(!name){$('partnerNameError').textContent='请输入 1—12 个有效字符。';$('partnerNameInput').setAttribute('aria-invalid','true');$('partnerNameInput').focus();return;}
-    finishConversation();const previous={name:game.companion_name,named:game.companion_named};game.companion_name=name;game.companion_named=true;
-    if(!save()){game.companion_name=previous.name;game.companion_named=previous.named;$('partnerNameError').textContent='暂时没能保存，请重试后再继续。';return;}
-    renderPartnerName();const proceed=continueLogin;
-    if(setup){closePanel();if(proceed){proceed();return;}}else renderSettings();
-    toast('伙伴名称已保存：'+name);
-  }
-  document.addEventListener('emc:before-login',e=>{
-    if(game.companion_named)return;e.preventDefault();openPanel('partner');continueLogin=e.detail.proceed;renderPartnerSetup();$('partnerNameInput').focus();
-  });
-  $('panelBody').addEventListener('input',e=>{if(e.target.id==='partnerNameInput'){$('partnerNameError').textContent='';e.target.removeAttribute('aria-invalid');}});
   function audioSettings(){
     const a=audio.state();
     return `<section class="setting-field audio-settings" aria-label="音乐与音效"><p class="field-label">音乐与音效</p><p class="muted-note">开张冲冲冲 · 128 BPM 原创街机循环</p>${[['music','背景音乐','musicVolume'],['sfx','互动音效','sfxVolume']].map(([key,label,volume])=>`<div class="audio-row"><span>${label}</span><button class="small-button" data-audio-toggle="${key}" aria-label="${label}" aria-pressed="${a[key]}" ${a.available?'':'disabled'}>${a[key]?'开启':'关闭'}</button></div><label class="audio-volume" for="${volume}"><span>音量 <output id="${volume}Value">${Math.round(a[volume]*100)}%</output></span><input id="${volume}" data-audio-volume="${volume}" aria-label="${label}音量" type="range" min="0" max="100" step="5" value="${Math.round(a[volume]*100)}" ${a.available?'':'disabled'}></label>`).join('')}<p class="muted-note">${a.available?'首次点击后播放，切到后台时暂停。':'当前浏览器暂不支持声音播放。'}</p></section>`;
   }
   function graphicsSettings(){return `<section class="setting-field" aria-label="画面质量"><p class="field-label">画面质量</p><div class="setting-actions">${[['auto','自动适配'],['smooth','流畅优先'],['detail','精细画面']].map(([id,name])=>`<button class="small-button" data-graphics-quality="${id}" aria-pressed="${game.graphics_quality===id}">${name}</button>`).join('')}</div><p class="muted-note">自动适配会为手机和较低配置使用轻量模型。感觉卡顿时，可以选择流畅优先；切换画质会重新加载小岛。</p></section>`;}
   function renderSettings(){
-    $('panelBody').innerHTML=accountSettings()+partnerSettings()+audioSettings()+graphicsSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">伙伴设置和装修保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>成功提交成果就能继续下一关；审核通过另计入结业。</p><button class="small-button" id="exportSave">导出小店设置</button><p class="muted-note">六种成长外形与立体浮岛已接入新版 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
+    $('panelBody').innerHTML=accountSettings()+audioSettings()+graphicsSettings()+`<div class="setting-field"><label for="shopNameInput">给你的小店起个名字</label><input id="shopNameInput" maxlength="12" value="${escape(game.shop_name)}" autocomplete="off"><p class="muted-note">最多 12 个字，保存后同步更新店铺招牌。</p><button class="small-button gold" id="saveName">保存店名</button></div><div class="setting-field"><p class="field-label">日夜模式</p><div class="setting-actions">${[['auto','跟随时间'],['day','固定白天'],['night','固定夜晚']].map(([v,n])=>`<button class="small-button" data-theme-option="${v}" aria-pressed="${game.theme===v}">${n}</button>`).join('')}</div><p class="muted-note">跟随本地时间经过晨光、晚霞与夜色；固定模式把日月留在右上角。</p></div><p class="muted-note">装修设置保存在本浏览器。真实经营成果及确认进度登录后保存到云端。<br><br>成功提交成果就能继续下一关；审核通过另计入结业。</p><button class="small-button" id="exportSave">导出小店设置</button><p class="muted-note">六种成长外形与立体浮岛已接入新版 3D 模型。在背包里长按配色，拖到墙面、招牌或屋顶即可更换。</p>`;
   }
 
   function journalState(){
@@ -288,7 +270,7 @@
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!homeScene?.upgradeEffect&&!$('scene').dataset.loading;}
   function updateChatAvailability(){
     const available=npcAvailable(),ready=!sending&&!paintDrag?.active;
-    $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||!$('copilotInput').value.trim();
+    $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||(!window.EmcChatMedia?.images().length&&!$('copilotInput').value.trim());
     const text=sending?partnerName()+'正在回应…':!available?partnerName()+' · 文本聊天可用':partnerName()+' · '+chatSourceLabel();
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
@@ -420,9 +402,11 @@
         [topic+'，先做哪一步？','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，请利用我已经提供的信息，带我做眼前的一小步，一次只问一个关键问题。'],
         ['我还没想好，先问我一个问题','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，还拿不定主意，请先问我一个最关键的问题。']
       ];
+      const imageButton=$('chatPickImage');imageButton?.remove();
       host.innerHTML=`<small>${welcome?'从这里开始':'接着聊 · '+escape(task?.id||'')+' '+escape(topic)}</small>`+prompts.map(([label,prompt])=>`<button type="button" data-chat-suggestion="${escape(prompt)}" title="填入消息，修改后再发送">${escape(label)}</button>`).join('');
+      if(imageButton){const actions=document.createElement('span');actions.className='chat-question-actions';actions.append(host.lastElementChild,imageButton);host.append(actions);}
     }
-    const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('button').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
+    const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('[data-chat-suggestion]').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
     const finish=$('copilotFinish');if(finish){finish.hidden=turns<3||['pending','approved','locked'].includes(task?.status);finish.disabled=disabled;}
   }
   $('copilotSuggestions').addEventListener('click',event=>{
@@ -440,12 +424,14 @@
     if(host.dataset.renderKey!==renderKey){
       host.dataset.renderKey=renderKey;host.innerHTML=markup;
       rows.forEach((row,idx)=>{if(row.role!=='user'){const meta=chatTurnMeta.get(String(row.text||'').trim()),card=meta&&window.EmcAvatarAgent?.buildAgentCardElement?.(meta);if(card)host.querySelector(`[data-chat-idx="${idx}"]`)?.appendChild(card);}});
+      rows.forEach((row,idx)=>{if(row.role==='user'){const images=window.EmcChatMedia?.sent(row.text)||[];const target=host.querySelector(`[data-chat-idx="${idx}"]`);for(const url of images){const image=new Image();image.src=url;image.alt='已发送图片';image.className='chat-sent-image';target?.append(image);}}});
       if(nearBottom)host.scrollTop=host.scrollHeight;
     }
   }
   function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],8000);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
   window.EmcOpenCompanionChat=(message,{send=false}={})=>{
     const dock=document.querySelector('.copilot-dock');
+    window.EmcChatMedia?.show();
     if(panel) closePanel();
     if(innerWidth<=700) dock.classList.add('mobile-chat-open');
     renderSocialChat();
@@ -468,30 +454,31 @@
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
   $('expandCompanionChat').onclick=()=>{const expanded=document.querySelector('.copilot-dock').classList.toggle('chat-expanded');$('expandCompanionChat').textContent=expanded?'收起':'展开';$('expandCompanionChat').setAttribute('aria-expanded',String(expanded));$('expandCompanionChat').setAttribute('aria-label',expanded?'收起对话阅读':'展开对话阅读');};
-  $('closeMobileChat').onclick=()=>{document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','false');};
+  $('closeMobileChat').onclick=()=>window.EmcChatMedia?.hide();
   $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
   $('copilotHistory').onclick=()=>{if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
   $('copilotForm').addEventListener('submit',async e=>{
-    e.preventDefault();const message=$('copilotInput').value.trim().slice(0,2000);
+    e.preventDefault();const images=window.EmcChatMedia?.images()||[];const message=$('copilotInput').value.trim().slice(0,2000)||(images.length?'请看看这些图片，给我具体建议。':'');
     if(sending||!message||paintDrag?.active)return;
     if(pendingReport&&pendingReport.level!==currentCompanionTask()?.id)pendingReport=null;
     if(/(?:整理|汇总|生成).{0,12}(?:成果|报告|规划)/.test(message)&&!pendingReport)pendingReport={level:currentCompanionTask()?.id,prompt:message};
     npcState=homeScene?.guide?.status(true)||null;
     if(npcAvailable())startConversation();
     if(panel!=='companion')closePanel();sending=true;
-    void window.EmcAvatarAgent?.autoConnect?.();window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
+    void window.EmcAvatarAgent?.autoConnect?.();window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();window.EmcChatMedia?.busy(true);const displayMessage=message+(images.length?'\n[已发送 '+images.length+' 张图片]':'');window.EmcChatMedia?.remember(displayMessage,images);appendChat('user',displayMessage,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
-      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
+      const context={...(journey?.context()||{}),images,project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
       if(!serverAgentProject()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},75000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=(result.state||window.EmcSession?.isLoggedIn())?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
+      window.EmcChatMedia?.clear();
       appendChat('assistant',result.text,result.source,result);
-      journey?.recordConversation?.(message,result.text,context.task?.id);if(pendingReport?.prompt===message){const report=pendingReport;pendingReport=null;if(report.level===currentCompanionTask()?.id&&result.source==='ai')openMission('conversation',report.level);else if(result.source!=='ai')toast('报告暂时没能整理完成，可以稍后重试。');}
+      journey?.recordConversation?.(message,result.text,context.task?.id);if(pendingReport?.prompt===message){const report=pendingReport;pendingReport=null;if(report.level===currentCompanionTask()?.id&&result.source==='ai')toast('成果已整理，可在任务卡中点击「提交本关成果」。');else if(result.source!=='ai')toast('报告暂时没能整理完成，可以稍后重试。');}
       window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{...result,text:result.text,source:result.source}}));
       if(result.saved_artifact&&journey)void journey.refresh({silent:true});
       if(Array.isArray(result.ui_actions)){
@@ -506,7 +493,7 @@
       $('copilotInput').value=message;
       if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch)speak('暂时没能接通。消息已保留，可以稍后重试。','reply','连接失败');
       else toast('对话暂时没能接通，输入内容已保留。');
-    }finally{clearTimeout(timer);if(replyController===controller)replyController=null;sending=false;updateChatAvailability();renderSocialChat();}
+    }finally{clearTimeout(timer);if(replyController===controller)replyController=null;sending=false;window.EmcChatMedia?.busy(false);updateChatAvailability();renderSocialChat();}
   });
   setInterval(()=>{
     const now=performance.now();
@@ -574,8 +561,6 @@
     else if(b.dataset.side){tab='side';openPanel('quests');}
     else if(b.dataset.bagTab){cancelPaint();bagTab=b.dataset.bagTab;renderInventory();}
     else if(b.id==='undoPaint'&&paintUndo){game[paintUndo.part+'_color']=paintUndo.color;paintUndo=null;homeScene?.sync();save();renderInventory();}
-    else if(b.id==='savePartnerName')savePartnerName(false);
-    else if(b.id==='confirmPartnerName')savePartnerName(true);
     else if(b.dataset.audioToggle){const key=b.dataset.audioToggle;audio.set(key,!audio.state()[key]);audio.play('click');renderSettings();}
     else if(b.dataset.graphicsQuality){game.graphics_quality=b.dataset.graphicsQuality;preferLite=false;sceneSkipped=false;save();homeStage=0;render();}
     else if(b.dataset.themeOption){setTheme(b.dataset.themeOption);renderSettings();}
@@ -585,7 +570,6 @@
     }
   };
   document.addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&e.target.id==='partnerNameInput'){e.preventDefault();savePartnerName(panel==='partner');return;}
     if(e.key==='Escape'&&$('drawer').getAttribute('aria-modal')==='true'){closePanel();return;}
     if(e.key==='Tab'&&$('drawer').getAttribute('aria-modal')==='true'){const nodes=Array.from($('drawer').querySelectorAll('button:not([disabled]),a[href],input,textarea,select')).filter(n=>n.getClientRects().length);if(nodes.length&&e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(nodes.length&&!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}
     if(e.key==='Escape'){if(document.querySelector('.mobile-chat-open')){$('closeMobileChat').click();return;}if(paintDrag)cancelPaint();else if(!$('npcBubble').hidden){finishConversation();$('copilotInput').blur();}else closePanel();}
@@ -609,7 +593,7 @@
   function refreshAccount(){if(!document.hidden&&Date.now()-lastSessionRefresh>30000){lastSessionRefresh=Date.now();window.EmcSession?.getMe({force:true});}}
   document.addEventListener('visibilitychange',refreshAccount);window.addEventListener('focus',refreshAccount);
   window.addEventListener('pageshow',e=>{if(e.persisted)window.EmcSession?.getMe({force:true});});
-  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name=p.partner_name;game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),notify:event=>{const scope=companionScope(),key=scope+':'+event.id;if(eventMessages.has(key))return;eventMessages.set(key,{scope,role:'assistant',text:event.text,source:'local-guide',time:Date.parse(event.time)||Date.now()});renderSocialChat();},ask:text=>{window.EmcOpenCompanionChat(text,{send:true});}});
+  journey=window.EmcJourneyUI.create({container:$('panelBody'),isOpen:()=>panel==='journey',shopName:()=>game.shop_name,partnerName:()=>game.companion_name,sound:name=>audio.play(name),celebrate:()=>juice.burst($('panelBody').querySelector('.j-reward-seal')),onProfile:p=>{game.shop_name=p.shop_name;game.companion_name='小商';game.companion_named=true;save();},onPracticeChange:()=>renderJournal(),onUpdate:()=>{if(journey?.summary().project_id)game.shop_name=journey.profile().shop_name;render();},openCompanion:()=>openCompanion(),notify:event=>{const scope=companionScope(),key=scope+':'+event.id;if(eventMessages.has(key))return;eventMessages.set(key,{scope,role:'assistant',text:event.text,source:'local-guide',time:Date.parse(event.time)||Date.now()});renderSocialChat();},ask:text=>{window.EmcOpenCompanionChat(text,{send:true});}});
   render();saveStatus(futureGame?'unsupported':loaded.status);
   window.EmcAccountUI?.start();
 })();
