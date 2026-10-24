@@ -296,7 +296,15 @@
     const available=npcAvailable(),anchor=$('npcAnchor');anchor.hidden=!available;
     if(available){anchor.style.left=state.screen.x+'px';anchor.style.top=state.screen.y+'px';const width=$('npcBubble').offsetWidth||(innerWidth<=370?200:innerWidth<=700?230:270);const offset=Math.max(width/2+12,Math.min(innerWidth-width/2-12,state.screen.x))-state.screen.x;$('npcBubble').style.left=offset+'px';$('npcBubble').style.setProperty('--tail-x',Math.max(12,Math.min(width-22,width/2-offset-5))+'px');if(innerWidth<=700){const bubble=$('npcBubble'),speech=$('npcSpeech'),chrome=bubble.hidden?108:bubble.offsetHeight-speech.clientHeight,ceiling=Math.max(...['.player-card','.shortcuts','.shop-journal'].map(selector=>document.querySelector(selector).getBoundingClientRect().bottom))+8;const limit=Math.max(20,Math.min(80,Math.floor((state.screen.y-28-ceiling-chrome)/20)*20));bubble.style.setProperty('--npc-text-max',limit+'px');}else $('npcBubble').style.removeProperty('--npc-text-max');}
     else if(conversation||!$('npcBubble').hidden){finishConversation();}
-    fitNpcCloud();updateChatAvailability();
+    fitNpcCloud();
+    const bubble=$('npcBubble');
+    if(available&&innerWidth<=700&&!bubble.hidden){
+      // A short viewport can leave less room above the guide than the cloud's
+      // header and buttons need. Keep the whole cloud below the upper controls.
+      const ceiling=Math.max(...['.topbar','.player-card','.shortcuts','.quest-peek'].map(selector=>document.querySelector(selector).getBoundingClientRect().bottom))+8;
+      bubble.style.bottom=Math.min(32,state.screen.y-ceiling-bubble.offsetHeight)+'px';
+    }else bubble.style.removeProperty('bottom');
+    updateChatAvailability();
   }
   function finishConversation(){
     speechEpoch++;conversation=false;homeScene?.guide?.setTalking(false);homeScene?.guide?.stopSpeaking();$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;
