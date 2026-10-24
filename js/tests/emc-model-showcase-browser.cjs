@@ -35,6 +35,17 @@ const demoReady=(p,level)=>p.waitForFunction(level=>window.render_game_to_text&&
   await p.goBack();await singleReady(p,1);await p.goForward();await p.waitForFunction(()=>document.querySelector('#showcase-level')?.value==='1');
   assert.deepEqual(check.errors,[]);assert.equal(check.requests.some(url=>/\/api\//.test(url)),false,'展示链路不调用账号或关卡 API');assert.deepEqual(await p.evaluate(()=>showcaseCSP),[]);
   await context.close();console.log('PASS 展示中心→单体DIY→浮岛→连播→返回、等级画质、复制链接、生产CSP与无业务API');
+  const retry=await browser.newPage(),recovery=await guarded(retry);
+  await retry.route('**/buildings/level-1-*.glb*',r=>r.fulfill({status:503,body:'unavailable'}));
+  await retry.goto(base+'/tools/buildings-preview.html?level=1');await retry.locator('#status button').waitFor();
+  await retry.unroute('**/buildings/level-1-*.glb*');await retry.locator('#status button').click();await singleReady(retry,1);
+  await retry.goto(base+'/tools/island-buildings-preview.html?level=0');await retry.waitForFunction(()=>window.islandBuildingReady===0);
+  await retry.route('**/buildings/level-1-*.glb*',r=>r.fulfill({status:503,body:'unavailable'}));
+  await retry.locator('#upgrade').click();await retry.locator('#load-error').waitFor();
+  assert.equal(await retry.evaluate(()=>islandBuilding.modelLevel),0,'失败保留旧建筑');
+  await retry.unroute('**/buildings/level-1-*.glb*');await retry.locator('#retry-island').click();
+  await retry.waitForFunction(()=>window.islandBuildingReady===1);assert.equal(new URL(retry.url()).searchParams.get('level'),'1');
+  assert.deepEqual(recovery.errors,[]);await retry.close();console.log('PASS 单体加载与浮岛升级失败可重试，旧模型和 URL 保持一致');
   for(const [width,height]of [[390,844],[320,568]]){
    const p=await browser.newPage({viewport:{width,height}}),check=await guarded(p);
    await p.goto(base+'/tools/models.html?level=5&quality=smooth');await p.waitForFunction(()=>document.querySelector('#showcase-poster').naturalWidth>0);
@@ -42,7 +53,7 @@ const demoReady=(p,level)=>p.waitForFunction(level=>window.render_game_to_text&&
    await p.locator('.showcase-entries [data-showcase=evolution]').click();await demoReady(p,5);await p.waitForTimeout(400);
    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await p.screenshot({path:path.join(shots,`showcase-deep-link-${width}.png`)});
    await p.locator('#model-showcase-nav [data-showcase=island]').click();await p.waitForFunction(()=>window.islandBuildingReady===5);
-   await p.screenshot({path:path.join(shots,`showcase-island-${width}.png`)});
+   assert.equal(await p.locator('#upgrade').isDisabled(),true);await p.screenshot({path:path.join(shots,`showcase-island-${width}.png`)});
    assert.deepEqual(check.errors,[]);assert.deepEqual(await p.evaluate(()=>showcaseCSP),[]);await p.close();console.log('PASS 移动端直达与返回',width);
   }
  }finally{await browser.close();}
