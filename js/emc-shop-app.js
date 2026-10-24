@@ -480,7 +480,7 @@
   $('npcBubble').addEventListener('pointerenter',()=>{if(bubbleKind==='reminder'&&npcAvailable())homeScene.guide.setTalking(true);});
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
-  $('expandCompanionChat').onclick=()=>{const expanded=document.querySelector('.copilot-dock').classList.toggle('chat-expanded');$('expandCompanionChat').textContent=expanded?'收起':'展开';$('expandCompanionChat').setAttribute('aria-expanded',String(expanded));$('expandCompanionChat').setAttribute('aria-label',expanded?'收起对话阅读':'展开对话阅读');};
+  $('expandCompanionChat').onclick=e=>{const expanded=document.querySelector('.copilot-dock').classList.toggle('chat-expanded');$('expandCompanionChat').textContent=expanded?'收起':'展开';$('expandCompanionChat').setAttribute('aria-expanded',String(expanded));$('expandCompanionChat').setAttribute('aria-label',expanded?'收起对话阅读':'展开对话阅读');if(e.detail>0)$('expandCompanionChat').blur();};
   $('closeMobileChat').onclick=()=>window.EmcChatMedia?.hide();
   $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
   $('copilotHistory').onclick=()=>{if(document.querySelector('.copilot-dock').classList.contains('chat-collapsed')){window.EmcChatMedia?.show();renderSocialChat();return;}if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
