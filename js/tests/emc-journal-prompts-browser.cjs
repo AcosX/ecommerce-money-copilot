@@ -97,7 +97,7 @@ async function prepare(page,{welcome=false}={}){
     assert.equal(await suggestions.isVisible(),true);
   }
   // Existing settings, inventory and task navigation remain usable.
-  await page.locator('#closeMobileChat').click();
+  if(await page.locator('#closeMobileChat').isVisible())await page.locator('#closeMobileChat').click();
   for(const selector of ['[data-panel=settings]','[data-panel=inventory]','.quest-peek']){await page.locator(selector).click();await page.locator('#drawer').waitFor();inside(await page.locator('#drawer').boundingBox(),width,height);await page.keyboard.press('Escape');}
   await page.reload();await page.waitForFunction(()=>window.render_game_to_text&&!JSON.parse(render_game_to_text()).journey.loading);await page.locator('#opening').waitFor({state:'hidden',timeout:45000});
   assert.equal(await journal.evaluate(e=>getComputedStyle(e).position),'absolute');if(width<=700)await page.locator('#copilotHistory').click();assert.equal(await suggestions.locator('[data-chat-suggestion]').count(),2);
