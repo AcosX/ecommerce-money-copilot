@@ -4,7 +4,7 @@ const shots=process.env.EMC_SCREENSHOTS||os.tmpdir();require('node:fs').mkdirSyn
 const base=process.env.EMC_TEST_URL||'http://127.0.0.1:5173';
 const read=page=>page.evaluate(()=>JSON.parse(render_game_to_text()));
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||'msedge'})});
+ const browser=await chromium.launch({headless:true,...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||undefined}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
   for(const width of [1440,390]){
    const page=await browser.newPage({viewport:{width,height:width===1440?900:844}}),errors=[];
@@ -31,7 +31,9 @@ const read=page=>page.evaluate(()=>JSON.parse(render_game_to_text()));
    }
    // Software WebGL advances frame-capped animation more slowly than a real GPU.
    // Keep all five-upgrade assertions and allow bounded playback on CI runners.
-   await page.waitForFunction(()=>JSON.parse(render_game_to_text()).phase==='complete',null,{timeout:180000});
+   try{
+    await page.waitForFunction(()=>JSON.parse(render_game_to_text()).phase==='complete',null,{timeout:180000});
+   }catch(error){console.error('Evolution playback did not complete',{width,state:await read(page),errors});throw error;}
    const complete=await read(page);assert.deepEqual(complete.history,[0,1,2,3,4,5]);
    assert.equal(complete.canvasCount,1);assert.equal(complete.audio.effect_count,width===1440?5:0);
    assert.equal(complete.upgrade,null);assert.equal(complete.audio.playing,false);
