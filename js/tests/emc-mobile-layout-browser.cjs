@@ -30,9 +30,18 @@ async function checkTouchPaint(browser,width,height){
 }
 (async()=>{const browser=await chromium.launch({headless:true,...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||undefined}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});try{
  for(const [width,height] of [[320,568],[390,844],[640,930],[700,700],[1440,1000]].filter(([width])=>!process.env.EMC_TEST_WIDTH||Number(process.env.EMC_TEST_WIDTH)===width)){
-  const page=await browser.newPage({viewport:{width,height}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>localStorage.setItem('emc-journey-welcome-v1','1'));await page.goto(root+'/#view=island');await page.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).npc?.visible,null,{timeout:120000});await page.locator('#opening').waitFor({state:'hidden'});await page.waitForTimeout(300);
+  const page=await browser.newPage({viewport:{width,height}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>{
+   localStorage.setItem('emc-journey-welcome-v1','1');
+   document.addEventListener('DOMContentLoaded',()=>{
+    const bubble=document.getElementById('npcBubble');
+    // Observe the show operation before another animation frame can repair a
+    // stale position; this also covers low-FPS software WebGL rendering.
+    new MutationObserver(()=>{if(!bubble.hidden&&!window.emcFirstCloudFrame)window.emcFirstCloudFrame={box:bubble.getBoundingClientRect().toJSON(),controls:['.topbar','.player-card','.shortcuts','.quest-peek'].map(s=>document.querySelector(s).getBoundingClientRect().toJSON())};}).observe(bubble,{attributes:true,attributeFilter:['hidden']});
+   });
+  });await page.goto(root+'/#view=island');await page.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).npc?.visible,null,{timeout:120000});await page.locator('#opening').waitFor({state:'hidden'});await page.waitForTimeout(300);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(width<=700){
+   await page.waitForFunction(()=>window.emcFirstCloudFrame,null,{timeout:20000});const first=await page.evaluate(()=>window.emcFirstCloudFrame);inside(first.box,width,height);for(const control of first.controls)separated(first.box,control);
    const selectors=['.topbar','.player-card','.shop-journal','.shortcuts','.quest-peek','.main-actions','.copilot-dock'];const boxes=[];for(const s of selectors){const r=await rect(page,s);inside(r,width,height);boxes.push(r);}for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)separated(boxes[i],boxes[j]);
    const play=await rect(page,'.scene-framing');assert.ok(play.height>180,'Island has a reserved playfield');assert.ok(await page.locator('#questHint').isVisible());assert.ok(boxes[4].height>=80,'Task navigation retains its card');assert.ok(await page.locator('.journal-heading').isVisible());assert.ok(await page.locator('.journal-counts').isVisible());assert.ok(play.y+play.height<=boxes[5].y,'Island ends above the standalone letter');
    const envelope=await rect(page,'.mail-envelope');assert.ok(envelope.width>=78&&envelope.height>=50,'Letter remains prominent');assert.ok(Math.abs(boxes[5].x+boxes[5].width/2-width*.8)<2,'Letter has its own lower-right space');assert.ok(boxes[4].y<height/2&&Math.abs(boxes[4].x+boxes[4].width-(width-(width<=370?10:12)))<2,'Task navigation sits at the upper right');assert.equal(await page.locator('#continueButton').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
