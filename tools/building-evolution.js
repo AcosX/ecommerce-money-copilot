@@ -32,6 +32,8 @@ function camera(){
 async function scene(level=0){
  shop?.dispose();
  const instance=shop=new ShopScene($('scene'),{stage:Math.max(1,level),modelLevel:level,quality,readOnly:true,shopName:'我的小店',night:false,draft:{wall_color:'#eee0c5',sign_color:'#9c531e',roof_color:'#bd3f23',placements:[]}});
+ // The movie owns its wide camera; the game keeps its normal upgrade focus.
+ instance.focusUpgrade=async()=>{};
  window.evolutionScene=shop;
  await instance.ready;if(disposed||instance!==shop)return;await instance.prepareFrame();if(disposed||instance!==shop)return;instance.controls.enabled=true;camera();
 }
@@ -66,7 +68,6 @@ async function play(){
   for(let level=1;level<=5&&!disposed;level++){
    state.target=level;$('status').textContent=`LV.0${level-1} → LV.0${level} · 店铺升级中`;
    const done=await shop.upgradeTo(level,{
-    onStart:()=>queueMicrotask(()=>{const effect=shop.upgradeEffect;if(!effect)return;const update=effect.update;effect.update=dt=>{if(!state.paused)update(dt);};}),
     onReveal:()=>{chapter(level);state.history.push(level);audio.play('upgrade');}
    });
    if(!done||disposed)return;
@@ -80,7 +81,7 @@ $('play').addEventListener('click',()=>void play());
 $('pause').addEventListener('click',()=>{state.paused=!state.paused;phase(state.paused?'paused':'playing');$('status').textContent=state.paused?'演示已暂停':'继续店铺蜕变';});
 $('sound').addEventListener('click',()=>{state.sound=!state.sound;sound();});
 window.addEventListener('resize',()=>{if(state.phase!=='complete')camera();});
-function loop(now){if(disposed)return;const dt=Math.min(80,now-(last||now));last=now;if(!document.hidden){if(state.phase==='playing'){state.elapsed+=dt;camera();}else if(state.phase==='ready'||state.phase==='complete')shop?.controls.update();const effect=shop?.upgradeEffect?.state();const progress=effect?((state.target-1)+effect.progress)/5:state.level/5;document.documentElement.style.setProperty('--fill',(Math.max(0,progress)*100)+'%');}frame=requestAnimationFrame(loop);}
+function loop(now){if(disposed)return;const active=shop?.upgradeEffect;if(active&&!active.demoPauseBound){active.demoPauseBound=true;const update=active.update;active.update=dt=>{if(!state.paused)update(dt);};}const dt=Math.min(80,now-(last||now));last=now;if(!document.hidden){if(state.phase==='playing'){state.elapsed+=dt;camera();}else if(state.phase==='ready'||state.phase==='complete')shop?.controls.update();const effect=shop?.upgradeEffect?.state();const progress=effect?((state.target-1)+effect.progress)/5:state.level/5;document.documentElement.style.setProperty('--fill',(Math.max(0,progress)*100)+'%');}frame=requestAnimationFrame(loop);}
 window.render_game_to_text=()=>JSON.stringify({...state,upgrade:shop?.upgradeEffect?.state()||null,canvasCount:document.querySelectorAll('#scene canvas').length,audio:audio.state()});
 window.evolutionReady=()=>preparing;
 window.addEventListener('pagehide',()=>{disposed=true;warmup.abort();cancelAnimationFrame(frame);shop?.dispose();audio.dispose();},{once:true});
