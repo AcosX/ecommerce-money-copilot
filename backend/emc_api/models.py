@@ -51,7 +51,7 @@ PROJECT_STATUSES = ("active", "archived")
 ARTIFACT_STATUSES = ("draft", "submitted", "approved", "rejected")
 ARTIFACT_ORIGINS = ("formal", "tutorial_copy")
 SUBMISSION_STATUSES = ("pending", "approved", "rejected")
-SUBMISSION_METHODS = ("manual_review", "agent_review")
+SUBMISSION_METHODS = ("manual_review", "agent_review", "self_submit")
 REVIEW_DECISIONS = ("approved", "rejected")
 
 

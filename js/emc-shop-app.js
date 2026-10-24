@@ -288,7 +288,7 @@
   function npcAvailable(){return !!npcState?.visible&&homeScene?.presentable&&!homeScene?.upgradeEffect&&!$('scene').dataset.loading;}
   function updateChatAvailability(){
     const available=npcAvailable(),ready=!sending&&!paintDrag?.active;
-    $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||!$('copilotInput').value.trim();
+    $('copilotInput').disabled=!ready;$('copilotSend').disabled=!ready||(!window.EmcChatMedia?.images().length&&!$('copilotInput').value.trim());
     const text=sending?partnerName()+'正在回应…':!available?partnerName()+' · 文本聊天可用':partnerName()+' · '+chatSourceLabel();
     if($('copilotStatus').textContent!==text)$('copilotStatus').textContent=text;
     document.querySelector('.copilot-dock').classList.toggle('npc-unavailable',!available);
@@ -440,12 +440,14 @@
     if(host.dataset.renderKey!==renderKey){
       host.dataset.renderKey=renderKey;host.innerHTML=markup;
       rows.forEach((row,idx)=>{if(row.role!=='user'){const meta=chatTurnMeta.get(String(row.text||'').trim()),card=meta&&window.EmcAvatarAgent?.buildAgentCardElement?.(meta);if(card)host.querySelector(`[data-chat-idx="${idx}"]`)?.appendChild(card);}});
+      rows.forEach((row,idx)=>{if(row.role==='user'){const images=window.EmcChatMedia?.sent(row.text)||[];const target=host.querySelector(`[data-chat-idx="${idx}"]`);for(const url of images){const image=new Image();image.src=url;image.alt='已发送图片';image.className='chat-sent-image';target?.append(image);}}});
       if(nearBottom)host.scrollTop=host.scrollHeight;
     }
   }
   function appendChat(role,text,source,meta){if(meta&&typeof text==='string'){chatTurnMeta.set(text.trim(),meta);chatMetaEpoch++;}game.npc_chat=C.history([...game.npc_chat,{role,text,source,time:Date.now()}],8000);if(!chatWasCloud&&!window.EmcSession?.isLoggedIn())save();renderSocialChat();if(panel==='history')renderChatHistory();}
   window.EmcOpenCompanionChat=(message,{send=false}={})=>{
     const dock=document.querySelector('.copilot-dock');
+    window.EmcChatMedia?.show();
     if(panel) closePanel();
     if(innerWidth<=700) dock.classList.add('mobile-chat-open');
     renderSocialChat();
@@ -468,30 +470,31 @@
   $('npcBubble').addEventListener('pointerleave',()=>{if(!conversation&&!sending)homeScene?.guide?.setTalking(false);});
   $('npcTask').onclick=()=>{finishConversation();startMain();};
   $('expandCompanionChat').onclick=()=>{const expanded=document.querySelector('.copilot-dock').classList.toggle('chat-expanded');$('expandCompanionChat').textContent=expanded?'收起':'展开';$('expandCompanionChat').setAttribute('aria-expanded',String(expanded));$('expandCompanionChat').setAttribute('aria-label',expanded?'收起对话阅读':'展开对话阅读');};
-  $('closeMobileChat').onclick=()=>{document.querySelector('.copilot-dock').classList.remove('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','false');};
+  $('closeMobileChat').onclick=()=>window.EmcChatMedia?.hide();
   $('copilotHistory').setAttribute('aria-label','打开伙伴对话');
   $('copilotHistory').onclick=()=>{if(innerWidth<=700){const dock=document.querySelector('.copilot-dock'),opening=!dock.classList.contains('mobile-chat-open');closePanel();dock.classList.toggle('mobile-chat-open',opening);$('copilotHistory').setAttribute('aria-expanded',String(opening));renderSocialChat();if(opening)$('socialMessages').scrollTop=$('socialMessages').scrollHeight;}else if(panel==='history')closePanel();else openPanel('history');};
   $('copilotForm').addEventListener('submit',async e=>{
-    e.preventDefault();const message=$('copilotInput').value.trim().slice(0,2000);
+    e.preventDefault();const images=window.EmcChatMedia?.images()||[];const message=$('copilotInput').value.trim().slice(0,2000)||(images.length?'请看看这些图片，给我具体建议。':'');
     if(sending||!message||paintDrag?.active)return;
     if(pendingReport&&pendingReport.level!==currentCompanionTask()?.id)pendingReport=null;
     if(/(?:整理|汇总|生成).{0,12}(?:成果|报告|规划)/.test(message)&&!pendingReport)pendingReport={level:currentCompanionTask()?.id,prompt:message};
     npcState=homeScene?.guide?.status(true)||null;
     if(npcAvailable())startConversation();
     if(panel!=='companion')closePanel();sending=true;
-    void window.EmcAvatarAgent?.autoConnect?.();window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();appendChat('user',message,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
+    void window.EmcAvatarAgent?.autoConnect?.();window.dispatchEvent(new CustomEvent('emc:companion-thinking'));const scene=homeScene,epoch=speechEpoch,scope=companionScope();window.EmcChatMedia?.busy(true);const displayMessage=message+(images.length?'\n[已发送 '+images.length+' 张图片]':'');window.EmcChatMedia?.remember(displayMessage,images);appendChat('user',displayMessage,'local-guide');$('copilotInput').value='';updateChatAvailability();speak('让我看看你现在的进度…','waiting');
     const controller=replyController=new AbortController();let timer;
     try{
       const assessment=M.assess(message),practice=readCompanion(),guided=guidedPrompts.has(message);
-      const context={...(journey?.context()||{}),project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
+      const context={...(journey?.context()||{}),images,web_search:window.EmcChatMedia?.searchEnabled()||false,project_id:serverAgentProject(),page_context:{page:panel||'shop',selected_item:typeof selected==='string'?selected:null},companion:{affinity:practice.affinity,patience:practice.patience,advice_depth:M.depth(practice,assessment),question_dimensions:assessment.dimensions,source:'local-practice'},companion_name:partnerName(),stage:growthStage()+1,xp:journey?journey.progress().xp:G.xp(game),task:journey?.context().task||mainTask(),history:C.history(game.npc_chat,2000).slice(-12)};
       if(!serverAgentProject()&&typeof window.EmcCopilotTransport==='function'&&journey)Object.assign(context,await journey.prepareContext());
       if(journey){context.task=currentCompanionTask();context.journey={...context.journey,status:context.task?.status||'complete'};}
       const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('回复超时'));},75000);});
       const result=await Promise.race([C.reply(message,context,{transport:window.EmcCopilotTransport,signal:controller.signal}),timeout]);
       if(scope!==companionScope())throw new Error('COMPANION_SCOPE_CHANGED');
       const change=result.state?{state:readCompanion(),changed:true,unlocked:result.state.perks.some(id=>!practice.perks.includes(id))}:M.record(practice,message,{level:context.task?.id||'first_order',guided});companionSaveOk=(result.state||window.EmcSession?.isLoggedIn())?true:companionStore.save(change.state);if(!companionSaveOk)toast('伙伴进度暂时无法保存，刷新可能丢失本次变化。');companionFeedback=!result.state&&change.changed?change:null;companionQuote=result.text;
+      window.EmcChatMedia?.clear();
       appendChat('assistant',result.text,result.source,result);
-      journey?.recordConversation?.(message,result.text,context.task?.id);if(pendingReport?.prompt===message){const report=pendingReport;pendingReport=null;if(report.level===currentCompanionTask()?.id&&result.source==='ai')openMission('conversation',report.level);else if(result.source!=='ai')toast('报告暂时没能整理完成，可以稍后重试。');}
+      journey?.recordConversation?.(message,result.text,context.task?.id);if(pendingReport?.prompt===message){const report=pendingReport;pendingReport=null;if(report.level===currentCompanionTask()?.id&&result.source==='ai')toast('成果已整理，可在任务卡中点击「提交本关成果」。');else if(result.source!=='ai')toast('报告暂时没能整理完成，可以稍后重试。');}
       window.dispatchEvent(new CustomEvent('emc:companion-reply',{detail:{...result,text:result.text,source:result.source}}));
       if(result.saved_artifact&&journey)void journey.refresh({silent:true});
       if(Array.isArray(result.ui_actions)){
@@ -506,7 +509,7 @@
       $('copilotInput').value=message;
       if(homeScene===scene&&npcAvailable()&&speechEpoch===epoch)speak('暂时没能接通。消息已保留，可以稍后重试。','reply','连接失败');
       else toast('对话暂时没能接通，输入内容已保留。');
-    }finally{clearTimeout(timer);if(replyController===controller)replyController=null;sending=false;updateChatAvailability();renderSocialChat();}
+    }finally{clearTimeout(timer);if(replyController===controller)replyController=null;sending=false;window.EmcChatMedia?.busy(false);updateChatAvailability();renderSocialChat();}
   });
   setInterval(()=>{
     const now=performance.now();

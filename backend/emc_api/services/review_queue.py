@@ -14,8 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..config import Settings
 from ..db import Database
-from ..ids import REVIEW, new_id
-from ..models import Artifact, ReviewJob, VerificationReview, VerificationSubmission
+from ..models import Artifact, ReviewJob, VerificationSubmission
 from ..timeutil import utcnow
 from .audit import record_audit
 from .deliverable_review import RUBRIC_VERSION, ReviewUnavailable, review_submission
@@ -52,7 +51,7 @@ def claim(db: Session) -> tuple[str, str] | None:
         db.rollback()
         return None
     if job.attempts >= MAX_ATTEMPTS:
-        job.status = "waiting_manual"
+        job.status = "completed"
         job.last_error = "attempt_limit"
         db.commit()
         return None
@@ -78,7 +77,7 @@ def run_one(database: Database, settings: Settings) -> bool:
     with database.sessionmaker() as db:
         sub = db.get(VerificationSubmission, identifier)
         job = db.get(ReviewJob, identifier)
-        if sub and sub.status == "pending" and sub.snapshot_sha256 == job.snapshot_sha256:
+        if sub and sub.status == "approved" and sub.snapshot_sha256 == job.snapshot_sha256:
             try:
                 if job.rubric_version != RUBRIC_VERSION:
                     raise ReviewUnavailable("rubric_version_unavailable")
@@ -88,7 +87,7 @@ def run_one(database: Database, settings: Settings) -> bool:
             except Exception:
                 error = "review_internal_error"
     with database.sessionmaker() as db:
-        # Match the human review lock order (submission -> artifact -> job).
+        # Keep a consistent lock order (submission -> artifact -> job).
         sub = db.scalar(
             select(VerificationSubmission)
             .where(VerificationSubmission.id == identifier)
@@ -106,9 +105,9 @@ def run_one(database: Database, settings: Settings) -> bool:
         job.updated_at = now
         job.lease_token = None
         job.lease_until = None
-        # Manual decisions and newer revisions always win; never overwrite either.
+        # Stale jobs and newer revisions never overwrite submitted outcomes.
         if (
-            sub.status != "pending"
+            sub.status != "approved"
             or sub.snapshot_sha256 != job.snapshot_sha256
             or artifact.current_revision != sub.artifact_revision
             or artifact.owner_id != sub.owner_id
@@ -117,7 +116,7 @@ def run_one(database: Database, settings: Settings) -> bool:
             job.last_error = "superseded"
         elif error or report is None:
             job.last_error = error or "missing_report"
-            manual = job.attempts >= MAX_ATTEMPTS or error in (
+            terminal_error = job.attempts >= MAX_ATTEMPTS or error in (
                 "pdf_needs_manual_review",
                 "pdf_unreadable",
                 "image_unreadable",
@@ -125,7 +124,7 @@ def run_one(database: Database, settings: Settings) -> bool:
                 "snapshot_integrity",
                 "rubric_version_unavailable",
             )
-            job.status = "waiting_manual" if manual else "retry"
+            job.status = "completed" if terminal_error else "retry"
             job.next_attempt_at = now + timedelta(seconds=30 * 2 ** (job.attempts - 1))
             record_audit(
                 db,
@@ -137,30 +136,11 @@ def run_one(database: Database, settings: Settings) -> bool:
         else:
             job.last_error = None
             job.report = report
-            if report["status"] == "manual_review":
-                job.status = "waiting_manual"
-            else:
-                decision = "approved" if report["status"] == "approved" else "rejected"
-                db.add(
-                    VerificationReview(
-                        id=new_id(REVIEW),
-                        submission_id=sub.id,
-                        reviewer_id=None,
-                        source="agent",
-                        decision=decision,
-                        reason=report["summary"],
-                        report=report,
-                    )
-                )
-                sub.status = decision
-                sub.decided_at = now
-                artifact.status = decision
-                artifact.version += 1
-                artifact.updated_at = now
-                job.status = "completed"
+            # Advisory feedback never changes a submitted outcome.
+            job.status = "completed"
             record_audit(
                 db,
-                "verification.agent_review",
+                "verification.ai_review",
                 target_type="verification",
                 target_id=sub.id,
                 details=report,
