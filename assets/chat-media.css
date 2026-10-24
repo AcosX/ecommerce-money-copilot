@@ -58,3 +58,29 @@
  .copilot-dock.chat-expanded{left:50%;right:auto;top:104px;bottom:24px;transform:translateX(-50%);width:min(800px,calc(100vw - 96px));height:auto;max-height:none;z-index:16;}
  .copilot-dock.chat-expanded .chat-expand:before{transform:translate(-75%,-50%) rotate(225deg);}
 }
+
+/* 桌面右栏对齐，场景在左右工具区之间取景。 */
+@media(min-width:701px){
+ .game-shell{--agent-width:clamp(340px,29vw,420px);}
+ .quest-peek{right:24px;top:132px;width:var(--agent-width);min-height:94px;padding:16px 18px;}
+ .copilot-dock:not(.chat-expanded){top:244px;bottom:auto;width:var(--agent-width);height:clamp(380px,60svh,600px);max-height:calc(100svh - 272px);padding:14px;}
+ .copilot-dock:not(.chat-expanded) .social-heading{padding-bottom:10px;}
+ .copilot-dock:not(.chat-expanded) .social-message .message-content{font-size:12px;line-height:1.8;padding:10px 12px;}
+ .copilot-dock:not(.chat-expanded) .social-messages{min-height:0;padding:10px 0;gap:12px;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose{gap:6px;padding-top:8px;}
+ .copilot-dock:not(.chat-expanded) .copilot-suggestions{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:3px;}
+ .copilot-dock:not(.chat-expanded) .copilot-suggestions>small{display:none;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose .copilot-suggestions button{flex-shrink:0;max-width:230px;white-space:nowrap;min-height:30px;padding:5px 9px;font-size:10px;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose-toolbar{gap:8px;}
+ .scene-framing{left:calc((100vw - var(--agent-width) + 180px)/2);width:calc(100vw - var(--agent-width) - 280px);height:min(80svh,760px);top:45%;}
+ .scene-framing-content{inset:0;}
+ .player-card{top:132px;}
+ .save-footer{right:24px;bottom:5px;font-size:9px;}
+}
+@media(min-width:701px) and (max-width:1100px){
+ .scene-framing{left:calc((100vw - var(--agent-width) + 140px)/2);width:calc(100vw - var(--agent-width) - 240px);}
+ .quest-peek{top:125px;min-height:94px;}
+}
+
+@media(min-width:701px){.main-actions.mail-actions{left:calc((100vw - var(--agent-width) + 180px)/2);right:auto;transform:translateX(-50%);}}
+@media(min-width:701px) and (max-width:1100px){.main-actions.mail-actions{left:calc((100vw - var(--agent-width) + 140px)/2);}}
