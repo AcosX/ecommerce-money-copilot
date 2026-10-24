@@ -76,7 +76,7 @@ async function prepare(page,{welcome=false}={}){
   // Select a different task through the same journal and check prompt context updates.
   if(width<=700)await page.locator('#closeMobileChat').click();
   await page.getByRole('button',{name:'打开经营手帐',exact:true}).click();await page.locator('[data-mail-level=L1]').click();await page.waitForFunction(()=>JSON.parse(render_game_to_text()).journey.active==='L1');await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).mail.opening);await page.keyboard.press('Escape');
-  if(width<=700)await page.locator('#openCompanionChat').click();
+  if(width<=700)await page.locator('#copilotHistory').click();
   await suggestions.locator('[data-chat-suggestion]').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L1/);assert.doesNotMatch(await page.locator('#copilotInput').inputValue(),/L2/);
   const input=page.locator('#copilotInput');const original=await input.inputValue();await input.fill(original+' 我补充的情况。');
   const submitted=page.waitForRequest(r=>r.url().endsWith('/api/agent/chat'));

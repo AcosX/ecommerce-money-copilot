@@ -87,7 +87,7 @@ async function prepare(page,{advanced=true,history=true,welcomeFlag=false,comple
     else if (uri==='/api/agent/chat') throw new Error('A native question must never also use ordinary chat');
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
   });
-  await page.goto(base);
+  await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});
   await page.waitForFunction(()=>window.render_game_to_text&&!JSON.parse(render_game_to_text()).journey.loading);
   // Invoke the existing skip control after data readiness: this exercises chat,
   // while the independent 3D loading/intro suite owns scene readiness.
@@ -184,7 +184,7 @@ module.exports={prepare,openChat,send,nativePosts};
 if(require.main===module)(async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.EMC_CHROMIUM||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   try {
-    for(const [width,height] of [[1440,900],[790,700],[390,844],[320,568]]) {
+    for(const [width,height] of [[1440,900],[790,700],[390,844],[320,568]].filter(([width])=>!process.env.EMC_TEST_WIDTH||Number(process.env.EMC_TEST_WIDTH)===width)) {
       const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'}),errors=[];
       page.on('pageerror',error=>errors.push(error.message));
       const fixture=await prepare(page); // Deliberately no welcome flag: existing L3 player.
@@ -226,7 +226,7 @@ if(require.main===module)(async()=>{
       await page.screenshot({path:path.join(shots,`expanded-${width}x${height}.png`)});
       if(width<=700) {
         await page.locator('#closeMobileChat').click();
-        await page.locator('#openCompanionChat').click();
+        await page.locator('#copilotHistory').click();
         await page.locator('#copilotInput').fill('键盘打开时保留的可编辑内容');
         await page.evaluate(()=>{document.body.classList.add('keyboard-open');document.documentElement.style.setProperty('--keyboard-offset','200px');});
         inside(await page.locator('#copilotForm').boundingBox(),width,height-200,'Keyboard input');
@@ -235,7 +235,7 @@ if(require.main===module)(async()=>{
         await page.screenshot({path:path.join(shots,`keyboard-${width}x${height}.png`)});
         await page.evaluate(()=>{document.body.classList.remove('keyboard-open');document.documentElement.style.setProperty('--keyboard-offset','0px');});
         await page.locator('#closeMobileChat').click();
-        await page.locator('#openCompanionChat').click();
+        await page.locator('#copilotHistory').click();
         assert.match(await page.locator('#copilotInput').inputValue(),/保留的可编辑内容/);
       }
       assert.deepEqual(errors,[]);await page.close();
