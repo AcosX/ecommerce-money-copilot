@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -64,6 +64,16 @@ class CompanionChatIn(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     message: str = Field(min_length=1, max_length=2000)
+    images: list[str] = Field(default_factory=list, max_length=3)
+    web_search: bool = False
+
+    @field_validator("images")
+    @classmethod
+    def check_images(cls, values: list[str]) -> list[str]:
+        from ..services.chat_media import validate_image
+
+        return [validate_image(value) for value in values]
+
     level_id: str | None = Field(default=None, max_length=16)
     current_level: str | None = Field(default=None, max_length=16)
     current_view: str | None = Field(default=None, max_length=32)
@@ -447,6 +457,8 @@ def companion_chat(
         settings,
         player_id=player.id if player else None,
         message=body.message,
+        images=body.images,
+        web_search=body.web_search,
         level_id=body.level_id or body.current_level,
         preset_id=body.preset_id,
         client_context=merged_context,

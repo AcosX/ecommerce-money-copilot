@@ -71,6 +71,8 @@
     const session = loggedIn() && project && project.length <= 64 ? project : 'island-guest';
     const body = {
       message: message.trim().slice(0, 2000),
+      images: Array.isArray(context.images) ? context.images : [],
+      web_search: context.web_search === true,
       level_id: levelId,
       session_id: session,
       client_context: {
@@ -98,11 +100,11 @@
       body.guest_history = recent.filter(turn =>
         turn && ['user', 'assistant'].includes(turn.role) && typeof turn.text === 'string' && turn.text.trim()
       ).slice(-12).map(turn => ({ role: turn.role, text: turn.text.trim().slice(0, 2000) }));
-      if (body.guest_history.at(-1)?.role === 'user' && body.guest_history.at(-1).text === body.message) body.guest_history.pop();
+      if (body.guest_history.at(-1)?.role === 'user' && (body.guest_history.at(-1).text === body.message || body.guest_history.at(-1).text.startsWith(body.message+'\n[已发送 '))) body.guest_history.pop();
     }
     const requester = keyFor(project);
     const native = await root.EmcAvatarAgent?.nativeReply?.(body, { signal });
-    const result = native || await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
+    const result = native || await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 45000 });
     if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');
     if (requester !== keyFor(project)) throw new Error('账号或经营项目已切换');
     if (result.memory) cache.set(requester, view(result.memory));

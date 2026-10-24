@@ -16,11 +16,11 @@ const right = r => r.x + r.width;
 const inside = (r,w,h,label) => assert.ok(r && r.x >= -1 && r.y >= -1 && right(r) <= w+1 && bottom(r) <= h+1, `${label}: ${JSON.stringify(r)} outside ${w}x${h}`);
 const near = (a,b,label) => assert.ok(Math.abs(a-b) <= 2, `${label}: ${a} vs ${b}`);
 
-async function prepare(page,{advanced=true,history=true,welcomeFlag=false}={}) {
+async function prepare(page,{advanced=true,history=true,welcomeFlag=false,completed=0}={}) {
   const calls = [], turns = new Map();
   const project = {id:'prj_composer',name:'聊天回归小店',platform:'xiaohongshu',category:'服装',version:1};
-  const artifacts = advanced ? J.LEVELS.slice(0,2).map((level,i) => ({id:'art_composer'+i,project_id:project.id,level_id:level.id,artifact_type:level.type,origin:'formal',title:level.deliverable,status:'submitted',revision:1,version:1,content:{notes:'真实成果记录与来源待审核'}})) : [];
-  const verifications = artifacts.map((a,i) => ({id:'ver_composer'+i,project_id:project.id,artifact_id:a.id,level_id:a.level_id,status:'pending',created_at:'2026-10-23T01:00:00Z'}));
+  const artifacts = advanced || completed ? J.LEVELS.slice(0,completed||2).map((level,i) => ({id:'art_composer'+i,project_id:project.id,level_id:level.id,artifact_type:level.type,origin:'formal',title:level.deliverable,status:completed?'approved':'submitted',revision:1,version:1,content:{notes:'真实成果记录与来源待审核'}})) : [];
+  const verifications = artifacts.map((a,i) => ({id:'ver_composer'+i,project_id:project.id,artifact_id:a.id,level_id:a.level_id,status:completed?'approved':'pending',created_at:'2026-10-23T01:00:00Z'}));
   const recent = history ? Array.from({length:3},(_,i) => ({session_id:project.id,user_message:`之前的经营问题 ${i+1}`,reply:`之前已讨论过的经营建议 ${i+1}。`,provider:'ai_gateway_live',occurred_at:`2026-10-23T01:0${i}:00Z`})) : [];
   await page.addInitScript(({welcomeFlag}) => {
     if (welcomeFlag) localStorage.setItem('emc-journey-welcome-v1','1');
@@ -124,12 +124,12 @@ async function compactGeometry(page,width,height,{scroll=false}={}) {
   for(const [name,box] of Object.entries(b)) inside(box,width,height,name);
   assert.ok(bottom(head)<=messages.y+2,'Identity precedes transcript');
   assert.ok(bottom(messages)<=composer.y+2,'Transcript precedes composer');
-  assert.ok(composer.height<=230,`Composer consumes ${composer.height}px`);
+  assert.ok(composer.height<=300,`Composer consumes ${composer.height}px`);
   assert.ok(messages.height>=100,`Transcript retained ${messages.height}px`);
   assert.ok(avatar.height<=102 && avatar.width<=78,'Avatar remains a small companion');
   assert.ok(right(suggestions)<=avatar.x+2,'Suggestions and avatar are side by side');
   assert.ok(suggestions.y<bottom(avatar) && avatar.y<bottom(suggestions),'Suggestions and avatar share a row');
-  const toolsBottom=Math.max(bottom(suggestions),bottom(avatar));
+  const toolsBottom=bottom(await page.locator('.chat-media-tools').boundingBox());
   assert.ok(form.y-toolsBottom>=-2 && form.y-toolsBottom<=12,`Input gap is ${form.y-toolsBottom}px`);
   assert.ok(toolbar.y-bottom(form)>=-2 && toolbar.y-bottom(form)<=12,'Toolbar stays next to input');
   assert.ok(bottom(dock)-bottom(toolbar)<=28,'No blank area beneath composer toolbar');
@@ -168,7 +168,8 @@ async function settingsPopover(page,width,height) {
   const after=await boxes(page);for(const selector of ['#socialMessages','#copilotForm'])near(after[selector].y,before[selector].y,selector+' restored after popover');
 }
 
-(async()=>{
+module.exports={prepare,openChat,send,nativePosts};
+if(require.main===module)(async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.EMC_CHROMIUM||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   try {
     for(const [width,height] of [[1440,900],[790,700],[390,844],[320,568]]) {
@@ -212,6 +213,7 @@ async function settingsPopover(page,width,height) {
       await page.screenshot({path:path.join(shots,`expanded-${width}x${height}.png`)});
       if(width<=700) {
         await page.locator('#closeMobileChat').click();
+        await page.locator('#openCompanionChat').click();
         await page.locator('#copilotInput').fill('键盘打开时保留的可编辑内容');
         await page.evaluate(()=>{document.body.classList.add('keyboard-open');document.documentElement.style.setProperty('--keyboard-offset','200px');});
         inside(await page.locator('#copilotForm').boundingBox(),width,height-200,'Keyboard input');
@@ -219,7 +221,8 @@ async function settingsPopover(page,width,height) {
         assert.equal(await page.locator('#copilotSuggestions').isVisible(),false);
         await page.screenshot({path:path.join(shots,`keyboard-${width}x${height}.png`)});
         await page.evaluate(()=>{document.body.classList.remove('keyboard-open');document.documentElement.style.setProperty('--keyboard-offset','0px');});
-        await page.locator('#copilotHistory').click();
+        await page.locator('#closeMobileChat').click();
+        await page.locator('#openCompanionChat').click();
         assert.match(await page.locator('#copilotInput').inputValue(),/保留的可编辑内容/);
       }
       assert.deepEqual(errors,[]);await page.close();

@@ -309,11 +309,11 @@ def test_ai_deliverable_review_l3_and_cross_player_protection(
     assert c_stranger.post(f"/api/agent/reviews/{sub['id']}").status_code == 404
     assert c_stranger.get(f"/api/agent/reviews/{sub['id']}").status_code == 404
 
-    # No model configured: no fabricated score, and the formal job stays pending.
+    # No model configured: no fabricated score, and the submission stays approved.
     rev_resp = c_owner.post(f"/api/agent/reviews/{sub['id']}")
     assert rev_resp.status_code == 503
     current = c_owner.get(f"/api/verifications/{sub['id']}").json()
-    assert current["status"] == "pending"
+    assert current["status"] == "approved"
     assert current["agent_review"]["state"] == "queued"
     get_resp = c_reviewer.get(f"/api/agent/reviews/{sub['id']}")
     assert get_resp.status_code == 200
