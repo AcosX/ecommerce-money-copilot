@@ -8,12 +8,12 @@ const read=page=>page.evaluate(()=>window.render_game_to_text?JSON.parse(render_
 // still runs, with small clock steps to service its timer and frame callbacks.
 async function advanceFrames(page,milliseconds){await page.clock.fastForward(milliseconds);await page.clock.runFor(32);}
 async function advanceUntil(page,accept,label){
- const deadline=Date.now()+60000;let state;
+ const deadline=Date.now()+60000;let state,frames=0;
  while(Date.now()<deadline){
   state=await read(page);if(accept(state))return state;
   if(state.phase==='error')throw Error(label+': '+JSON.stringify(state));
   if(state.phase==='loading'||state.phase==='playing'&&state.target>state.level&&!state.upgrade){await page.clock.fastForward(16);await new Promise(resolve=>setTimeout(resolve,25));}
-  else await advanceFrames(page,1000);
+  else{assert.ok(++frames<=32,label+' exceeded the playback frame budget: '+JSON.stringify(state));await advanceFrames(page,1000);}
  }
  throw Error(label+' timed out: '+JSON.stringify(state));
 }
