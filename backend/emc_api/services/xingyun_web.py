@@ -152,6 +152,8 @@ def complete(db: Session, settings: Settings, authorization: str, ticket: str) -
             settings,
             player_id=grant.owner_id,
             message=body["message"],
+            images=body.get("images"),
+            web_search=body.get("web_search", False),
             level_id=body.get("level_id"),
             preset_id=body.get("preset_id"),
             session_id=body.get("session_id"),

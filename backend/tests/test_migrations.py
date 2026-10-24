@@ -239,3 +239,43 @@ def test_tutorial_copy_requires_source_level(db_session: Session) -> None:
         )
     assert is_check_constraint_error(excinfo.value)
     db_session.rollback()
+
+
+def test_existing_pending_submissions_are_released_with_snapshots_intact(empty_db):
+    from emc_api.models import ReviewJob
+
+    url, engine = empty_db
+    cfg = alembic_config(url)
+    command.upgrade(cfg, "0003_xingyun_web")
+    with Session(engine) as db:
+        player, artifact = make_artifact(db)
+        artifact.status = "submitted"
+        submission = make_submission(db, player, artifact)
+        db.add(
+            ReviewJob(
+                submission_id=submission.id,
+                snapshot_sha256=submission.snapshot_sha256,
+                rubric_version="2026.10.guided.v2",
+                model="test",
+                status="waiting_manual",
+            )
+        )
+        db.commit()
+        identifier, artifact_id = submission.id, artifact.id
+        snapshot, digest, version = (
+            submission.snapshot,
+            submission.snapshot_sha256,
+            artifact.version,
+        )
+    command.upgrade(cfg, "head")
+    with Session(engine) as db:
+        submission = db.get(VerificationSubmission, identifier)
+        assert submission.status == "approved" and submission.decided_at
+        assert submission.snapshot == snapshot and submission.snapshot_sha256 == digest
+        assert db.get(Artifact, artifact_id).status == "approved"
+        assert db.get(Artifact, artifact_id).version == version + 1
+        job = db.get(ReviewJob, identifier)
+        assert job.status == "queued" and job.attempts == 0
+    command.downgrade(cfg, "0003_xingyun_web")
+    with Session(engine) as db:
+        assert db.get(VerificationSubmission, identifier).status == "approved"

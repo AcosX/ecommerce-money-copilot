@@ -111,6 +111,11 @@ class BodySizeLimitMiddleware:
             return
 
         limit = self.path_limits.get(scope.get("path", ""), self.max_body_bytes)
+        path = scope.get("path", "")
+        if path == "/api/agent/chat" or (
+            path.startswith("/api/agent/xingyun/web-sessions/") and path.endswith("/turns")
+        ):
+            limit = 1024 * 1024  # Three bounded images and ordinary context.
         content_length = Headers(scope=scope).get("content-length")
         if content_length is not None:
             if not content_length.isdigit() or int(content_length) > limit:
