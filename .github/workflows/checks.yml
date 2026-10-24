@@ -32,7 +32,7 @@ jobs:
           node-version: '22'
       - run: npm install --prefix "$RUNNER_TEMP/emc-browser" --no-save --package-lock=false playwright@1.56.1
       - run: node "$RUNNER_TEMP/emc-browser/node_modules/playwright/cli.js" install --with-deps chromium
-      - name: Journal, chat composer and existing panel regression
+      - name: Journey, chat and model showcase regression
         env:
           EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
           EMC_SCREENSHOTS: ${{ runner.temp }}/emc-ui-shots
@@ -46,6 +46,8 @@ jobs:
           node js/tests/emc-chat-composer-browser.cjs
           node js/tests/emc-chat-upgrade-browser.cjs
           node js/tests/emc-partner-browser.cjs
+          node js/tests/emc-model-showcase-browser.cjs
+          node js/tests/emc-building-evolution-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
