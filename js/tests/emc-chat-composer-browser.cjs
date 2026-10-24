@@ -16,7 +16,7 @@ const right = r => r.x + r.width;
 const inside = (r,w,h,label) => assert.ok(r && r.x >= -1 && r.y >= -1 && right(r) <= w+1 && bottom(r) <= h+1, `${label}: ${JSON.stringify(r)} outside ${w}x${h}`);
 const near = (a,b,label) => assert.ok(Math.abs(a-b) <= 2, `${label}: ${a} vs ${b}`);
 
-async function prepare(page,{advanced=true,history=true,welcomeFlag=false,completed=0}={}) {
+async function prepare(page,{advanced=true,history=true,welcomeFlag=false,completed=0,native=true}={}) {
   const calls = [], turns = new Map();
   const project = {id:'prj_composer',name:'聊天回归小店',platform:'xiaohongshu',category:'服装',version:1};
   const artifacts = advanced || completed ? J.LEVELS.slice(0,completed||2).map((level,i) => ({id:'art_composer'+i,project_id:project.id,level_id:level.id,artifact_type:level.type,origin:'formal',title:level.deliverable,status:completed?'approved':'submitted',revision:1,version:1,content:{notes:'真实成果记录与来源待审核'}})) : [];
@@ -94,6 +94,7 @@ async function prepare(page,{advanced=true,history=true,welcomeFlag=false,comple
   await page.evaluate(()=>document.getElementById('bootSkip')?.click());
   await page.locator('#opening').waitFor({state:'hidden',timeout:45000});
   if(history) await page.waitForFunction(()=>document.querySelectorAll('#socialMessages .social-message.mine').length>=3);
+  if(native)await page.evaluate(()=>EmcAvatarAgent.connectXingyunSession());
   return {calls,turns};
 }
 

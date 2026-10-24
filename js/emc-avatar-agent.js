@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   const doc=global.document;
-  const agentState={presetId:'yingyi',presetSelected:false,pose:'idle',mode:'island',lastSpeechText:'',muted:false,sdk:null,connecting:null,autoAttempted:false,generation:0,lastError:null,messages:[]};
+  const agentState={presetId:'yingyi',presetSelected:false,renderEnabled:false,pose:'idle',mode:'island',lastSpeechText:'',muted:false,sdk:null,connecting:null,autoAttempted:false,generation:0,lastError:null,messages:[]};
   const els={};
   const ownerKey=()=>global.EmcSession?.current()?.player?.id||'guest';
   function make(tag,cls,text){const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
@@ -19,8 +19,9 @@
   function openFormalWorkbench(){global.EmcOpenCompanionChat?.('我想查看当前关卡的成果要求',{send:true});}
   function requestBackendChat(message){global.EmcOpenCompanionChat?.(message,{send:true});return Promise.resolve({delegated:true});}
   function loadSdk(){if(global.XingyunAvatarAgent)return Promise.resolve();return new Promise((resolve,reject)=>{const script=doc.createElement('script');script.src='js/vendor/xingyunAvatarAgent.8d03fe57.js';script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('数字人资源加载失败'));};doc.head.append(script);});}
-  async function disconnect(){await stopVoice();agentState.generation++;const sdk=agentState.sdk,grant=agentState.grant;agentState.sdk=null;agentState.grant=null;agentState.nativeError=null;agentState.mode='island';els.stage.hidden=true;els.stage.classList.remove('connecting');els.screen.hidden=true;els.connect.textContent='连接数字人';if(sdk)try{await sdk.destroy('web_client_disconnect');}catch(_){}if(grant)try{await global.EmcApi.delete('/api/agent/xingyun/web-sessions/'+grant.id);}catch(_){}els.mount.replaceChildren();}
+  async function disconnect(){agentState.renderEnabled=false;agentState.autoAttempted=false;await stopVoice();agentState.generation++;const sdk=agentState.sdk,grant=agentState.grant;agentState.sdk=null;agentState.grant=null;agentState.nativeError=null;agentState.mode='island';els.stage.hidden=true;els.stage.classList.remove('connecting');els.screen.hidden=true;els.connect.textContent='开启数字人渲染';if(sdk)try{await sdk.destroy('web_client_disconnect');}catch(_){}if(grant)try{await global.EmcApi.delete('/api/agent/xingyun/web-sessions/'+grant.id);}catch(_){}els.mount.replaceChildren();}
   function connectXingyunSession(presetId){
+    agentState.renderEnabled=true;
     if(agentState.connecting)return agentState.connecting;
     if(agentState.mode==='rtc')return Promise.resolve(agentState.sdk);
     const generation=++agentState.generation,connectionOwner=ownerKey();
@@ -51,13 +52,13 @@
         await Promise.race([sdk.init(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('数字人连接超时')),30000);})]);
         if(generation!==agentState.generation){await sdk.destroy('superseded');return null;}
         if(sdk.getAgentState()!=='running')throw new Error('数字人会话尚未就绪');
-        agentState.mode='rtc';els.stage.classList.remove('connecting');applyVolume();els.connect.textContent='断开数字人';status('数字人已连接，可使用静音图标控制声音。');
+        agentState.mode='rtc';els.stage.classList.remove('connecting');applyVolume();els.connect.textContent='关闭数字人渲染';status('数字人已连接，可使用静音图标控制声音。');
         return sdk;
       }catch(error){agentState.lastError={name:error?.name||'ConnectionError',message:error?.message||'数字人连接失败'};if(generation===agentState.generation){await disconnect();status('小商继续在岛上陪你，数字人暂时没连上，可以重试。');}return null;}
       finally{clearTimeout(timer);agentState.connecting=null;els.connect.disabled=false;}
     })();return agentState.connecting;
   }
-  function autoConnect(){if(agentState.autoAttempted)return agentState.connecting||Promise.resolve(agentState.sdk);agentState.autoAttempted=true;return connectXingyunSession(agentState.presetSelected?agentState.presetId:undefined);}
+  function autoConnect(){if(!agentState.renderEnabled)return Promise.resolve(null);if(agentState.autoAttempted)return agentState.connecting||Promise.resolve(agentState.sdk);agentState.autoAttempted=true;return connectXingyunSession(agentState.presetSelected?agentState.presetId:undefined);}
   async function nativeReply(body,{signal}={}){
     if(signal?.aborted)throw new Error('对话已取消');
     if(agentState.grant&&(agentState.grant.owner!==ownerKey()||agentState.grant.expiresAt<Date.now()+30000)){
@@ -96,6 +97,7 @@
   async function toggleVoice(){
     if(agentState.recording){await stopVoice();return;}
     const input=doc.getElementById('copilotInput');if(!input||input.disabled)return;
+    if(!agentState.renderEnabled){status('请先在语音与形象中开启数字人，再使用语音输入。');const settings=els.connect.closest('details');if(settings)settings.open=true;return;}
     els.voice.disabled=true;
     try{
       const sdk=await autoConnect();if(!sdk)throw new Error('语音暂时不可用，可以继续打字。');
@@ -119,8 +121,8 @@
     const settings=make('details','avatar-settings');settings.append(make('summary','','语音与形象'));
     const settingsPanel=make('div','avatar-settings-panel');settings.append(settingsPanel);
     const select=make('select');select.id='emcAvatarPresetSelect';select.setAttribute('aria-label','数字人形象');[['yingyi','盈怡 · 带教伙伴'],['xingya','星芽 · 元气学姐'],['huahua','花花 · 陪伴萌宠']].forEach(([id,name])=>{const option=make('option','',name);option.value=id;select.append(option);});select.onchange=()=>setPreset(select.value);settingsPanel.append(select);
-    const connect=make('button','avatar-connect','连接数字人');connect.id='emcAvatarConnect3dBtn';connect.type='button';connect.onclick=()=>agentState.mode==='rtc'?disconnect().then(()=>status('小商继续在岛上陪你。')):connectXingyunSession(els.select.value);settingsPanel.append(connect);
-    const line=make('p','avatar-status','开始聊天后，小商会自动尝试连接数字人。');line.setAttribute('role','status');settingsPanel.append(line);toolbar.append(settings);
+    const connect=make('button','avatar-connect','开启数字人渲染');connect.id='emcAvatarConnect3dBtn';connect.type='button';connect.onclick=()=>agentState.mode==='rtc'?disconnect().then(()=>status('小商继续在岛上陪你。')):connectXingyunSession(els.select.value);settingsPanel.append(connect);
+    const line=make('p','avatar-status','数字人默认关闭，按需开启渲染；文字聊天可直接使用。');line.setAttribute('role','status');settingsPanel.append(line);toolbar.append(settings);
     const stage=make('section','emc-avatar-stage');stage.id='emcAvatarStage';stage.hidden=true;stage.setAttribute('aria-label','小商数字人');
     const screen=make('div','avatar-screen');screen.hidden=true;const mount=make('div');mount.id='emcXingyunSdkMount';screen.append(mount);stage.append(screen);
     const mute=make('button','avatar-mute');mute.type='button';mute.id='emcAvatarMuteBtn';mute.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4Z"/><path class="volume-on" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="volume-off" d="m16 9 6 6m0-6-6 6"/></svg>';mute.onclick=()=>setMuted(!agentState.muted);toolbar.append(mute);footer.append(stage);
