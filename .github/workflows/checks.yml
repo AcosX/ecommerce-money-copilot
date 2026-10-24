@@ -63,8 +63,6 @@ jobs:
         suite: [mobile-layout, scene-recovery]
     env:
       EMC_TEST_URL: http://127.0.0.1:5173/
-      EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
-      EMC_MOBILE_SHOTS: ${{ runner.temp }}/emc-regression-shots
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -75,6 +73,8 @@ jobs:
       - name: Run ${{ matrix.suite }} in Chromium
         env:
           SUITE: ${{ matrix.suite }}
+          EMC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/emc-browser/node_modules/playwright
+          EMC_MOBILE_SHOTS: ${{ runner.temp }}/emc-regression-shots
         run: |
           python3 -m http.server 5173 --bind 127.0.0.1 > "$RUNNER_TEMP/emc-static.log" 2>&1 &
           server_pid=$!
