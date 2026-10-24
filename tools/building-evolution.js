@@ -18,7 +18,8 @@ audio.set('sfxVolume',.7);
 $('timeline').innerHTML=names.map((name,i)=>`<li data-state="${i===0?'current':'upcoming'}"><small>LV.0${i}</small>${name}</li>`).join('');
 
 function sound(){audio.set('music',state.sound&&state.phase==='playing');audio.set('sfx',state.sound&&!state.paused);$('sound').setAttribute('aria-pressed',String(state.sound));$('sound').setAttribute('aria-label',state.sound?'关闭演示声音':'开启演示声音');$('sound').disabled=!audio.state().available;$('sound').textContent=!audio.state().available?'声音不可用':state.sound?'♪ 声音开':'♪ 声音关';}
-function phase(value){state.phase=value;clock.setRunning(value==='playing'&&!document.hidden);document.body.dataset.phase=value;sound();$('pause').hidden=!['playing','paused'].includes(value);$('pause').disabled=!['playing','paused'].includes(value);$('pause').textContent=state.paused?'继续':'暂停';$('play').disabled=['loading','playing','paused'].includes(value);$('play').textContent=value==='loading'?'正在准备…':value==='error'?'重试完整演示':value==='complete'?'↻ 再看一遍':value==='ready'?'▶ 播放完整演示':'演示进行中';}
+function syncPlaybackClock(){clock.setRunning(state.phase==='playing'&&!document.hidden);if(state.phase==='paused'||document.hidden)shop?.upgradeEffect?.update(0);}
+function phase(value){state.phase=value;syncPlaybackClock();document.body.dataset.phase=value;sound();$('pause').hidden=!['playing','paused'].includes(value);$('pause').disabled=!['playing','paused'].includes(value);$('pause').textContent=state.paused?'继续':'暂停';$('play').disabled=['loading','playing','paused'].includes(value);$('play').textContent=value==='loading'?'正在准备…':value==='error'?'重试完整演示':value==='complete'?'↻ 再看一遍':value==='ready'?'▶ 播放完整演示':'演示进行中';}
 function chapter(level){
  const changed=state.level!==level;state.level=level;showcase.setLevel(level);$('level').innerHTML=`LV.0${level} <span>/ 05</span>`;$('name').textContent=names[level];$('description').textContent=descriptions[level];$('inspect').href=showcase.href('single');
  document.querySelectorAll('#timeline li').forEach((li,i)=>{li.dataset.state=i===level?'current':i<level?'passed':'upcoming';if(i===level)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
@@ -84,7 +85,7 @@ $('play').addEventListener('click',()=>void play());
 $('pause').addEventListener('click',()=>{state.paused=!state.paused;phase(state.paused?'paused':'playing');$('status').textContent=state.paused?'演示已暂停':'继续店铺蜕变';});
 $('sound').addEventListener('click',()=>{state.sound=!state.sound;sound();});
 window.addEventListener('resize',()=>{if(state.phase!=='complete')camera();});
-document.addEventListener('visibilitychange',()=>clock.setRunning(state.phase==='playing'&&!document.hidden));
+document.addEventListener('visibilitychange',syncPlaybackClock);
 function loop(){if(disposed)return;if(!document.hidden){state.elapsed=clock.now();if(state.phase==='playing')camera();else if(state.phase==='ready'||state.phase==='complete')shop?.controls.update();const effect=shop?.upgradeEffect?.state();const progress=effect?((state.target-1)+effect.progress)/5:state.level/5;document.documentElement.style.setProperty('--fill',(Math.max(0,progress)*100)+'%');}frame=requestAnimationFrame(loop);}
 window.render_game_to_text=()=>JSON.stringify({...state,elapsed:clock.now(),upgrade:shop?.upgradeEffect?.state()||null,canvasCount:document.querySelectorAll('#scene canvas').length,audio:audio.state()});
 window.evolutionReady=()=>preparing;

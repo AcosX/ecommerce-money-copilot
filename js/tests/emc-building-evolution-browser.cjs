@@ -4,14 +4,16 @@ const shots=process.env.EMC_SCREENSHOTS||os.tmpdir();require('node:fs').mkdirSyn
 const base=process.env.EMC_TEST_URL||'http://127.0.0.1:5173';
 const read=page=>page.evaluate(()=>JSON.parse(render_game_to_text()));
 // Advance sparse browser frames while real fetch/decode/GPU preparation still completes.
-// Each 1000ms step models 1fps, so discarded frame time cannot hide behind a fast runner.
+// Sparse 1000ms jumps expose discarded frame time. Flush the next rendering frames
+// too: Playwright 1.56 fires the first due RAF at its old timestamp during fastForward.
+async function advanceFrames(page,milliseconds){await page.clock.fastForward(milliseconds);await page.clock.runFor(32);}
 async function advanceUntil(page,accept,label){
  const deadline=Date.now()+60000;let state;
  while(Date.now()<deadline){
   state=await read(page);if(accept(state))return state;
   if(state.phase==='error')throw Error(label+': '+JSON.stringify(state));
   if(state.phase==='playing'&&state.target>state.level&&!state.upgrade){await page.clock.fastForward(16);await new Promise(resolve=>setTimeout(resolve,25));}
-  else await page.clock.fastForward(1000);
+  else await advanceFrames(page,1000);
  }
  throw Error(label+' timed out: '+JSON.stringify(state));
 }
@@ -19,7 +21,7 @@ async function advanceUntil(page,accept,label){
  const browser=await chromium.launch({headless:true,...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||undefined}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
   for(const width of [1440,390]){
-   const page=await browser.newPage({viewport:{width,height:width===1440?900:844}}),errors=[];
+   const page=await browser.newPage({viewport:{width,height:width===1440?900:844},deviceScaleFactor:.5}),errors=[];
    page.on('pageerror',e=>errors.push(e.message));
    await page.clock.install();
    await page.addInitScript(()=>localStorage.setItem('emc-island-audio-v1',JSON.stringify({music:false,sfx:true,musicVolume:.1,sfxVolume:.2})));
@@ -51,18 +53,18 @@ async function advanceUntil(page,accept,label){
    await page.locator('#play').click();
    if(width===1440){
     await advanceUntil(page,s=>!!s.upgrade,'first upgrade');
-    const before=await read(page);await page.clock.fastForward(400);const after=await read(page);
-    assert.ok(after.upgrade.progress-before.upgrade.progress>=.20,'400ms sparse frame must advance the real 1.8s animation, not a capped 50ms step');
+    const before=await read(page);await advanceFrames(page,400);const after=await read(page);
+    assert.ok(after.upgrade.progress-before.upgrade.progress>=.20,'400ms sparse frame must advance the real 1.8s animation, not a capped 50ms step: '+JSON.stringify({before,after}));
     assert.ok(after.upgrade.progress<.5,'pause before the first model reveal');
     await page.locator('#pause').click();
-    const paused=await read(page);await page.clock.fastForward(60000);const frozen=await read(page);
+    const paused=await read(page);await advanceFrames(page,60000);const frozen=await read(page);
     assert.equal(frozen.phase,'paused');assert.equal(frozen.elapsed,paused.elapsed);
     assert.equal(frozen.upgrade.progress,paused.upgrade.progress,'暂停必须冻结真正的升级动画');
     assert.equal(frozen.audio.playing,false);
     await page.screenshot({path:path.join(shots,'evolution-paused.png')});
     await page.locator('#pause').click();
     await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
-    const hidden=await read(page);await page.clock.fastForward(60000);const background=await read(page);
+    const hidden=await read(page);await advanceFrames(page,60000);const background=await read(page);
     assert.equal(background.elapsed,hidden.elapsed,'hidden time is excluded');
     assert.equal(background.upgrade.progress,hidden.upgrade.progress,'hidden frames cannot advance the upgrade');
     await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
