@@ -61,7 +61,7 @@
       stage.append(image(sources[1],'mail-art-pocket'));
     }
     const sheet=host.querySelector('.mail-attachment-sheet');
-    if(sheet&&!sheet.closest('.mail-extracted-stage')){const stage=document.createElement('section');stage.className='mail-extracted-stage';sheet.before(stage);stage.append(sheet);}
+    if(sheet&&!sheet.closest('.mail-extracted-stage')){const stage=document.createElement('section');stage.className='mail-extracted-stage';sheet.before(stage);if(sheet.classList.contains('j-focus-card')){stage.classList.add('mail-task-envelope');stage.append(image(sources[0],'mail-art-back'),sheet,image(sources[1],'mail-art-pocket'));}else stage.append(sheet);}
     // The envelope stays still; only an extracted attachment has its own reading area.
     const kit=host.querySelector('.j-kit-content,.mail-enclosures>.j-goal');
     if(kit){const stage=document.createElement('section');stage.className='mail-extracted-stage mail-kit-stage';const paper=document.createElement('article');paper.className='mail-attachment-sheet';const heading=document.createElement('header');heading.className='mail-attachment-heading';heading.innerHTML='<span>随信方法附件</span><button type="button" '+(host.dataset.jView==='demo'?'data-demo="kit"':'data-j-action="kit"')+'>← 放回信封</button>';paper.append(heading,kit);stage.append(paper);host.append(stage);host.querySelector('.mail-envelope-stage').hidden=true;}
