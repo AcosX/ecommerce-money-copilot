@@ -41,7 +41,7 @@
 }
 
 @media(min-width:701px){
- .copilot-dock.chat-collapsed{top:auto;bottom:20px;height:auto;display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;padding:0;border:0;background:transparent;box-shadow:none;}
+ .copilot-dock.chat-collapsed{display:none;}
  .copilot-dock.chat-collapsed :is(.social-heading,.social-messages,.copilot-status,.copilot-compose-toolbar,.copilot-companion-tools,.chat-media-tools,.chat-image-previews){display:none;}
  .copilot-dock.chat-collapsed .copilot-compose{display:contents;}
  .copilot-dock.chat-collapsed #copilotHistory{display:block;width:44px;height:48px;}
