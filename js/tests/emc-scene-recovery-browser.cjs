@@ -1,9 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
-const {webkit}=require('/data/home/work/test-tools/node_modules/playwright');
+const {chromium,webkit}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),path=require('node:path');
 const browserName=process.env.EMC_BROWSER||'chromium';
+assert.ok(['chromium','webkit'].includes(browserName),'EMC_BROWSER must be chromium or webkit');
 const url=process.env.EMC_TEST_URL||'http://127.0.0.1:5173/';
 const policy=fs.readFileSync(path.join(__dirname,'../../deploy/apache/money-acosx.conf.template'),'utf8').match(/Header setifempty Content-Security-Policy "([^"]+)"/)[1];
 const state=page=>page.evaluate(()=>({status:JSON.parse(render_game_to_text()).scene_status,source:JSON.parse(render_game_to_text()).model_source,tier:JSON.parse(render_game_to_text()).graphics?.tier,diagnostics:window.EmcSceneDiagnostics||[],hint:document.getElementById('sceneLoadHint').textContent}));
@@ -11,7 +11,7 @@ async function withPolicy(page){
  await page.route(url,async r=>{const resp=await r.fetch();await r.fulfill({response:resp,headers:{...resp.headers(),'content-security-policy':policy}})});
 }
 (async()=>{
- const browser=await (browserName==='webkit'?webkit:chromium).launch({headless:true});
+ const browser=await (browserName==='webkit'?webkit:chromium).launch({headless:true,...(browserName==='chromium'?{...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||undefined}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']}:{} )});
  try{
   for(const width of [1440,390]){
    const page=await browser.newPage({viewport:{width,height:width===390?844:960}});
