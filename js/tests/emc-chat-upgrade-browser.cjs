@@ -15,13 +15,13 @@ const shots=process.env.EMC_SCREENSHOTS||'/tmp/emc-upgrade-shots';
    const fixture=await prepare(page,{advanced:false,history:false,welcomeFlag:true,completed:level-1});
    await openChat(page,width);
    await page.locator('#closeMobileChat').click();
-   assert.equal(await page.locator('.copilot-dock').isVisible(),false);
-   assert.equal(await page.locator('#openCompanionChat').isVisible(),true);
+   assert.equal(await page.locator('.copilot-dock').isVisible(),true);assert.equal(await page.locator('#copilotForm').isVisible(),true);
+   assert.equal(await page.locator('#openCompanionChat').count(),0);
    if(width>700){
     const journal=page.locator('#shopJournal');
     if(await journal.isVisible())assert.ok(await journal.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+Math.min(20,r.height/2)));}),'underlying journal is reachable');
    }
-   await page.locator('#openCompanionChat').click();
+   await page.locator('#copilotHistory').click();
    assert.equal(await page.locator('.copilot-dock').isVisible(),true);
    assert.ok(await page.locator('#chatPickImage').evaluate(e=>e.scrollWidth<=e.clientWidth),'image label fits its button');
    const encoded=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=240;c.height=160;const x=c.getContext('2d');x.fillStyle='red';x.fillRect(0,0,240,160);return c.toDataURL('image/png').split(',')[1];});
