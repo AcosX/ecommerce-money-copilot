@@ -1,0 +1,43 @@
+/* Extracted enclosures have their own paper identity; the letter artwork stays in its envelope. */
+.mail-art-content .mail-extracted-stage{padding:24px 24px 16px;overflow:hidden;isolation:isolate;}
+.mail-art-content .mail-extracted-stage:before{inset:35px 18px 12px;background:#e5e7d8;border:1px solid #718f90;transform:rotate(1deg);box-shadow:3px 5px 0 #17394c25;}
+.mail-art-content .mail-extracted-stage:after{content:'';position:absolute;z-index:8;left:54px;top:9px;width:13px;height:36px;border:3px solid #6e8485;border-radius:10px;background:transparent;transform:rotate(-13deg);box-shadow:inset 1px 0 #eff7ed,1px 1px 0 #eff7ed;pointer-events:none;}
+.mail-art-content .mail-attachment-sheet,.mail-transition-ghost{border:1px solid #536e72;border-left:5px solid #419b99;border-image:none;background:#fffbee;color:#253e51;box-shadow:3px 5px 0 #24465330;padding:0 24px 24px;margin:0;min-height:0;transform:none;filter:none;}
+.mail-art-content .mail-attachment-sheet{height:100%;overflow-y:auto;scroll-padding-top:110px;position:relative;background-image:linear-gradient(90deg,transparent 20px,#439b9910 20px,#439b9910 21px,transparent 21px);}
+.mail-art-content .mail-attachment-sheet:after{content:"";position:absolute;right:0;top:0;width:20px;height:20px;background:linear-gradient(45deg,#d9e2d0 49%,#fffbee 51%);border-left:1px solid #a9b8aa;border-bottom:1px solid #a9b8aa;pointer-events:none;z-index:7;}
+.mail-art-content .mail-attachment-heading{position:sticky;top:0;z-index:6;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;margin:0 0 24px;padding:22px 0 16px;min-height:89px;border-bottom:1px dashed #88a6a3;background:#fffbee;color:#407d80;letter-spacing:.6px;}
+.mail-art-content .mail-attachment-heading>span{display:block;padding:0;background:none;color:#548184;font-size:10px;line-height:1.7;font-weight:600;}
+.mail-art-content .mail-attachment-heading>span:before{content:'随信附件';display:block;margin-bottom:3px;color:#234957;font-size:18px;font-weight:800;letter-spacing:2px;}
+.mail-art-content .mail-attachment-heading>button{flex-shrink:0;min-height:36px;padding:7px 10px;border:1px solid #9aafaa;border-radius:2px;background:#f2f3df;color:#345c65;font-size:11px;box-shadow:1px 2px 0 #355c6220;}
+.mail-art-content .mail-attachment-sheet .practice-workspace{margin:0 0 28px;padding:0;border:0;background:transparent;box-shadow:none;transform:none;min-height:0;width:100%;}
+.mail-art-content .mail-attachment-sheet .practice-workspace>header{gap:8px;padding:0;align-items:center;}
+.mail-art-content .mail-attachment-sheet .practice-tab{font-size:10px;color:#388682;}
+.mail-art-content .mail-attachment-sheet .practice-workspace h4{font-size:23px;line-height:1.5;margin:14px 0 10px;color:#263e51;}
+.mail-art-content .mail-attachment-sheet .practice-hint{font-size:12px;line-height:1.85;}
+.mail-art-content .mail-attachment-sheet .practice-fields{margin-top:22px;gap:18px;}
+.mail-art-content .mail-attachment-sheet .practice-field{font-size:12px;font-weight:600;gap:8px;}
+.mail-art-content .mail-attachment-sheet .practice-field input,.mail-art-content .mail-attachment-sheet .practice-field textarea{border:1px solid #a8b7ad;border-bottom:2px solid #6e9591;background:#f4f3e4;color:#284652;border-radius:2px;font-weight:400;}
+.mail-art-content .mail-attachment-sheet .practice-checks{gap:0;padding:8px 0 0;border-top:1px dashed #a9b9ad;margin-top:22px;}
+.mail-art-content .mail-attachment-sheet .practice-checks label{min-height:42px;padding:10px 0;border-bottom:1px solid #8ca89a24;align-items:center;line-height:1.6;}
+.mail-art-content .mail-attachment-sheet .practice-workspace footer{margin-top:24px;padding-top:14px;border-top:1px dashed #a9b9ad;gap:10px;}
+.mail-art-content .mail-attachment-sheet .demo-work{padding-top:24px;border-top:2px dashed #a9b9ad;}
+.mail-art-content .mail-attachment-sheet .demo-work h4{font-size:21px;}
+.mail-art-content .mail-attachment-sheet .j-description{line-height:1.9;}
+.mail-art-content .mail-attachment-sheet .practice-table-wrap{max-width:100%;}
+.mail-art-content .mail-kit-stage .mail-attachment-heading>span:before{content:'方法附件';}
+.mail-art-content .mail-kit-stage .j-kit-content,.mail-art-content .mail-kit-stage>.mail-attachment-sheet>.j-goal{border:0;background:transparent;box-shadow:none;padding:0;margin:0;}
+.mail-art-content .mail-extracted-stage .mail-attachment-sheet:focus-within{scroll-margin-top:0;}
+@media(max-width:700px){
+ .mail-art-content .mail-extracted-stage{padding:22px 12px 12px;}
+ .mail-art-content .mail-extracted-stage:before{inset:30px 8px 9px;transform:rotate(.6deg);}
+ .mail-art-content .mail-extracted-stage:after{left:39px;top:7px;width:11px;height:32px;}
+ .mail-art-content .mail-attachment-sheet{padding:0 18px 22px;min-height:0;border-image:none;scroll-padding-top:110px;}
+ .mail-art-content .mail-attachment-heading{padding:19px 0 14px;min-height:84px;gap:8px;margin-bottom:20px;}
+ .mail-art-content .mail-attachment-heading>span{font-size:9px;letter-spacing:0;}
+ .mail-art-content .mail-attachment-heading>span:before{font-size:17px;}
+ .mail-art-content .mail-attachment-heading>button{font-size:10px;padding:7px;}
+ .mail-art-content .mail-attachment-sheet .practice-workspace>header{flex-direction:column;align-items:flex-start;gap:2px;}
+ .mail-art-content .mail-attachment-sheet .practice-workspace h4{font-size:21px;}
+ .mail-art-content .mail-attachment-sheet .practice-workspace input,.mail-art-content .mail-attachment-sheet .practice-workspace textarea{font-size:16px;}
+}
+@media(max-width:360px){.mail-art-content .mail-attachment-sheet{padding-inline:14px;}.mail-art-content .mail-attachment-heading>span:before{font-size:15px;}.mail-art-content .mail-attachment-heading>button{padding:6px 5px;}}
