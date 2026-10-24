@@ -56,7 +56,11 @@ async function prepare(page,{welcome=false}={}){
   await page.getByRole('button',{name:'打开经营手帐',exact:true}).click();
   const drawer=page.locator('#drawer.centered-panel');await drawer.waitFor();inside(await drawer.boundingBox(),width,height);
   assert.equal(await page.locator('.journal-record').count(),2);assert.equal(await page.locator('.journal-section').count(),3);
-  assert.ok(await page.locator('.journal-paper').evaluate(e=>parseFloat(getComputedStyle(e).lineHeight)>=20));
+  await page.waitForFunction(()=>{const e=document.querySelector('.journal-paper');return e&&parseFloat(getComputedStyle(e).lineHeight)>=20;}).catch(async error=>{
+    await page.screenshot({path:path.join(shots,`journal-style-failure-${width}.png`)});
+    console.error('journal style',await page.locator('.journal-paper').evaluate(e=>({font:getComputedStyle(e).font,lineHeight:getComputedStyle(e).lineHeight,html:e.outerHTML.slice(0,200)})));
+    throw error;
+  });
   assert.ok(await page.locator('.journal-section').first().evaluate(e=>parseFloat(getComputedStyle(e).borderTopWidth)>0));
   assert.equal(await page.locator('.journal-record').first().evaluate(e=>getComputedStyle(e).display),'flex');
   assert.ok(await page.locator('#panelBody').evaluate(e=>e.scrollWidth<=e.clientWidth+1));
