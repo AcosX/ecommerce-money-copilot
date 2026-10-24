@@ -420,9 +420,11 @@
         [topic+'，先做哪一步？','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，请利用我已经提供的信息，带我做眼前的一小步，一次只问一个关键问题。'],
         ['我还没想好，先问我一个问题','我正在做 '+(task?.id||'L6')+'「'+(task?.name||'六关回顾')+'」，还拿不定主意，请先问我一个最关键的问题。']
       ];
+      const imageButton=$('chatPickImage');imageButton?.remove();
       host.innerHTML=`<small>${welcome?'从这里开始':'接着聊 · '+escape(task?.id||'')+' '+escape(topic)}</small>`+prompts.map(([label,prompt])=>`<button type="button" data-chat-suggestion="${escape(prompt)}" title="填入消息，修改后再发送">${escape(label)}</button>`).join('');
+      if(imageButton){const actions=document.createElement('span');actions.className='chat-question-actions';actions.append(host.lastElementChild,imageButton);host.append(actions);}
     }
-    const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('button').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
+    const disabled=sending||Boolean(paintDrag?.active);host.querySelectorAll('[data-chat-suggestion]').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
     const finish=$('copilotFinish');if(finish){finish.hidden=turns<3||['pending','approved','locked'].includes(task?.status);finish.disabled=disabled;}
   }
   $('copilotSuggestions').addEventListener('click',event=>{
