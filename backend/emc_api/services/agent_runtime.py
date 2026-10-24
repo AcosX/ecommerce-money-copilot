@@ -722,7 +722,10 @@ AGENT_TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "name": "get_review_feedback",
         "category": "read",
-        "description": "读取当前玩家本人的认证申请审核结论、驳回原因与 AI 结构化审核建议。",
+        "description": (
+            "读取当前玩家当前项目的认证反馈；显式申请 ID 也必须属于当前项目。"
+            "无当前项目时不跨项目查询。"
+        ),
         "parameters": {
             "type": "object",
             "properties": {"submission_id": {"type": "string"}},
@@ -1238,25 +1241,43 @@ def tool_get_review_feedback(
     player_id: str | None,
     *,
     submission_id: str | None = None,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """读取当前玩家本人的认证审核反馈与重做建议（严格隔离跨玩家访问）。"""
     if not player_id:
         raise Forbidden("请先登录账号后再查询认证审核反馈")
 
-    sub: VerificationSubmission | None = None
+    # Resolve the selected project with the same ownership check as chat context.
+    shop = tool_get_shop_context(
+        db,
+        player_id,
+        client_context={"active_project": {"id": project_id}} if project_id else None,
+    )
+    project = shop.get("active_project")
+    if project is None:
+        if submission_id:
+            raise NotFound("未找到对应的认证申请")
+        return {"found": False, "submission": None}
+    query = (
+        select(VerificationSubmission)
+        .join(Artifact, VerificationSubmission.artifact_id == Artifact.id)
+        .where(
+            VerificationSubmission.owner_id == player_id,
+            Artifact.owner_id == player_id,
+            Artifact.project_id == project["id"],
+        )
+    )
     if submission_id:
         if not has_prefix(submission_id, VERIFICATION):
             raise NotFound("未找到对应的认证申请")
-        sub = db.get(VerificationSubmission, submission_id)
-        if sub is None or sub.owner_id != player_id:
-            raise NotFound("未找到对应的认证申请")
-    else:
-        sub = db.scalars(
-            select(VerificationSubmission)
-            .where(VerificationSubmission.owner_id == player_id)
-            .order_by(VerificationSubmission.created_at.desc())
-            .limit(1)
-        ).first()
+        query = query.where(VerificationSubmission.id == submission_id)
+    sub = db.scalars(
+        query.order_by(
+            VerificationSubmission.created_at.desc(), VerificationSubmission.id.desc()
+        ).limit(1)
+    ).first()
+    if submission_id and sub is None:
+        raise NotFound("未找到对应的认证申请")
 
     if sub is None:
         return {"found": False, "submission": None}
@@ -1337,8 +1358,7 @@ def tool_save_business_draft(
     artifact_type = LEVEL_TO_ARTIFACT_TYPE[clean_level]
     raw_content = dict(content or {})
     if not raw_content:
-        raw_content = {"note": f"{clean_level} 阶段方案草稿"}
-    validated_content = validate_artifact_content(artifact_type, 1, raw_content)
+        raise ValidationFailed.field(["content"], "请先提供要保存的方案正文")
 
     now = utcnow()
     project = db.scalars(
@@ -1381,12 +1401,16 @@ def tool_save_business_draft(
         .limit(1)
     ).first()
 
+    if existing is not None:
+        previous = db.get(ArtifactRevision, (existing.id, existing.current_revision))
+        raw_content = {**(previous.content if previous else {}), **raw_content}
+    validated_content = validate_artifact_content(artifact_type, 1, raw_content)
     clean_title = (title or f"{LEVEL_GUIDES[clean_level]['deliverable_title']} 草稿").strip()[:200]
     content_hash = json_sha256(validated_content)
 
     if existing is not None:
         new_rev_num = existing.current_revision + 1
-        existing.title = clean_title
+        existing.title = clean_title if title else existing.title
         existing.current_revision = new_rev_num
         existing.version += 1
         existing.updated_at = now
@@ -1513,10 +1537,13 @@ def execute_agent_tool(
             level_id=safe_args.get("level_id"),
         )
     if tool_name == "get_review_feedback":
+        requested = (client_context or {}).get("active_project")
+        project_id = requested.get("id") if isinstance(requested, dict) else None
         return tool_get_review_feedback(
             db,
             player_id,
             submission_id=safe_args.get("submission_id"),
+            project_id=project_id,
         )
     if tool_name == "open_game_card":
         return tool_open_game_card(
@@ -1902,7 +1929,12 @@ def run_companion_chat(
     if player_id and any(
         k in clean_msg for k in ("审核", "驳回", "认证", "为什么没过", "重做", "打分")
     ):
-        review_info = execute_agent_tool(db, player_id=player_id, tool_name="get_review_feedback")
+        review_info = execute_agent_tool(
+            db,
+            player_id=player_id,
+            tool_name="get_review_feedback",
+            client_context={"active_project": shop_ctx.get("active_project")},
+        )
         tool_traces.append(
             {
                 "tool": "get_review_feedback",
@@ -1917,41 +1949,61 @@ def run_companion_chat(
     )
     if re.search(r"(?:不要|别|不用|暂不|不想|不是让你).{0,4}(?:保存|生成|存)", clean_msg):
         want_save_draft = False
+    generate_draft = want_save_draft and any(
+        word in clean_msg for word in ("生成", "整理", "帮我写")
+    )
+    draft_content: dict[str, Any] | None = None
     if player_id and want_save_draft:
-        draft_content = {
-            "goal": clean_msg[:180],
-            "platform": (shop_ctx.get("active_project") or {}).get("platform") or "小红书",
-            "level_id": target_level,
-            "generated_by": "xiaoshang_companion_agent",
-        }
-        saved_draft = execute_agent_tool(
-            db,
-            player_id=player_id,
-            tool_name="save_business_draft",
-            arguments={
-                "level_id": target_level,
-                "title": f"{level_guide['deliverable_title']}（小商共创草稿）",
-                "content": draft_content,
-                "project_id": (shop_ctx.get("active_project") or {}).get("id"),
-            },
-        )
-        tool_traces.append(
-            {
-                "tool": "save_business_draft",
-                "status": "ok",
-                "summary": f"已保存 {target_level} 草稿 ({saved_draft['artifact_id']})",
-            }
-        )
-        card_act = execute_agent_tool(
-            db,
-            player_id=player_id,
-            tool_name="open_game_card",
-            arguments={
-                "card_id": "formal_drawer",
-                "level_id": target_level,
-            },
-        )
-        ui_actions.append(card_act["ui_action"])
+        # Only explicit inline content is a payload; a save command is never a goal.
+        inline = re.search(r"(?:保存草稿|帮我存|记入草稿)\s*[：:]\s*(.+)", clean_msg, re.S)
+        if inline:
+            draft_content = {"summary": inline[1].strip()}
+        elif (
+            (client_context or {}).get("save_as_draft")
+            and not any(
+                word in clean_msg for word in ("保存", "帮我存", "记入", "生成", "整理", "帮我写")
+            )
+            and len(clean_msg) >= 20
+        ):
+            draft_content = {"summary": clean_msg}
+        else:
+            project_id = (shop_ctx.get("active_project") or {}).get("id")
+            # Prefer a server-recorded, same-project/level plan over this turn's acknowledgement.
+            prior = db.scalars(
+                select(AuditEvent)
+                .where(
+                    AuditEvent.actor_player_id == player_id,
+                    AuditEvent.action == "agent.chat.turn",
+                    AuditEvent.target_id == (session_id or "default"),
+                )
+                .order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
+                .limit(12)
+            ).all()
+            for turn in prior:
+                details = turn.details or {}
+                if (
+                    details.get("project_id") == project_id
+                    and details.get("target_level") == target_level
+                    and details.get("draft_plan")
+                ):
+                    draft_content = {"planning_report": details["draft_plan"]}
+                    break
+            if draft_content is None and project_id:
+                existing = db.scalar(
+                    select(Artifact)
+                    .where(
+                        Artifact.owner_id == player_id,
+                        Artifact.project_id == project_id,
+                        Artifact.artifact_type == LEVEL_TO_ARTIFACT_TYPE[target_level],
+                        Artifact.status.in_(("draft", "rejected")),
+                    )
+                    .order_by(Artifact.updated_at.desc(), Artifact.id.desc())
+                    .limit(1)
+                )
+                if existing:
+                    revision = db.get(ArtifactRevision, (existing.id, existing.current_revision))
+                    if revision:
+                        draft_content = dict(revision.content)
     elif any(
         k in clean_msg
         for k in (
@@ -2104,6 +2156,11 @@ def run_companion_chat(
         )
     if target_level == "L1":
         sys_prompt += "\n" + (prompt_dir / "l1-planning.txt").read_text(encoding="utf-8")
+    if want_save_draft:
+        sys_prompt += (
+            "\n保存操作由服务端执行，不能声称已保存。用户要求生成或整理时，"
+            "输出实际方案正文，未知字段标为待补充；只有保存指令时不要编造方案。"
+        )
     if roi_calc:
         sys_prompt += (
             "\n本轮已获得 calculation 工具验算结果。先用表格列出用户提供的费用和工具结果，"
@@ -2125,6 +2182,19 @@ def run_companion_chat(
     ):
         llm_reply = calculation_reply(roi_calc)
         llm_meta = {"provider": "verified_calculation", "model": "decimal-unit-roi-v1"}
+    elif (
+        not roi_calc
+        and not images
+        and not needs_search
+        and is_calculation_request(clean_msg)
+        and not want_save_draft
+        and not review_info
+    ):
+        llm_reply = (
+            "还不能可靠验算。请确认售价、拿货成本和费用明细；"
+            "组合费用与单项费用是否重叠也需要说明，以免重复计费。"
+        )
+        llm_meta = {"provider": "calculation_needs_input", "model": "decimal-unit-roi-v1"}
     else:
         llm_reply, llm_meta = adapter.complete_json_or_text(
             system_prompt=sys_prompt,
@@ -2152,6 +2222,55 @@ def run_companion_chat(
             else 1600,
         )
 
+    live_plan = (
+        llm_reply
+        if llm_meta.get("provider") in {"ai_gateway_live", "ai_gateway"}
+        and len(llm_reply or "") >= 80
+        and any(word in clean_msg for word in ("方案", "规划", "报告", "整理", "生成草稿"))
+        and (not want_save_draft or generate_draft)
+        else None
+    )
+    if player_id and want_save_draft:
+        if live_plan:
+            draft_content = {"planning_report": live_plan}
+        elif generate_draft:
+            draft_content = None
+        if draft_content:
+            saved_draft = tool_save_business_draft(
+                db,
+                player_id,
+                level_id=target_level,
+                content=draft_content,
+                project_id=(shop_ctx.get("active_project") or {}).get("id"),
+            )
+            tool_traces.append(
+                {
+                    "tool": "save_business_draft",
+                    "status": "ok",
+                    "summary": f"已保存 {target_level} 草稿 ({saved_draft['artifact_id']})",
+                }
+            )
+            ui_actions.append(
+                tool_open_game_card("formal_drawer", level_id=target_level)["ui_action"]
+            )
+            llm_reply = (
+                f"已保存 **{level_guide['deliverable_title']}** 草稿"
+                f"（编号 `{saved_draft['artifact_id']}`，版本 v{saved_draft['revision']}）。"
+                "正文及原有未修改字段已保留，请在成果抽屉核对后提交。"
+            )
+        else:
+            tool_traces.append(
+                {
+                    "tool": "save_business_draft",
+                    "status": "needs_input",
+                    "summary": "没有可保存的方案正文，未写入草稿",
+                }
+            )
+            llm_reply = (
+                "目前没有可保存的方案正文。请把要保存的方案发给我，"
+                "或先让我整理一份方案；本轮没有修改草稿。"
+            )
+
     emotion = "analytical" if roi_calc else "encouraging"
     ka_intent = "Explain"
 
@@ -2178,6 +2297,8 @@ def run_companion_chat(
                 "并为你打开了正式成果抽屉。"
                 "请注意草稿还不会直接算作通关，记得上传真实截图或表格证据后点击「提交认证」哦！"
             )
+        elif review_info is not None and not review_info.get("found"):
+            llm_reply = "当前项目还没有认证申请记录。请在当前项目的成果面板查看或提交成果。"
         elif review_info and review_info.get("found"):
             sub_data = review_info["submission"]
             ai_rev = sub_data.get("ai_review")
@@ -2253,6 +2374,8 @@ def run_companion_chat(
                 "emotion": emotion,
                 "ka_intent": ka_intent,
                 "target_level": target_level,
+                "project_id": (shop_ctx.get("active_project") or {}).get("id"),
+                "draft_plan": live_plan,
                 "preset_id": chosen_preset,
                 "tool_traces": tool_traces,
                 "ui_actions": ui_actions,
