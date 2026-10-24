@@ -36,13 +36,54 @@
 @media(min-width:701px){
  .copilot-dock{top:104px;bottom:20px;width:clamp(360px,34vw,480px);height:auto;max-height:none;}
  .copilot-dock.chat-expanded{top:104px;bottom:20px;width:min(720px,calc(100vw - 48px));}
- body:has(.copilot-dock:not(.companion-hidden):not(.chat-collapsed)) .quest-peek{visibility:hidden;pointer-events:none;}
+ body:has(.copilot-dock.chat-expanded:not(.companion-hidden):not(.chat-collapsed)) .quest-peek{visibility:hidden;pointer-events:none;}
  body:has(.copilot-dock.chat-expanded:not(.companion-hidden):not(.chat-collapsed)) :is(.player-card,.shortcuts,.shop-journal,.main-actions,.npc-anchor){visibility:hidden;pointer-events:none;}
 }
 
 @media(min-width:701px){
- .copilot-dock.chat-collapsed{top:auto;bottom:20px;height:auto;display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;padding:0;border:0;background:transparent;box-shadow:none;}
+ .copilot-dock.chat-collapsed{display:none;}
  .copilot-dock.chat-collapsed :is(.social-heading,.social-messages,.copilot-status,.copilot-compose-toolbar,.copilot-companion-tools,.chat-media-tools,.chat-image-previews){display:none;}
  .copilot-dock.chat-collapsed .copilot-compose{display:contents;}
  .copilot-dock.chat-collapsed #copilotHistory{display:block;width:44px;height:48px;}
 }
+
+/* 桌面伙伴常驻右侧，边缘把手切换居中阅读。 */
+@media(min-width:701px){
+ .copilot-dock{right:24px;top:auto;bottom:24px;width:clamp(340px,29vw,420px);height:clamp(380px,60svh,600px);max-height:calc(100svh - 270px);overflow:visible;}
+ .copilot-dock .social-heading{position:static;grid-template-columns:44px minmax(0,1fr);}
+ .copilot-dock .social-heading .social-close{display:none!important;}
+ .copilot-dock .social-heading .chat-expand{position:absolute;left:-25px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:24px;height:64px;min-width:24px;padding:0;border:1px solid #26334350;border-right:0;border-radius:7px 0 0 7px;background:#fff9e980;backdrop-filter:blur(6px);box-shadow:-2px 2px 0 #26334318;font-size:0;opacity:.65;z-index:3;transition:opacity .15s,background .15s;}
+ .copilot-dock .chat-expand:before{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translate(-25%,-50%) rotate(45deg);}
+ .copilot-dock .chat-expand:hover,.copilot-dock .chat-expand:focus-visible{opacity:1;background:#fff9e9dd;}
+ .copilot-dock.chat-expanded{left:50%;right:auto;top:104px;bottom:24px;transform:translateX(-50%);width:min(800px,calc(100vw - 96px));height:auto;max-height:none;z-index:16;}
+ .copilot-dock.chat-expanded .chat-expand:before{transform:translate(-75%,-50%) rotate(225deg);}
+}
+
+/* 桌面右栏对齐，场景在左右工具区之间取景。 */
+@media(min-width:701px){
+ .game-shell{--agent-width:clamp(340px,29vw,420px);}
+ .quest-peek{right:24px;top:132px;width:var(--agent-width);min-height:94px;padding:16px 18px;}
+ .copilot-dock:not(.chat-expanded){top:244px;bottom:auto;width:var(--agent-width);height:clamp(380px,60svh,600px);max-height:calc(100svh - 272px);padding:14px;}
+ .copilot-dock:not(.chat-expanded) .social-heading{padding-bottom:10px;}
+ .copilot-dock:not(.chat-expanded) .social-message .message-content{font-size:12px;line-height:1.8;padding:10px 12px;}
+ .copilot-dock:not(.chat-expanded) .social-messages{min-height:0;padding:10px 0;gap:12px;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose{gap:6px;padding-top:8px;}
+ .copilot-dock:not(.chat-expanded) .copilot-suggestions{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:3px;}
+ .copilot-dock:not(.chat-expanded) .copilot-suggestions>small{display:none;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose .copilot-suggestions button{flex-shrink:0;max-width:230px;white-space:nowrap;min-height:30px;padding:5px 9px;font-size:10px;}
+ .copilot-dock:not(.chat-expanded) .copilot-compose-toolbar{gap:8px;}
+ .scene-framing{left:calc((100vw - var(--agent-width) + 180px)/2);width:calc(100vw - var(--agent-width) - 280px);height:min(80svh,760px);top:45%;}
+ .scene-framing-content{inset:0;}
+ .player-card{top:132px;}
+ .save-footer{right:24px;bottom:5px;font-size:9px;}
+}
+@media(min-width:701px) and (max-width:1100px){
+ .scene-framing{left:calc((100vw - var(--agent-width) + 140px)/2);width:calc(100vw - var(--agent-width) - 240px);}
+ .quest-peek{top:125px;min-height:94px;}
+}
+
+@media(min-width:701px){.main-actions.mail-actions{left:calc((100vw - var(--agent-width) + 180px)/2);right:auto;transform:translateX(-50%);}}
+@media(min-width:701px) and (max-width:1100px){.main-actions.mail-actions{left:calc((100vw - var(--agent-width) + 140px)/2);}}
+
+/* 背包占用右侧工作区时，暂时隐藏任务卡和伙伴面板。 */
+body:has(.backpack:not([hidden])) :is(.quest-peek,.copilot-dock){visibility:hidden;pointer-events:none;}

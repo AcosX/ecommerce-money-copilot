@@ -125,8 +125,8 @@ async function identityGeometry(page) {
   assert.ok(name.width>=26&&name.height<=24,'Companion name stays on one line');
   assert.ok(name.x>=right(portrait)+4&&stats.x>=right(portrait)+4,'Identity stays beside portrait');
   assert.ok(stats.y>=bottom(name)-1,'Stats stay below name');
-  assert.ok(close.x>=right(stats)+4,'Close stays to the right of stats');
-  if(await page.locator('#expandCompanionChat').isVisible()){const expand=await page.locator('#expandCompanionChat').boundingBox();assert.ok(expand.x>=right(stats)+4&&close.x>=right(expand)+4,'Expand and close have separate columns');}
+  if(close)assert.ok(close.x>=right(stats)+4,'Close stays to the right of stats');
+  if(await page.locator('#expandCompanionChat').isVisible()){const expand=await page.locator('#expandCompanionChat').boundingBox(),dock=await page.locator('#companionChat').boundingBox();assert.ok(expand.x<dock.x,'Desktop reading handle stays at the panel edge');assert.equal(close,null,'Desktop chat remains docked without a close button');}
 }
 async function compactGeometry(page,width,height,{scroll=false}={}) {
   await identityGeometry(page);

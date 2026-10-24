@@ -14,14 +14,15 @@ const shots=process.env.EMC_SCREENSHOTS||'/tmp/emc-upgrade-shots';
    page.on('pageerror',e=>errors.push(e.message));
    const fixture=await prepare(page,{advanced:false,history:false,welcomeFlag:true,completed:level-1});
    await openChat(page,width);
-   await page.locator('#closeMobileChat').click();
+   if(width<=700)await page.locator('#closeMobileChat').click();
+   else if(await page.locator('#expandCompanionChat').getAttribute('aria-expanded')==='true')await page.locator('#expandCompanionChat').click();
    assert.equal(await page.locator('.copilot-dock').isVisible(),true);assert.equal(await page.locator('#copilotForm').isVisible(),true);
    assert.equal(await page.locator('#openCompanionChat').count(),0);
    if(width>700){
     const journal=page.locator('#shopJournal');
     if(await journal.isVisible())assert.ok(await journal.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+Math.min(20,r.height/2)));}),'underlying journal is reachable');
    }
-   await page.locator('#copilotHistory').click();
+   await openChat(page,width);
    assert.equal(await page.locator('.copilot-dock').isVisible(),true);
    assert.ok(await page.locator('#chatPickImage').evaluate(e=>e.scrollWidth<=e.clientWidth),'image label fits its button');
    const encoded=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=240;c.height=160;const x=c.getContext('2d');x.fillStyle='red';x.fillRect(0,0,240,160);return c.toDataURL('image/png').split(',')[1];});
@@ -43,7 +44,8 @@ const shots=process.env.EMC_SCREENSHOTS||'/tmp/emc-upgrade-shots';
    assert.equal(post.body.web_search,false);
    assert.equal(await page.locator('.chat-sent-image').count(),1);
    assert.equal(await page.locator('.chat-image-previews img').count(),0);
-   await page.locator('#closeMobileChat').click();
+   if(width<=700)await page.locator('#closeMobileChat').click();
+   else if(await page.locator('#expandCompanionChat').getAttribute('aria-expanded')==='true')await page.locator('#expandCompanionChat').click();
    await page.locator('#continueButton').click();
    await page.locator('[data-j-action="ask"]').waitFor({state:'visible'});
    const ask=page.locator('[data-j-action="ask"]'),deliver=page.locator('[data-j-action="deliver"]');

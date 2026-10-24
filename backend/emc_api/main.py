@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # 开发模式下允许提供的静态文件（显式白名单，绝不暴露 backend/、docs/、.git 等）。
 DEV_STATIC_FILES = ("index.html",)
 # 与 deploy/apache 的放行路径保持一致
-DEV_STATIC_DIRS = ("assets", "css", "js")
+DEV_STATIC_DIRS = ("assets", "css", "js", "tools")
 
 EVIDENCE_UPLOAD_PATH = "/api/evidence"
 # multipart 边界与表单字段的额外开销
