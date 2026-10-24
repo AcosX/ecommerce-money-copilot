@@ -1,4 +1,4 @@
-import {startShopUpgrade} from './emc-shop-upgrade.js?v=upgrade2';
+import {startShopUpgrade} from './emc-shop-upgrade.js?v=upgrade3';
 import {bindBuildingParts,syncBuildingParts,createBuildingEnvironment} from './emc-building-parts.js?v=buildings4';
 import * as THREE from 'three';
 import './emc-render-quality.js';
@@ -6,7 +6,7 @@ import {acceleratePicking} from './emc-model-performance.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {IslandGuide} from './emc-island-guide.js?v=gait2-20261022-character12';
 import {createDecoration} from './emc-decorations.js?v=20261022-perf1';
-import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-upgrade5';
+import {loadSceneManifest,loadTexturedModel} from './emc-model-loader.js?v=20261022-terrain10';
 // 浮岛模型、配色、背包装饰与向导共用一个场景和画布。
 export class ShopScene{
   constructor(container,options){
@@ -41,7 +41,7 @@ export class ShopScene{
     try{
       this.options.onLoadProgress?.({phase:'manifest'});
       const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.buildings?.[String(this.options.modelLevel??[0,2,3,4,5][stage-1])]||manifest.shops?.[String(stage)];if(this.disposed)return;if(!entry?.model_url||!manifest.island?.model_url)throw new Error('当前等级的模型清单不完整');
-      const assets=await Promise.allSettled([loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(this.quality.lite&&manifest.island.lite?.model_url||manifest.island.model_url,{signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
+      const assets=await Promise.allSettled([loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{revision:entry.revision,signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'shop',...p})}),loadTexturedModel(this.quality.lite&&manifest.island.lite?.model_url||manifest.island.model_url,{revision:manifest.island.revision,signal:this.loadController.signal,onProgress:p=>this.options.onLoadProgress?.({phase:'island',...p})})]);
       const failed=assets.find(result=>result.status==='rejected');
       if(this.disposed||failed){assets.forEach(result=>{if(result.status==='fulfilled')disposeAsset(result.value.scene);});if(failed)throw failed.reason;return;}
       const model=pendingShop=assets[0].value,island=pendingIsland=assets[1].value;this.buildingEntry=entry;this.modelLevel=entry.level;if(entry.modular){this.buildingParts=bindBuildingParts(model.scene);this.environmentTarget=createBuildingEnvironment(this.renderer);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.7;}
@@ -64,7 +64,7 @@ export class ShopScene{
     if(level<=this.modelLevel||this.disposed)return false;
     const run=async()=>{
       const manifest=await loadSceneManifest(this.loadController.signal),entry=manifest.buildings?.[String(level)];if(!entry)throw new Error('升级模型尚未准备好');
-      const asset=await loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{signal:this.loadController.signal});if(this.disposed){disposeAsset(asset.scene);return false;}
+      const asset=await loadTexturedModel(this.quality.lite&&entry.lite?.model_url||entry.model_url,{revision:entry.revision,signal:this.loadController.signal});if(this.disposed){disposeAsset(asset.scene);return false;}
       const box=new THREE.Box3().setFromObject(asset.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),scale=4.4/Math.max(size.x,size.z),group=new THREE.Group();asset.scene.position.set(-center.x,-box.min.y,-center.z);group.add(asset.scene);group.scale.setScalar(scale);group.rotation.y=entry.rotation_y||0;
       const parts=entry.modular?bindBuildingParts(asset.scene):null;asset.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});acceleratePicking(asset.scene);
       if(entry.modular&&!this.environmentTarget){this.environmentTarget=createBuildingEnvironment(this.renderer);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.7;}
@@ -96,11 +96,23 @@ export class ShopScene{
     probe.set(anchor.axis==='x'?new THREE.Vector3(10,y,anchor.z||0):new THREE.Vector3(anchor.x||0,y,10),anchor.axis==='x'?new THREE.Vector3(-1,0,0):new THREE.Vector3(0,0,-1));
     const hit=probe.intersectObject(shop,true)[0];if(!hit)return;
     const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
-    if(anchor.board)normal.set(anchor.axis==='x'?1:0,0,anchor.axis==='x'?0:1);else if(normal.z<0)normal.negate();
+    if(anchor.board||anchor.conform)normal.set(anchor.axis==='x'?1:0,0,anchor.axis==='x'?0:1);else if(normal.z<0)normal.negate();
     this.signCanvas=document.createElement('canvas');this.signCanvas.width=2048;this.signCanvas.height=Math.round(2048*anchor.height/anchor.width);
     this.signTexture=new THREE.CanvasTexture(this.signCanvas);this.signTexture.colorSpace=THREE.SRGBColorSpace;this.signTexture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
     const material=new THREE.MeshBasicMaterial({map:this.signTexture,transparent:true,alphaTest:.02,depthWrite:false,toneMapped:false});this.materials.push(material);
-    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.board){const board=this.signBoard=new THREE.Group();board.position.copy(hit.point).addScaledVector(normal,.025);board.quaternion.copy(this.shopSign.quaternion);this.root.add(board);const backing=this.box(board,[anchor.width+.10,anchor.height+.10,.06],[0,0,0],'#765238'),face=this.box(board,[anchor.width,anchor.height,.025],[0,0,.043],'#35564b');backing.userData.paintPart='sign';face.userData.paintPart='sign';this.signBoardWood=[{material:backing.material,base:'#765238',shade:.7},{material:face.material,base:'#35564b',shade:1}];this.shopSign.position.copy(board.position).addScaledVector(normal,.065);this.shopSign.userData.paintPart='sign';}if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:anchor.width*.49,this.signBoard?0:anchor.height*1.16);this.drawShopName();
+    this.shopSign=new THREE.Mesh(new THREE.PlaneGeometry(anchor.width,anchor.height,anchor.conform?32:1,anchor.conform?6:1),material);this.shopSign.position.copy(hit.point).addScaledVector(normal,anchor.depth_offset??.018);this.shopSign.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);this.root.add(this.shopSign);if(anchor.board){const board=this.signBoard=new THREE.Group();board.position.copy(hit.point).addScaledVector(normal,.025);board.quaternion.copy(this.shopSign.quaternion);this.root.add(board);const backing=this.box(board,[anchor.width+.10,anchor.height+.10,.06],[0,0,0],'#765238'),face=this.box(board,[anchor.width,anchor.height,.025],[0,0,.043],'#35564b');backing.userData.paintPart='sign';face.userData.paintPart='sign';this.signBoardWood=[{material:backing.material,base:'#765238',shade:.7},{material:face.material,base:'#35564b',shade:1}];this.shopSign.position.copy(board.position).addScaledVector(normal,.065);this.shopSign.userData.paintPart='sign';}if(anchor.rebuild)this.rebuildSign(anchor.rebuild,anchor.x||0,y);this.shopSign.updateMatrixWorld(true);
+    if(anchor.conform){
+      // Project transparent lettering onto the authored wooden sign, preserving its original frame.
+      const vertices=this.shopSign.geometry.attributes.position,point=new THREE.Vector3();
+      for(let i=0;i<vertices.count;i++){
+        point.fromBufferAttribute(vertices,i).applyMatrix4(this.shopSign.matrixWorld);
+        probe.set(anchor.axis==='x'?new THREE.Vector3(10,point.y,point.z):new THREE.Vector3(point.x,point.y,10),anchor.axis==='x'?new THREE.Vector3(-1,0,0):new THREE.Vector3(0,0,-1));
+        const surface=probe.intersectObject(shop,true)[0];if(!surface)continue;
+        point.copy(surface.point).addScaledVector(normal,anchor.depth_offset??.008);this.shopSign.worldToLocal(point);vertices.setXYZ(i,point.x,point.y,point.z);
+      }
+      vertices.needsUpdate=true;this.shopSign.geometry.computeVertexNormals();
+    }
+    this.paintUniforms.signMatrix.value.copy(this.shopSign.matrixWorld).invert();this.paintUniforms.signBack.value=anchor.paint_back_depth??-.06;this.paintUniforms.signSize.value.set(this.signBoard?0:(anchor.paint_width?anchor.paint_width*.5:anchor.width*.49),this.signBoard?0:(anchor.paint_height?anchor.paint_height*.5:anchor.height*1.16));this.drawShopName();
   }
   rebuildSign(spec,x,y){
     // 第四级生成牌面有歪斜，用独立的水平木牌覆盖；边框与店名共用一个基准。
@@ -218,15 +230,19 @@ export class ShopScene{
     if(!this.presentable||!this.shopModel||this.modelLevel===0)return null;
     this.rayAt(e);const hit=this.ray.intersectObjects([this.shopModel,...(this.signBoard?[this.signBoard]:[])],true)[0];if(!hit)return null;if(hit.object.userData.paintPart)return hit.object.userData.paintPart;
     const mat=Array.isArray(hit.object.material)?hit.object.material[hit.face.materialIndex]:hit.object.material;if(this.buildingEntry?.modular)return mat.userData.paintPart||null;const map=mat.map;if(!map||!hit.uv)return null;
-    this.texturePixels??=new Map();let pixels=this.texturePixels.get(map);
-    if(!pixels){const canvas=document.createElement('canvas');canvas.width=map.image.width;canvas.height=map.image.height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(map.image,0,0);pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width,height:canvas.height};this.texturePixels.set(map,pixels);}
-    const uv=map.transformUv(hit.uv.clone()),i=(Math.min(pixels.height-1,Math.max(0,Math.floor(uv.y*pixels.height)))*pixels.width+Math.min(pixels.width-1,Math.max(0,Math.floor(uv.x*pixels.width))))*4;
-    const r=pixels.data[i]/255,g=pixels.data[i+1]/255,b=pixels.data[i+2]/255,hi=Math.max(r,g,b),lo=Math.min(r,g,b),local=hit.point.clone().applyMatrix4(this.paintUniforms.signMatrix.value),size=this.paintUniforms.signSize.value;
-    // 整块牌面与边框共用紧贴正面的空间范围，避开后方屋檐。
-    if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
-    if(hit.point.y>this.paintUniforms.roofY.value&&r>Math.max(g,b)*1.35)return 'roof';
+    const [r,g,b]=this.texturePixel(map,hit.uv),hi=Math.max(r,g,b),lo=Math.min(r,g,b),local=hit.point.clone().applyMatrix4(this.paintUniforms.signMatrix.value),size=this.paintUniforms.signSize.value;
+    // 精品店使用与着色器相同的 UV 区域，含边框；旧模型保留空间判定。
+    if(mat.userData.emcSignMask&&mat.aoMap){if(this.texturePixel(mat.aoMap,hit.uv)[1]>.5)return 'sign';}
+    else if(Math.abs(local.x)<size.x&&Math.abs(local.y)<size.y&&local.z>this.paintUniforms.signBack.value&&local.z<.16&&r>g*1.15&&g>b*1.3)return 'sign';
+    if(mat.userData.emcRoofMask&&mat.aoMap){if(this.texturePixel(mat.aoMap,hit.uv)[0]>.5)return 'roof';}else if(hit.point.y>this.paintUniforms.roofY.value&&r>Math.max(g,b)*1.35)return 'roof';
     if((hi-lo)/Math.max(hi,.001)<.58&&hi>.25&&r>=b*.85)return 'wall';
     return null;
+  }
+  texturePixel(map,hitUv){
+    this.texturePixels??=new Map();let pixels=this.texturePixels.get(map);
+    if(!pixels){const canvas=document.createElement('canvas');canvas.width=map.image.width;canvas.height=map.image.height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(map.image,0,0);pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width,height:canvas.height};this.texturePixels.set(map,pixels);}
+    const uv=map.transformUv(hitUv.clone()),i=(Math.min(pixels.height-1,Math.max(0,Math.floor(uv.y*pixels.height)))*pixels.width+Math.min(pixels.width-1,Math.max(0,Math.floor(uv.x*pixels.width))))*4;
+    return [pixels.data[i]/255,pixels.data[i+1]/255,pixels.data[i+2]/255];
   }
   paintTargets(){
     if(!this.shopModel)return [];
@@ -322,20 +338,20 @@ export class ShopScene{
 function disposeGeometry(obj){obj.traverse(child=>child.geometry?.dispose());}
 function disposeMaterial(material){Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose();});material.dispose();}
 function disposeAsset(obj){obj.traverse(child=>{child.geometry?.dispose();if(child.material)(Array.isArray(child.material)?child.material:[child.material]).forEach(disposeMaterial);});}
-// 单张生成贴图按原始色相和空间边界着色，保留纹理；预览只覆盖对应部位。
+// 优先使用资产内的部位遮罩；旧模型回退色相/空间判定，保留木纹与明暗。
 function installPartTint(material,u){
   material.onBeforeCompile=shader=>{
-    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY});
+    Object.assign(shader.uniforms,{emcWall:u.wall,emcSign:u.sign,emcRoof:u.roof,emcPreview:u.preview,emcSignStrength:u.signStrength,emcRoofStrength:u.roofStrength,emcSignMatrix:u.signMatrix,emcSignSize:u.signSize,emcSignBack:u.signBack,emcRoofY:u.roofY,emcRoofMask:{value:material.aoMap||material.map},emcUseSignMask:{value:material.userData.emcSignMask?1:0},emcUseRoofMask:{value:material.userData.emcRoofMask?1:0}});
     shader.vertexShader='varying vec3 emcWorld;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nemcWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
-    shader.fragmentShader='varying vec3 emcWorld; uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    shader.fragmentShader='varying vec3 emcWorld; uniform sampler2D emcRoofMask;uniform float emcUseRoofMask,emcUseSignMask;uniform vec3 emcWall,emcSign,emcRoof; uniform float emcPreview,emcRoofY,emcSignStrength,emcRoofStrength,emcSignBack; uniform mat4 emcSignMatrix; uniform vec2 emcSignSize;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
       vec3 original=diffuseColor.rgb;
       // 判定使用 sRGB，和射线取样一致；颜色计算保留在线性空间。
       vec3 sampleColor=sRGBTransferOETF(vec4(original,1.0)).rgb;
       float hi=max(sampleColor.r,max(sampleColor.g,sampleColor.b));
       float lo=min(sampleColor.r,min(sampleColor.g,sampleColor.b));
       vec3 signPos=(emcSignMatrix*vec4(emcWorld,1.0)).xyz;
-      float signMask=step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
-      float roofMask=step(emcRoofY,emcWorld.y)*step(max(sampleColor.g,sampleColor.b)*1.35,sampleColor.r)*(1.0-signMask);
+      float signMask=emcUseSignMask>0.5?texture2D(emcRoofMask,vMapUv).g:step(abs(signPos.x),emcSignSize.x)*step(abs(signPos.y),emcSignSize.y)*step(emcSignBack,signPos.z)*step(signPos.z,0.16)*step(sampleColor.g*1.15,sampleColor.r)*step(sampleColor.b*1.3,sampleColor.g);
+      float roofMask=(emcUseRoofMask>0.5?texture2D(emcRoofMask,vMapUv).r:step(emcRoofY,emcWorld.y)*step(max(sampleColor.g,sampleColor.b)*1.35,sampleColor.r))*(1.0-signMask);
       float wallMask=(1.0-smoothstep(0.42,0.60,(hi-lo)/max(hi,0.001)))*smoothstep(0.20,0.25,hi)*step(sampleColor.b*0.85,sampleColor.r)*(1.0-signMask)*(1.0-roofMask);
       diffuseColor.rgb=mix(original,original*emcWall,wallMask);
       diffuseColor.rgb=mix(diffuseColor.rgb,emcSign*dot(original,vec3(0.2126,0.7152,0.0722))/0.13,signMask*emcSignStrength);
@@ -344,7 +360,7 @@ function installPartTint(material,u){
       if(emcPreview>0.5)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.08,0.85,0.28),previewMask*0.55);
     `);
   };
-  material.customProgramCacheKey=()=> 'emc-part-tint-v4';
+  material.customProgramCacheKey=()=> 'emc-part-tint-v6';material.needsUpdate=true;
 }
 
 function countTexturedMeshes(root){let count=0;root.traverse(obj=>{if(obj.isMesh&&(Array.isArray(obj.material)?obj.material:[obj.material]).some(mat=>mat?.map?.image))count++;});return count;}
