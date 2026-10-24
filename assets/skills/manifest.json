@@ -1,18 +1,18 @@
 {
   "category-business-advisor": {
     "url": "assets/skills/category-business-advisor.zip",
-    "bytes": 7413,
-    "sha256": "fb81e08ca8314cb5e7b8701f0fc44cd52a1c33cf97b4ad7cb4891ecd70434b8c"
+    "bytes": 21348,
+    "sha256": "a675e7e4b3ec979ef29d05630bd71573e5e88bde6041e6285b629f25c0ef4e22"
   },
   "pdd-product-scout": {
     "url": "assets/skills/pdd-product-scout.zip",
-    "bytes": 3818,
-    "sha256": "9aa59068f275a7bd1a3bc98588848b7fd5146226c64282a236e9fd693788b685"
+    "bytes": 4889,
+    "sha256": "e7bc0782a5243312eb6307d7df55de2543510e3b2f3fba98dfb3e11b203f3084"
   },
   "xhs-product-scout": {
     "url": "assets/skills/xhs-product-scout.zip",
-    "bytes": 4474,
-    "sha256": "2753bbab53acbf55c3079786796d6e4440e18cc87034f6db1db6c0f1beae7c9a"
+    "bytes": 5551,
+    "sha256": "8e838851b940b1c1881dffae38c6b2e074f15973611156a2a4a1afbcc77ee809"
   },
   "xhs-competitor-analyzer": {
     "url": "assets/skills/xhs-competitor-analyzer.zip",
