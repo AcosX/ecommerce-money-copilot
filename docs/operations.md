@@ -200,3 +200,7 @@ worker 使用现有 app.env/db.env 中的运行期 DML 账号和私有上传目�
 页面、CSS/JS、模型清单和 web/lite GLB 需随完整 tag 一起发布。展示页面和脚本使用 `no-cache`，模型依靠版本化 URL 缓存。无需新增 API、账户或数据库迁移；录制输出不随站点部署。
 
 发布后从 `/tools/models.html?level=3&quality=smooth` 逐步核对单体、浮岛、完整演示、返回单体及复制链接，并检查真实返回为 HTML、WebP、GLB 而不是 403/404 或站点首页。详细链路和本地命令见 [模型展示系统](model-showcase.md)。
+
+## ESA 缓存规则
+
+前端目录拆分、线上响应与最少规则方案见 [static-cache.md](static-cache.md)。当前建议保留一条 `/assets/` 前缀规则并遵循源站 TTL，无需新增强制缓存 JS/CSS 的条目。

@@ -49,6 +49,7 @@ jobs:
           export EMC_CHROMIUM="$(node -e 'process.stdout.write(require(process.env.EMC_PLAYWRIGHT_MODULE).chromium.executablePath())')"
           case "$EMC_UI_SUITE" in
             journey)
+              node js/tests/emc-report-examples-browser.cjs
               node js/tests/emc-journal-prompts-browser.cjs
               node js/tests/emc-centered-panels-browser.cjs
               node js/tests/emc-chat-composer-browser.cjs
