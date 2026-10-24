@@ -2,17 +2,17 @@ const assert=require('node:assert/strict'),path=require('node:path'),os=require(
 const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
 const shots=process.env.EMC_SCREENSHOTS||os.tmpdir();require('node:fs').mkdirSync(shots,{recursive:true});
 const base=process.env.EMC_TEST_URL||'http://127.0.0.1:5173';
-const read=page=>page.evaluate(()=>JSON.parse(render_game_to_text()));
+const read=page=>page.evaluate(()=>window.render_game_to_text?JSON.parse(render_game_to_text()):{phase:'loading'});
 // Advance sparse browser frames while real fetch/decode/GPU preparation still completes.
-// Sparse 1000ms jumps expose discarded frame time. Flush the next rendering frames
-// too: Playwright 1.56 fires the first due RAF at its old timestamp during fastForward.
+// Sparse 1000ms jumps expose discarded frame time. Real loading/compilation
+// still runs, with small clock steps to service its timer and frame callbacks.
 async function advanceFrames(page,milliseconds){await page.clock.fastForward(milliseconds);await page.clock.runFor(32);}
 async function advanceUntil(page,accept,label){
  const deadline=Date.now()+60000;let state;
  while(Date.now()<deadline){
   state=await read(page);if(accept(state))return state;
   if(state.phase==='error')throw Error(label+': '+JSON.stringify(state));
-  if(state.phase==='playing'&&state.target>state.level&&!state.upgrade){await page.clock.fastForward(16);await new Promise(resolve=>setTimeout(resolve,25));}
+  if(state.phase==='loading'||state.phase==='playing'&&state.target>state.level&&!state.upgrade){await page.clock.fastForward(16);await new Promise(resolve=>setTimeout(resolve,25));}
   else await advanceFrames(page,1000);
  }
  throw Error(label+' timed out: '+JSON.stringify(state));
@@ -23,11 +23,13 @@ async function advanceUntil(page,accept,label){
   for(const width of [1440,390]){
    const page=await browser.newPage({viewport:{width,height:width===1440?900:844},deviceScaleFactor:.5}),errors=[];
    page.on('pageerror',e=>errors.push(e.message));
-   await page.clock.install();
+   // Freeze before navigation: pausing a loaded 3D page can move performance.now
+   // backwards on Playwright 1.56 and strand the scene's previous frame timestamp.
+   await page.clock.install({time:new Date('2026-01-01T00:00:00Z')});
+   await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
    await page.addInitScript(()=>localStorage.setItem('emc-island-audio-v1',JSON.stringify({music:false,sfx:true,musicVolume:.1,sfxVolume:.2})));
    await page.goto(base+'/tools/building-evolution.html');
-   await page.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).phase==='ready');
-   await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));
+   await advanceUntil(page,s=>s.phase==='ready','initial scene preparation');
    assert.equal((await read(page)).audio.context,'locked');
    assert.equal((await read(page)).prepared,5);
    if(width===1440){
