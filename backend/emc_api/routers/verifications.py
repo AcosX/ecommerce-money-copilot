@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
@@ -24,6 +25,7 @@ from ..models import (
     ArtifactRevision,
     EvidenceFile,
     Player,
+    ReviewJob,
     VerificationReview,
     VerificationSubmission,
 )
@@ -31,6 +33,7 @@ from ..pagination import PageParams, page_params, paginate
 from ..security import CurrentPlayer, get_app_settings, require_player
 from ..services.audit import record_audit
 from ..services.idempotency import endpoint_id, idempotency_key, run_idempotent
+from ..services.review_queue import enqueue
 from ..timeutil import isoformat_utc, utcnow
 from .evidence import evidence_to_json
 
@@ -42,7 +45,7 @@ class VerificationSubmitIn(BaseModel):
 
     artifact_id: str = Field(min_length=1, max_length=64)
     artifact_version: int = Field(ge=1)
-    evidence_ids: list[str] = Field(min_length=1)
+    evidence_ids: list[str] = Field(default_factory=list)
     note: str | None = Field(default=None, max_length=2000)
 
 
@@ -51,6 +54,8 @@ def review_to_json(rev: VerificationReview) -> dict[str, Any]:
         "id": rev.id,
         "submission_id": rev.submission_id,
         "reviewer_id": rev.reviewer_id,
+        "source": rev.source,
+        "report": rev.report,
         "decision": rev.decision,
         "reason": rev.reason,
         "created_at": isoformat_utc(rev.created_at),
@@ -135,15 +140,31 @@ def serialize_submissions(
         for p in db.scalars(select(Player).where(Player.id.in_(owner_ids))).all():
             owners_by_id[p.id] = p
 
-    return [
-        submission_to_json(
+    jobs = {
+        j.submission_id: j
+        for j in db.scalars(select(ReviewJob).where(ReviewJob.submission_id.in_(sub_ids))).all()
+    }
+    result = []
+    for sub in submissions:
+        item = submission_to_json(
             sub,
             evidence=ev_by_sub.get(sub.id, ()),
             reviews=rev_by_sub.get(sub.id, ()),
             owner=owners_by_id.get(sub.owner_id),
         )
-        for sub in submissions
-    ]
+        job = jobs.get(sub.id)
+        item["agent_review"] = (
+            {
+                "state": job.status,
+                "attempts": job.attempts,
+                "rubric_version": job.rubric_version,
+                "report": job.report,
+            }
+            if job
+            else None
+        )
+        result.append(item)
+    return result
 
 
 def serialize_submission(
@@ -205,6 +226,39 @@ def submit_verification(
         if current_rev is None:
             raise InvalidState("成果当前版本内容不存在")
 
+        if not body.evidence_ids:
+            content = current_rev.content or {}
+            report = (
+                content.get("report_text")
+                or content.get("planning_report")
+                or content.get("summary")
+                or ""
+            )
+            text_allowed = (
+                artifact.artifact_type in {"business_plan", "product_selection", "data_review"}
+                and isinstance(report, str)
+                and len(report.strip()) >= 40
+            )
+            listing_url = content.get("listing_url")
+            link_allowed = False
+            if artifact.artifact_type == "listing_record" and isinstance(listing_url, str):
+                try:
+                    url = urlsplit(listing_url)
+                    link_allowed = (
+                        url.scheme in {"http", "https"}
+                        and bool(url.hostname)
+                        and not url.username
+                        and not url.password
+                    )
+                except ValueError:
+                    pass
+            if not (text_allowed or link_allowed):
+                raise ValidationFailed.field(
+                    ["body", "evidence_ids"],
+                    "规划、选品与复盘可直接提交至少 40 字的成果；"
+                    "上架请提供在售截图或商品链接，素材与内容发布需要对应图片",
+                )
+
         ev_rows = (
             s.execute(
                 select(EvidenceFile)
@@ -249,7 +303,7 @@ def submit_verification(
             snapshot=snapshot,
             snapshot_sha256=snapshot_sha256,
             note=clean_note,
-            method="manual_review",
+            method="agent_review",
             status="pending",
             created_at=now,
             decided_at=None,
@@ -261,6 +315,8 @@ def submit_verification(
             if is_duplicate_key_error(exc):
                 raise InvalidState("该成果已有待审核的认证申请") from exc
             raise
+
+        enqueue(s, settings, submission)
 
         for ev in ordered_evidence:
             ev.submission_id = submission.id

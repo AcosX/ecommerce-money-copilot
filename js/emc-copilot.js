@@ -9,7 +9,7 @@
     if(typeof context.skill_instructions==='string')prompt+='\n本轮参考的类目生意分析方法（仅用于产出报告，不代表系统核验结论）：\n'+context.skill_instructions.slice(0,16000);
     return prompt;
   }
-  function history(value,maxText=400){return Array.isArray(value)?value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.text==='string'&&m.text.trim()).slice(-40).map(m=>({role:m.role,text:m.text.trim().slice(0,Math.min(8000,Math.max(1,Number(maxText)||400))),source:m.source==='ai'?'ai':'local-guide',time:Number.isFinite(m.time)&&m.time>0&&m.time<=8640000000000000?m.time:0})):[];}
+  function history(value,maxText=8000){return Array.isArray(value)?value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.text==='string'&&m.text.trim()).slice(-40).map(m=>({role:m.role,text:m.text.trim().slice(0,Math.min(8000,Math.max(1,Number(maxText)||400))),source:['ai','history','calculation'].includes(m.source)?m.source:'local-guide',time:Number.isFinite(m.time)&&m.time>0&&m.time<=8640000000000000?m.time:0})):[];}
   function localReply(message,context){
     const task=context.task;
     if(/你是谁|你叫什么|你的名字|你叫啥/.test(message))return '我是'+companionName(context.companion_name)+'，陪你从一间小店开始学电商。想先看看下一步任务，还是聊聊装修？';
@@ -36,7 +36,8 @@
     if(typeof transport!=='function')return {text:localReply(message,context),source:'local-guide'};
     const result=await transport({message,context,system_prompt:systemPrompt(context)},{signal});if(signal?.aborted)throw new Error('对话已取消');
     if(!result||typeof result.text!=='string'||!result.text.trim())throw new Error('AI 没有返回可显示的内容');
-    return {...result,text:result.text.trim().slice(0,8000),source:result.source==='local-guide'?'local-guide':'ai'};
+    return {...result,text:result.text.trim().slice(0,8000),source:['local-guide','calculation','history'].includes(result.source)?result.source:'ai'};
   }
-  return {history,localReply,reply,validName,companionName,systemPrompt};
+  function sourceLabel(source){return source==='ai'?'AI 副驾':source==='calculation'?'工具验算':source==='history'?'历史回复 · 来源未记录':'本地规则引导';}
+  return {history,sourceLabel,localReply,reply,validName,companionName,systemPrompt};
 });

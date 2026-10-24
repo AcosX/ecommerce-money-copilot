@@ -51,7 +51,7 @@ PROJECT_STATUSES = ("active", "archived")
 ARTIFACT_STATUSES = ("draft", "submitted", "approved", "rejected")
 ARTIFACT_ORIGINS = ("formal", "tutorial_copy")
 SUBMISSION_STATUSES = ("pending", "approved", "rejected")
-SUBMISSION_METHODS = ("manual_review",)
+SUBMISSION_METHODS = ("manual_review", "agent_review")
 REVIEW_DECISIONS = ("approved", "rejected")
 
 
@@ -227,10 +227,42 @@ class VerificationReview(Base):
     submission_id: Mapped[str] = mapped_column(
         ID, ForeignKey("verification_submissions.id"), index=True
     )
-    reviewer_id: Mapped[str] = mapped_column(ID, ForeignKey("players.id"), index=True)
+    reviewer_id: Mapped[str | None] = mapped_column(ID, ForeignKey("players.id"), index=True)
+    source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")
+    report: Mapped[Any | None] = mapped_column(JSONText())
     decision: Mapped[str] = mapped_column(String(16))
     reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class ReviewJob(Base):
+    """Persistent, leased review queue. Its key makes submission retries idempotent."""
+
+    __tablename__ = "review_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued','leased','retry','waiting_manual','completed')", name="status"
+        ),
+        CheckConstraint("report IS NULL OR json_valid(report)", name="report_json"),
+        Index(None, "status", "next_attempt_at"),
+        TABLE_OPTIONS,
+    )
+
+    submission_id: Mapped[str] = mapped_column(
+        ID, ForeignKey("verification_submissions.id"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="queued", server_default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_attempt_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    lease_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    lease_token: Mapped[str | None] = mapped_column(String(64))
+    snapshot_sha256: Mapped[str] = mapped_column(SHA256)
+    rubric_version: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str] = mapped_column(String(128))
+    last_error: Mapped[str | None] = mapped_column(String(128))
+    report: Mapped[Any | None] = mapped_column(JSONText())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class AuditEvent(Base):
@@ -271,6 +303,22 @@ class IdempotencyRecord(Base):
     response_body: Mapped[Any | None] = mapped_column(JSONText())
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
+class XingyunWebSession(Base):
+    """Short-lived native Web transport; the upstream never receives a login cookie."""
+
+    __tablename__ = "xingyun_web_sessions"
+    __table_args__ = (
+        CheckConstraint("turn IS NULL OR json_valid(turn)", name="turn_json"),
+        TABLE_OPTIONS,
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_id: Mapped[str | None] = mapped_column(ID, ForeignKey("players.id", ondelete="CASCADE"))
+    session_id_hash: Mapped[str | None] = mapped_column(SHA256)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    turn: Mapped[Any | None] = mapped_column(JSONText())
 
 
 APPEND_ONLY_MODELS: tuple[type[Base], ...] = (AuditEvent, VerificationReview, ArtifactRevision)

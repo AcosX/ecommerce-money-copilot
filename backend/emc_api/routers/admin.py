@@ -17,6 +17,7 @@ from ..ids import REVIEW, VERIFICATION, has_prefix, new_id
 from ..models import (
     SUBMISSION_STATUSES,
     Artifact,
+    ReviewJob,
     VerificationReview,
     VerificationSubmission,
 )
@@ -141,6 +142,13 @@ def admin_review_verification(
         artifact.status = body.decision
         artifact.version += 1
         artifact.updated_at = now
+        job = s.scalar(select(ReviewJob).where(ReviewJob.submission_id == sub.id).with_for_update())
+        if job:
+            job.status = "completed"
+            job.last_error = "manual_decision"
+            job.lease_token = None
+            job.lease_until = None
+            job.updated_at = now
 
         record_audit(
             s,

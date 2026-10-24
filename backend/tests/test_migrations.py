@@ -27,6 +27,8 @@ from emc_api.timeutil import utcnow
 from .conftest import alembic_config, create_test_database, drop_test_database, url_string
 
 EXPECTED_TABLES = {
+    "xingyun_web_sessions",
+    "review_jobs",
     "players",
     "sessions",
     "business_projects",
@@ -140,7 +142,7 @@ def make_artifact(db: Session) -> tuple[Player, Artifact]:
         created_at=now,
         updated_at=now,
     )
-    content = {"goal": "第一单"}
+    content = {"goal": "首单"}
     revision = ArtifactRevision(
         artifact_id=artifact.id,
         revision=1,
@@ -163,7 +165,7 @@ def make_artifact(db: Session) -> tuple[Player, Artifact]:
 def make_submission(
     db: Session, player: Player, artifact: Artifact, status: str = "pending"
 ) -> VerificationSubmission:
-    snapshot = {"content": {"goal": "第一单"}}
+    snapshot = {"content": {"goal": "首单"}}
     submission = VerificationSubmission(
         id=ids.new_id(ids.VERIFICATION),
         artifact_id=artifact.id,

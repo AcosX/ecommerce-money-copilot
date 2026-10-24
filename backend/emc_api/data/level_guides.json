@@ -1,0 +1,176 @@
+{
+  "L1": {
+    "level_id": "L1",
+    "name": "给小生意定个方向",
+    "artifact_type": "business_plan",
+    "goal": "和小商聊清方向，整理成《生意规划报告》后提交确认；附件选填。",
+    "deliverable_title": "生意规划报告",
+    "required_fields": [],
+    "checklist": [
+      "赛道空间与增长线索",
+      "竞争情况与切入机会",
+      "你的资源、优势与下一步"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "report",
+        "label": "生意规划报告",
+        "hint": "可选：补充 PDF 或清晰截图；也可直接提交和小商聊出的规划",
+        "required": false
+      }
+    ]
+  },
+  "L2": {
+    "level_id": "L2",
+    "name": "选出能卖得动的商品",
+    "artifact_type": "product_selection",
+    "goal": "提交选品单或选品报告，附上你的选择理由。",
+    "deliverable_title": "选品单 / 选品报告",
+    "required_fields": [],
+    "checklist": [
+      "候选商品与参考来源",
+      "热度、竞争、利润的比较",
+      "你确认的商品与理由"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "selection",
+        "label": "选品单或报告",
+        "hint": "选填：补充来源截图或选品表 PDF；报告可直接写在成果内容中",
+        "required": false
+      }
+    ]
+  },
+  "L3": {
+    "level_id": "L3",
+    "name": "让商品图替你说话",
+    "artifact_type": "asset_pack",
+    "goal": "分别提交优化前与优化后的素材，说明你改了什么。",
+    "deliverable_title": "Before / After 对比图",
+    "required_fields": [],
+    "checklist": [
+      "商品外观、规格与实物一致",
+      "主体清晰，信息容易看懂",
+      "改动说明与前后对比对应"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "before",
+        "label": "优化前",
+        "hint": "原商品主图或详情截图",
+        "required": true,
+        "images": true
+      },
+      {
+        "id": "after",
+        "label": "优化后",
+        "hint": "优化后的对应图片",
+        "required": true,
+        "images": true
+      }
+    ]
+  },
+  "L4": {
+    "level_id": "L4",
+    "name": "把商品摆上货架",
+    "artifact_type": "listing_record",
+    "goal": "提交上架成功截图或商品链接；手工上架也可以。",
+    "deliverable_title": "上架记录 / 商品链接",
+    "required_fields": [],
+    "checklist": [
+      "价格、库存与类目已核对",
+      "手工或工具上架均可，说明操作方式",
+      "商家后台显示商品已在售"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "tool",
+        "label": "工具使用记录",
+        "hint": "选填：手工上架无需提供工具记录",
+        "required": false,
+        "images": true
+      },
+      {
+        "id": "listing",
+        "label": "上架成功",
+        "hint": "上传在售截图，或在下方填写商品链接",
+        "required": false,
+        "images": true
+      }
+    ]
+  },
+  "L5": {
+    "level_id": "L5",
+    "name": "让商品被看见",
+    "artifact_type": "content_post",
+    "goal": "提交内容发布成功截图，可补充工具使用过程。",
+    "deliverable_title": "发布成功截图",
+    "required_fields": [],
+    "checklist": [
+      "卖点清楚，有真实素材支撑",
+      "发布前已人工检查",
+      "平台显示内容发布成功"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "published",
+        "label": "发布成功",
+        "hint": "包含内容与发布状态的截图",
+        "required": true,
+        "images": true
+      },
+      {
+        "id": "tool",
+        "label": "工具使用过程",
+        "hint": "可选，附上生成过程的截图",
+        "required": false,
+        "images": true
+      }
+    ]
+  },
+  "L6": {
+    "level_id": "L6",
+    "name": "回看经营，安排下一次尝试",
+    "artifact_type": "data_review",
+    "goal": "提交复盘报告：事实、原因假设和下一步；无成交或数据少也可以。",
+    "deliverable_title": "归因与调优策略报告",
+    "required_fields": [],
+    "checklist": [
+      "数据来源、时间范围与口径明确",
+      "区分事实、假设与待验证的问题",
+      "优化动作有优先级与验证办法"
+    ],
+    "pitfalls": [
+      "不要编造数据或已完成的操作；未知信息明确标注待验证。"
+    ],
+    "evidence_slots": [
+      {
+        "id": "review",
+        "label": "复盘报告",
+        "hint": "选填：补充报告 PDF；也可直接提交与小商整理的复盘",
+        "required": false
+      },
+      {
+        "id": "data",
+        "label": "经营数据",
+        "hint": "可选，补充后台数据截图或 PDF",
+        "required": false
+      }
+    ]
+  }
+}

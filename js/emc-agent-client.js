@@ -18,12 +18,13 @@
   const loggedIn = () => Boolean(root.EmcSession?.isLoggedIn() && identity() !== 'guest');
   const keyFor = id => identity() + ':' + String(id || 'guest');
   const clamp = v => Math.max(0, Math.min(100, Number(v) || 0));
+  const replySource = provider => provider === 'verified_calculation' ? 'calculation' : ['ai_gateway_live', 'ai_gateway'].includes(provider) ? 'ai' : ['local_copilot', 'local_copilot_fallback'].includes(provider) ? 'local-guide' : 'history';
   function snapshot(id) { return cache.get(keyFor(id)) || null; }
   function view(memory) {
     const score = clamp(memory?.intimacy_score ?? 20);
     return {
       version: 1, source: 'server', server_version: Number(memory?.interactions_count || 0),
-      affinity: score, patience: 80, streak: 0, perks: [],
+      affinity: score, patience: clamp(memory?.patience_score ?? 80), streak: 0, perks: [],
       level: memory?.current_focus_level || 'L1', emotion: null
     };
   }
@@ -42,14 +43,14 @@
   async function history(id, { signal } = {}) {
     if (!loggedIn()) return { items: [], next_before: null };
     const requester = keyFor(id);
-    const data = await root.EmcApi.get('/api/agent/memory', { signal });
+    const data = await root.EmcApi.get('/api/agent/memory?session_id=' + encodeURIComponent(id), { signal });
     if (requester !== keyFor(id)) return { items: [], next_before: null };
     cache.set(requester, view(data.memory));
     const rows = (data.recent_conversation || []).filter(turn => turn.session_id === id);
     return {
       items: rows.map(turn => ({
         message: turn.user_message || '',
-        reply: { text: turn.reply || '', source: 'local-guide' },
+        reply: { text: turn.reply || '', source: replySource(turn.provider) },
         time: turn.occurred_at
       })),
       next_before: null
@@ -65,6 +66,8 @@
     const project = typeof context.project_id === 'string' ? context.project_id : null;
     const level = String(context.task?.id || context.level || 'L1');
     const levelId = /^L[1-6]$/.test(level) ? level : 'L1';
+    const platform = String(context.platform || context.journey?.platform || '').slice(0, 32);
+    const category = String(context.category || context.journey?.category || '').slice(0, 64);
     const session = loggedIn() && project && project.length <= 64 ? project : 'island-guest';
     const body = {
       message: message.trim().slice(0, 2000),
@@ -72,29 +75,51 @@
       session_id: session,
       client_context: {
         current_view: String(context.page_context?.page || 'shop').slice(0, 32),
+        coaching_mode: true,
         source: 'island-companion',
         companion_name: String(context.companion_name || '小商').slice(0, 24),
-        platform: String(context.platform || '').slice(0, 32),
-        category: String(context.category || '').slice(0, 64),
+        platform,
+        category,
+        current_task: {
+          id: levelId,
+          name: String(context.task?.name || '').slice(0, 100),
+          deliverable: String(context.task?.deliverable || '').slice(0, 300)
+        },
+        companion_state: snapshot(project),
         active_project: project && loggedIn() ? {
           id: project,
-          platform: String(context.platform || '').slice(0, 32),
-          category: String(context.category || '').slice(0, 64)
+          platform,
+          category
         } : null
       }
     };
+    if (!loggedIn()) {
+      const recent = Array.isArray(context.history) ? context.history : [];
+      body.guest_history = recent.filter(turn =>
+        turn && ['user', 'assistant'].includes(turn.role) && typeof turn.text === 'string' && turn.text.trim()
+      ).slice(-12).map(turn => ({ role: turn.role, text: turn.text.trim().slice(0, 2000) }));
+      if (body.guest_history.at(-1)?.role === 'user' && body.guest_history.at(-1).text === body.message) body.guest_history.pop();
+    }
     const requester = keyFor(project);
-    const result = await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
+    const native = await root.EmcAvatarAgent?.nativeReply?.(body, { signal });
+    const result = native || await root.EmcApi.post('/api/agent/chat', body, { signal, timeoutMs: 35000 });
     if (!result || typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Agent 没有返回可显示的内容');
     if (requester !== keyFor(project)) throw new Error('账号或经营项目已切换');
-    const old = cache.get(requester);
-    if (old) cache.set(requester, { ...old, affinity: Math.min(100, old.affinity + 3), server_version: old.server_version + 1 });
+    if (result.memory) cache.set(requester, view(result.memory));
     return {
       text: result.reply,
-      source: result.provider === 'ai_gateway_live' ? 'ai' : 'local-guide',
+      avatar_spoken: Boolean(result.avatar_spoken),
+      source: replySource(result.provider),
       provider: result.provider || 'unknown',
-      // The server does not have a project-level patience/perks model.
-      // Leave result.state absent so UI keeps the local practice state.
+      model: result.model || 'xiaoshang-v1',
+      emotion: result.emotion || null,
+      pose: result.pose || result.avatar_state || 'speak',
+      tool_calls: Array.isArray(result.tool_calls) ? result.tool_calls : (Array.isArray(result.tool_traces) ? result.tool_traces : []),
+      ui_actions: Array.isArray(result.ui_actions) ? result.ui_actions : [],
+      knowledge_citations: Array.isArray(result.knowledge_citations) ? result.knowledge_citations : [],
+      roi_calculation: result.roi_calculation && typeof result.roi_calculation === 'object' ? result.roi_calculation : null,
+      saved_artifact: result.saved_artifact && typeof result.saved_artifact === 'object' ? result.saved_artifact : null,
+      state: result.memory ? view(result.memory) : undefined,
     };
   }
   return {
