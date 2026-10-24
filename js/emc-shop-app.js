@@ -319,7 +319,10 @@
     if(innerWidth>700||document.querySelector('.copilot-dock').classList.contains('mobile-chat-open')){$('npcBubble').hidden=true;bubbleUntil=0;bubbleKind=null;return;}
     bubbleKind=kind;bubbleUntil=performance.now()+(kind==='reminder'?6500:Math.max(12000,Math.min(24000,text.length*150)));
     $('npcSpeech').innerHTML=window.EmcMarkdown.render(text);$('npcSpeech').scrollTop=0;$('npcReplySource').textContent=source||chatSourceLabel();$('npcBubble').hidden=false;
-    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';$('npcMissionActions').hidden=true;fitNpcCloud();
+    $('npcContinue').hidden=kind==='reminder';$('npcTask').hidden=kind!=='reminder';$('npcMissionActions').hidden=true;
+    // Measure and position the visible cloud before paint, even if the next 3D
+    // frame is delayed. Hidden clouds have no measurable width or height.
+    updateNpcFrame(npcState);
   }
   let visibleCompanionScope='',visibleCompanionLevel='';
   const agentScopes=new Set();
