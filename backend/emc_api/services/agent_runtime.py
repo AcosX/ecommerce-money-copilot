@@ -1586,7 +1586,7 @@ def build_avatar_ssml(spoken_text: str, *, ka_intent: str = "Explain") -> str:
     )
 
 
-# -------------------------------------------- 大模型网关适配器（ai.acosx.xyz + 兜底）
+# -------------------------------------------- 大模型网关适配器（兼容 API + 兜底）
 
 
 _UPSTREAM_COOLDOWN_UNTIL: dict[str, float] = {}

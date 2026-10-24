@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),path=require('node:path'),os=require('node:os');
-const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'C:/Users/kagurayami/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
 (async()=>{
  const browser=await chromium.launch({channel:process.env.EMC_BROWSER_CHANNEL||'msedge',headless:true});
  try{

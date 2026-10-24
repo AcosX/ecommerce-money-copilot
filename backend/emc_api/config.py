@@ -92,7 +92,7 @@ class Settings(BaseSettings):
 
     # AI 大模型网关配置（支持 GOOGLE_GEMINI_BASE_URL / GEMINI_API_KEY）
     ai_base_url: str = Field(
-        default="https://ai.acosx.xyz",
+        default="https://api.openai.com",
         validation_alias=AliasChoices("EMC_AI_BASE_URL", "GOOGLE_GEMINI_BASE_URL"),
     )
     ai_api_key: SecretStr = Field(

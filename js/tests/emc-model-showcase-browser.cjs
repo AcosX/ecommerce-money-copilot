@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'C:/Users/kagurayami/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
 const base=(process.env.EMC_TEST_URL||'http://127.0.0.1:5173').replace(/\/$/,''),shots=process.env.EMC_SCREENSHOTS||os.tmpdir();fs.mkdirSync(shots,{recursive:true});
 const config=fs.readFileSync(path.resolve(__dirname,'../../deploy/apache/money-acosx.conf.template'),'utf8'),policy=config.match(/Header setifempty Content-Security-Policy "([^"]+)"/)[1];
 async function guarded(page){

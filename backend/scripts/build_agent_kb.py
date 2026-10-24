@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import re
@@ -17,10 +18,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_JSON = REPO_ROOT / "backend" / "emc_api" / "data" / "agent_knowledge_base.json"
 
-EXTRACTED_BASE = Path(
-    "/root/.gemini/antigravity-cli/brain/"
-    "b5d4e51c-7c87-49d6-a8b5-482cc6887166/scratch/knowledge_extracted"
-)
+EXTRACTED_BASE = Path("knowledge_extracted")
 XHS_DIR = EXTRACTED_BASE / "xiaohongshu" / "分享版_小红书电商课程知识库"
 PDD_DIR = EXTRACTED_BASE / "pinduoduo(1)" / "拼多多新手开店知识库"
 
@@ -1011,6 +1009,19 @@ def build_pdd_items() -> list[dict[str, Any]]:
 
 
 def main() -> None:
+    global XHS_DIR, PDD_DIR
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        required=True,
+        help="已获再分发授权的知识库解压目录（原始资料不应提交到 Git）",
+    )
+    args = parser.parse_args()
+    XHS_DIR = args.source_dir / "xiaohongshu" / "分享版_小红书电商课程知识库"
+    PDD_DIR = args.source_dir / "pinduoduo(1)" / "拼多多新手开店知识库"
+    if not XHS_DIR.is_dir() or not PDD_DIR.is_dir():
+        parser.error("source-dir 必须包含 xiaohongshu 和 pinduoduo(1) 下的知识库目录")
     core_items = build_core_items()
     xhs_items = build_xhs_items()
     pdd_items = build_pdd_items()

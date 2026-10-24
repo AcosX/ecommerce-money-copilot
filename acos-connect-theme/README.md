@@ -1,6 +1,6 @@
 # Acos Connect — 电商搞钱参谋 (`ecommerce-pixel`) 专属登录皮肤
 
-本目录归档了统一认证服务 **Acos Connect (`https://auth.acosx.top` / `/opt/acos-connect`)** 中为「电商搞钱参谋（`ecommerce-money-copilot`）」定制的像素风认证界面皮肤及回归测试。
+本目录归档了统一认证服务 **Acos Connect** 中为「电商搞钱参谋（`ecommerce-money-copilot`）」定制的像素风认证界面皮肤及回归测试。
 
 ## 文件清单
 

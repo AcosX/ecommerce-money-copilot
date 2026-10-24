@@ -1,206 +1,74 @@
-# 运维手册：测试/演示环境（VM3）
+# 服务器部署与运维模板
 
-本文说明 `https://money.acosx.top` 的拓扑、部署、回滚、备份恢复与监控。仓库内 `deploy/` 只包含模板与脚本，不含任何凭据。
+本文说明仓库内的通用部署脚本。实际主机拓扑、网络路由、数据库容量、账号授权清单、告警接收方和生产验收记录应保存在私有运维系统。
 
-## 1. 环境
+## 部署前配置
 
-| 环境 | 地址 | 代码来源 | 数据库 |
-| --- | --- | --- | --- |
-| 开发 | Instabox 开发机（见 `docs/backend-contract.md` §2） | 任意分支 | 开发机本地 MariaDB（docker compose） |
-| 测试/演示 | `https://money.acosx.top`（VM3） | **只部署 git tag** | VM3 MariaDB 中独立库 `ecommerce_money_copilot` |
+推荐将静态站点和 FastAPI 以同源反向代理部署，数据库与上传目录不对公网提供访问。`deploy/apache/`、`deploy/systemd/` 和 `deploy/scripts/` 提供可调整的模板；路径、端口和站点值都是模板默认值，部署前应按自己的环境检查。
 
-开发中的关卡、认证改动只存在于分支和开发机；演示站点只会运行某个已打 tag、已通过测试的版本，并可一条命令回滚（#48）。
+- 从 `backend/.env.example` 创建私有配置，使用自己的数据库、OIDC、数字人和模型服务凭据。
+- `app.env`、`oauth.env`、`db.env` 放在 `EMC_ETC` 指定的受限配置目录，文件权限 0600。systemd 读取 EnvironmentFile 后切换为服务用户。
+- 运行数据库账号和迁移账号分离；运行进程只持有业务所需权限。迁移账号只用于部署迁移。
+- `EMC_REVIEWER_SUBS` 仅由服务端配置；生产使用安全 Cookie 和 HTTPS。
+- 设置 `EMC_PUBLIC_HOST`、`EMC_BASE` 等模板变量，并检查 Apache 的 OIDC `form-action`、代理头信任边界、TLS 和 CSP。
+- 上传目录必须是私有存储，不能通过静态服务器直接读取。静态目录仅放行页面和发布资源；拒绝点文件、后端、配置和运维目录。
+- `health-check.sh` 的告警路径可通过 `EMC_ALERT_LOG` 指定，接收与转发由部署方配置。
 
-## 2. 拓扑
-
-```text
-浏览器 ──HTTPS──> 阿里云 ESA（DNS + 边缘，TLS 在此终止，证书 *.acosx.top）
-        ──HTTP──> VM1 SafeLine WAF（站点 id 17，server_names '*'）
-        ──HTTP──> VM2 HAProxy :18090（按 Host 路由，money.acosx.top -> b_wp_vm3）
-        ──HTTP──> VM3 Apache :80 name-based vhost money.acosx.top
-                    ├─ 静态文件：/srv/ecommerce-money-copilot/current/{index.html,assets/,css/,js/,tools/展示清单}
-                    └─ /api/ /auth/ /admin/ ──> 127.0.0.1:8790 FastAPI（uvicorn，用户 emc）
-                                                   └─> MariaDB 127.0.0.1:3306（Galera 节点）
-```
-
-- ESA 记录：`money.acosx.top` A/AAAA → SafeLine，开启代理，与 `storyoutside.acosx.top` 设置相同。
-- HAProxy：`/etc/haproxy/conf.d/p2-direct.cfg` 的已登记 Host 列表与 `use_backend b_wp_vm3` 各增加一行。未登记的 Host 一律 403。
-- Apache：`/etc/httpd/conf.d/money-acosx.conf`，由 `deploy/apache/money-acosx.conf.template` 渲染。
-  - 静态目录默认拒绝，只放行 `/`、`/index.html`、`/assets/`、`/css/`、`/js/`、模型展示清单和代理路径；点文件、`backend/`、`deploy/`、`docs/` 返回 403。
-  - 统一设置 `X-Forwarded-Proto: https`（内部各跳均为 HTTP）。`X-Forwarded-For` 由各跳追加，uvicorn 只信任 127.0.0.1 传来的转发头。
-  - 安全头：`X-Content-Type-Options`、`Referrer-Policy`、HSTS、`frame-ancestors 'self'` 的 CSP。当前前端含内联脚本，所以 CSP 允许 `'unsafe-inline'`；脚本迁移到 `js/` 后应收紧。
-  - 请求体：`/api/evidence` 上限 11 MiB，其他代理路径上限 1 MiB，超限直接返回 413（后端仍按约定做精确校验）。
-  - 静态资源启用 gzip，API 响应不压缩。
-
-## 3. 目录与服务
-
-| 路径 | 说明 |
-| --- | --- |
-| `/srv/ecommerce-money-copilot/releases/<tag>/` | 每个 tag 一个只读发布目录（`git archive` 导出，无 `.git`） |
-| `/srv/ecommerce-money-copilot/current` | 指向当前发布的符号链接（原子切换） |
-| `/srv/ecommerce-money-copilot/previous` | 上一个发布，`rollback.sh` 默认回到这里 |
-| `/srv/ecommerce-money-copilot/repo.git` | 仓库镜像，部署时 fetch tag |
-| `/srv/ecommerce-money-copilot/deploy-history.log` | 部署/回滚记录 |
-| `/var/lib/ecommerce-money-copilot/uploads/` | 证据附件私有目录（0700 emc，不经 Apache 暴露） |
-| `/var/backups/ecommerce-money-copilot/` | 本应用的备份与恢复演练日志（0700 root） |
-| `/usr/local/libexec/ecommerce-money-copilot/` | 已安装的运维脚本；`/usr/local/sbin/emc-*` 为快捷入口 |
-
-systemd 单元（`deploy/systemd/`）：
-
-| 单元 | 作用 |
-| --- | --- |
-| `ecommerce-money-copilot-api.service` | uvicorn `emc_api.main:app`，`127.0.0.1:8790`，User=emc，加固选项（ProtectSystem=strict 等），只可写上传目录。首次部署带后端的 tag 时由 `deploy.sh` 启用 |
-| `ecommerce-money-copilot-backup.timer` | 每日 02:40 备份 |
-| `ecommerce-money-copilot-health.timer` | 每 5 分钟探测公网健康 |
-
-SELinux（enforcing）：发布目录为 `httpd_sys_content_t`，`current` 与 `previous` 软链接为 `usr_t`（保证 `systemd-executor` 的 `init_t` 与 Apache 的 `httpd_t` 均可读取软链接），`releases/*/backend`、uv 管理的 Python 与运维脚本为 `bin_t`，上传目录为 `var_lib_t`（Apache 不可读）。`install-host.sh` 负责登记这些规则，`lib.sh` 的 `emc_set_symlink` 在原子切换时显式设置 `usr_t`，`deploy.sh` 在构建后执行 `restorecon`。
-
-主机侧组件安装或更新（幂等，不会启动 API）：
+安装或更新主机组件前先审阅脚本；安装会写入 systemd、Apache 和 SELinux 配置：
 
 ```bash
 sudo deploy/scripts/install-host.sh --enable-timers
 ```
 
-## 4. 发布与回滚
+安装脚本不会启动 API 或审核 worker；首次部署相应版本时由部署脚本管理。
 
-只部署 tag，流程如下：
+## 发布与回滚
 
-1. 在 main 上合并已通过测试的 PR；
-2. 打 tag，例如 `git tag v0.1.0 && git push origin v0.1.0`；
-3. 在 VM3 上执行：
+开发通过 PR 审查后，部署经过测试的 Git tag：
 
 ```bash
-sudo emc-deploy v0.1.0
+sudo emc-deploy <tag>
+sudo emc-rollback                 # 回到 previous
+sudo emc-rollback <tag>           # 指定版本
 ```
 
-`deploy.sh` 依次执行：
+部署脚本拉取 tag、导出独立发布目录、安装锁定依赖、备份数据库及附件、执行 Alembic 迁移、原子切换 `current` 并进行健康检查。失败时恢复前一版应用。`previous` 用于回滚；部署审计保存在 `EMC_BASE` 下。
 
-1. fetch tag，导出到 `releases/<tag>`（同名目录已存在且 commit 不同则拒绝覆盖）；
-2. 在 `backend/` 中运行 `uv sync --frozen --no-dev`；
-3. 先做一次部署前备份，再以 `emc` 用户、迁移账号执行 `alembic upgrade head`；
-4. 原子切换 `current`，重启 API，检查 `http://127.0.0.1:8790/api/health`（不含后端的发布则检查静态首页）；
-5. 健康检查失败时自动切回上一个发布并重启，记录到 `deploy-history.log`。
+回滚只切换应用代码，不回退数据库迁移。迁移应向后兼容；结构回退须先停止写入、另做备份，并在隔离环境验证恢复方案。
 
-默认保留最近 5 个发布，加上 current 和 previous。
-
-手动回滚：
+## 备份和恢复
 
 ```bash
-sudo emc-rollback            # 回到 previous
-sudo emc-rollback v0.1.0     # 回到指定发布
+sudo emc-backup-db manual
+sudo emc-restore-drill
+sudo emc-restore-drill <dump.sql.gz>
 ```
 
-注意：回滚只切换代码，**不回退数据库迁移**。迁移应保持向后兼容（先加列/表，下一版本再删）。必须回退结构时，用部署前备份（`emc-*-predeploy-<tag>.sql.gz`）恢复。
+应用备份包括数据库和上传文件，并生成校验和。配置文件和备份不得进入 Git 或站点静态目录。保留期、备份频率、异地副本和访问控制由部署方制定。
 
-## 5. 数据库（VM3 MariaDB 复用评估，#7）
+恢复演练会导入临时数据库、比较行数并检查附件归档，然后清理临时库。演练需要相应数据库权限，应在隔离环境或低流量时运行。返回 0 表示一致、2 表示行数不一致、1 表示出错。正式恢复前先停止服务并备份现状，再由数据库管理员执行恢复。
 
-- 库：`ecommerce_money_copilot`（utf8mb4 / utf8mb4_unicode_ci；服务器默认是 latin1，因此库和连接串都显式指定 utf8mb4）。
-- 账号（只授权本库，仅 `localhost` 与 `127.0.0.1`）：
-  - `emc_app`：SELECT / INSERT / UPDATE / DELETE，最多 60 个连接；
-  - `emc_migrate`：本库 ALL，仅供 Alembic 使用，最多 5 个连接。
-  - 已验证 `emc_app` 不能执行 DDL，也看不到、访问不到其他库。
-- 容量：现有全部库合计约 45 MB；根分区约 40 GiB 可用；`max_connections` 5000，历史峰值 22。证据附件存文件系统，不进数据库。
-- Galera（2 节点集群，本机为其中一个节点）：
-  - 只用 InnoDB，每张表必须有主键；
-  - `auto_increment_increment=2`，自增 ID 不连续属正常；
-  - 提交时可能因认证冲突返回死锁错误（1213），写接口应可重试，配合幂等键使用；
-  - DDL 以 TOI 方式在全集群同步执行，迁移要小，避免长时间锁表；
-  - 避免超大事务（gcache 128 MB）；
-  - 备份使用 `--single-transaction`，不加全局读锁，以免阻塞整个集群。
-- 故障隔离：本应用与其他站点共用同一个 `mariadbd` 进程，独立库和连接上限能限制影响范围，但无法隔离慢查询或资源争用。两节点集群没有仲裁节点，网络分区时两边都可能停止写入，所有使用该集群的站点都会受影响。这属于集群现有风险，本项目不做改动；如需改进，可增加 garbd 仲裁节点。
+## 监控与审核 worker
 
-## 6. 备份与恢复演练
+健康检查接口为 `/api/health`。定时器和 systemd 日志可用于检查 API、备份与审核 worker；日志、队列内容和截图可能包含用户数据，只保存在私有环境。
 
-两层备份：
+包含审核队列的版本需要 `ecommerce-money-copilot-review.service`。更新主机单元后再部署 tag；部署脚本按版本启停 worker，回滚到不含审核模块的版本会停止 worker 并保留队列。
 
-1. 主机级（已有）：每日 03:30 的 `vm3-data-backup` 对整个 MariaDB 执行 `mariadb-dump --all-databases --single-transaction`，加密后上传异地，本地只保留最新一份。本库新建后即自动包含在内。
-2. 应用级（本仓库）：`backup-db.sh` 每日 02:40 运行：
-   - 对本库执行 `mariadb-dump --single-transaction --routines --events --triggers`，gzip 后校验完整性；
-   - 同时打包上传目录，生成 sha256；
-   - 文件权限 0600，保留 14 天；
-   - 部署前也会自动执行一次。
+worker 使用运行期 DML 账号和私有上传目录，清除迁移 URL。`EMC_AI_REVIEW_MODEL` 必须支持图片输入和 JSON 输出。调用失败会重试并最终转人工复核；在供应商侧设置额度，并监控 `waiting_manual`、`retry`、最早等待时间和服务重启次数。
 
-恢复演练：
+在相同的私有运行环境中可执行：
 
 ```bash
-sudo emc-restore-drill                 # 使用最新备份
-sudo emc-restore-drill <dump.sql.gz>   # 指定备份
+python -m emc_api.services.review_queue --metrics
+python -m emc_api.services.review_queue --once
 ```
 
-演练会把备份恢复到临时库 `emc_restore_drill`，逐表比对 `COUNT(*)`，检查上传归档可读，然后删除临时库。结果追加到 `/var/backups/ecommerce-money-copilot/restore-drill.log`。退出码含义：0 一致，2 行数不一致，1 出错。请在低流量时段运行，因为备份之后写入的数据会被计为不一致。
+应用回滚保留增量 schema。已有 Agent 审核记录时，迁移降级会拒绝删除审核来源与报告。
 
-从备份恢复到正式库（会覆盖数据，先停服务）：
+## 静态资源与验收
 
-```bash
-sudo systemctl stop ecommerce-money-copilot-api
-sudo emc-backup-db --label before-restore
-zcat /var/backups/ecommerce-money-copilot/<dump>.sql.gz | sudo mariadb ecommerce_money_copilot
-sudo tar -C /var/lib/ecommerce-money-copilot -xzf /var/backups/ecommerce-money-copilot/<dump>.uploads.tar.gz
-sudo systemctl start ecommerce-money-copilot-api
-```
+模型展示入口为 `/tools/models.html`，需同步 Apache 模板的精确放行清单，以及页面、模型清单、缩略图和 GLB。安装脚本会先运行 `apachectl configtest`，失败则恢复配置。
 
-## 7. 监控
+发布后检查匿名和登录权限边界、OIDC 往返、证据上传/下载、审核状态、模型展示与缓存；不要将 mock 浏览器检查当作真实外部服务验收。
 
-`ecommerce-money-copilot-health.timer` 每 5 分钟探测一次：
-
-- API 服务启用后探测 `https://money.acosx.top/api/health`，要求 2xx；
-- 启用前探测静态首页，非 5xx 即视为正常。
-
-告警沿用主机现有站点巡检的规则：连续 3 次失败写 ALERT，连续 3 次成功写 RECOVER。格式为 `时间|站点|ALERT/RECOVER|次数|详情`，追加到 `/var/lib/acosx-monitor/pending-alerts.log`，由现有中继统一转发。状态文件：`/var/lib/ecommerce-money-copilot-monitor/state`。
-
-查看：
-
-```bash
-systemctl list-timers 'ecommerce-money-copilot-*'
-journalctl -u ecommerce-money-copilot-health -n 20
-journalctl -u ecommerce-money-copilot-api -f
-tail -f /var/log/httpd/money-acosx-access.log
-```
-
-## 8. 凭据位置（只列路径）
-
-| 文件 | 内容 | 权限 |
-| --- | --- | --- |
-| `/etc/ecommerce-money-copilot/app.env` | `EMC_ENV`、`EMC_PUBLIC_ORIGIN`、`EMC_COOKIE_SECURE`、`EMC_UPLOAD_DIR`、`EMC_SESSION_SECRET`、`EMC_REVIEWER_SUBS` | 0600 root |
-| `/etc/ecommerce-money-copilot/oauth.env` | `EMC_OIDC_*`（Acos Connect client `ecommerce-money-copilot`） | 0600 root |
-| `/etc/ecommerce-money-copilot/db.env` | `EMC_DATABASE_URL`（emc_app）、`EMC_MIGRATE_DATABASE_URL`（emc_migrate） | 0600 root |
-
-systemd 以 root 身份读取 EnvironmentFile 后再切换到 `emc`，因此这些文件不需要对 `emc` 可读。API 进程中会移除 `EMC_MIGRATE_DATABASE_URL`，迁移账号只在 `deploy.sh` 中使用。
-
-添加审核员：编辑 `app.env` 中的 `EMC_REVIEWER_SUBS`（以逗号分隔的 Acos Connect `sub`），然后执行 `systemctl restart ecommerce-money-copilot-api`。
-
-## 9. Phase 6 部署、备份恢复与端到端验收记录（#43, #44, #45, #47, #48）
-
-- **端到端业务闭环与权限边界（#43, #44）**：
-  - `backend/tests/test_e2e_lifecycle.py` 与 `tests/frontend/test_login_entry.py` 自动化覆盖“游客体验 → 本地保存 → 登录 → 教学模拟复制为正式草稿（`origin=tutorial_copy`，不直接视为认证通过）→ 修订版本 → 上传证据 → 提交认证冻结快照 → 跨用户 404 / 非审核员 403 越权隔离 → 审核员驳回 → 玩家修订重提 → 审核员通过”全链路（后端 183 项 pytest 测试、前端 28 项 Playwright 测试全部通过）。
-  - 线上 `https://money.acosx.top` 实测：`/api/health` 返回 `200 {"status":"ok","database":"ok"}`，`/api/me` 匿名返回 `200 {"authenticated":false}`，未登录访问 `/api/projects`、`/api/artifacts`、`/api/verifications`、`/api/admin/verifications` 均返回 `401 unauthenticated`。
-- **Acos Connect 游戏主题与多客户端回归（#45）**：
-  - `GET https://money.acosx.top/auth/login` 正确下发 `HttpOnly; Secure; SameSite=lax` 的状态 Cookie 并 302 跳转至 `https://auth.acosx.top/authorize`（带 `code_challenge_method=S256`、`state`、`nonce`），渲染专属像素游戏主题登录、注册、找回密码与重发验证邮件页面。
-  - 对已有 Acos Connect 全部客户端及独立路由执行兼容性回归比对（各客户端 `/authorize`、`/login`、`/register`、`/forgot-password`、`/resend-verification`、`/verify-email`、`/reset-password`、`/jwks`、`/.well-known/openid-configuration`），非本游戏的客户端响应与改动前保持零非预期差异。
-- **发布、回滚、备份与恢复演练（#47, #48）**：
-  - 验证 `emc-deploy v0.1.0` → `emc-deploy v0.1.1` → `emc-rollback`（原子切回 `v0.1.0`）→ `emc-deploy v0.1.1` 全流程及健康检查失败自动回滚保护。
-  - 验证 `emc-backup-db` 与 `emc-restore-drill`：将备份恢复至临时库 `emc_restore_drill`，11 张业务表逐表 `COUNT(*)` 比对与上传归档校验结果为 `result=OK`。
-  - 演示站点仅允许通过 `emc-deploy <git-tag>` 部署已通过测试的 tag，开发分支与开发机改动不会直接影响比赛演示环境。
-
-
-## 单步带关版本的审核 worker
-
-本版本新增 `0002_agent_review_queue`；发布前备份仍由 `emc-deploy` 执行。先从已审核版本运行 `deploy/scripts/install-host.sh` 安装新 worker 单元与更新后的部署脚本，再按 tag 发布。安装脚本本身不启动 worker。部署脚本检测到当前版本含审核模块后启用并重启 `ecommerce-money-copilot-review.service`，并要求其为 active；回滚到无审核模块的旧版本会停止并禁用 worker，保留未处理队列。
-
-worker 使用现有 app.env/db.env 中的运行期 DML 账号和私有上传目录；显式清除迁移 URL，不需要 DDL 凭据。`EMC_AI_REVIEW_MODEL` 要配置为支持真实图片输入与 JSON 输出的模型；密钥留在服务器配置中。一次处理一个任务，超时或额度不足重试，最终转人工待复核，绝不伪造通过。
-
-可在与服务相同的私有环境下运行 `python -m emc_api.services.review_queue --metrics` 查看队列状态与最早等待时间，`--once` 只处理一次。监控 `waiting_manual`、`retry`、最早等待时间及 systemd 重启次数；人工复核仍用既有管理员端。尚无全局金额预算，需同时在模型供应商侧设置额度。
-
-回滚应用时保留此增量 schema，不自动降库。已经生成 Agent 审核记录后，迁移 downgrade 会拒绝删除审核来源与报告，避免丢失记录或伪造人类审核员；空库往返已由迁移测试覆盖。
-
-## 模型展示静态入口
-
-统一地址为 `/tools/models.html`。公开的展示资源由 Apache 模板中的精确 `/tools/` LocationMatch 放行；原始录制/生成脚本和其他工具不在清单中。旧 Apache 配置会返回 403，因此从包含此改动的已审核版本运行 `sudo deploy/scripts/install-host.sh` 更新 vhost，再按现有 tag 流程发布；安装脚本先 `apachectl configtest`，失败会恢复配置。
-
-页面、CSS/JS、模型清单和 web/lite GLB 需随完整 tag 一起发布。展示页面和脚本使用 `no-cache`，模型依靠版本化 URL 缓存。无需新增 API、账户或数据库迁移；录制输出不随站点部署。
-
-发布后从 `/tools/models.html?level=3&quality=smooth` 逐步核对单体、浮岛、完整演示、返回单体及复制链接，并检查真实返回为 HTML、WebP、GLB 而不是 403/404 或站点首页。详细链路和本地命令见 [模型展示系统](model-showcase.md)。
-
-## ESA 缓存规则
-
-前端目录拆分、线上响应与最少规则方案见 [static-cache.md](static-cache.md)。当前建议保留一条 `/assets/` 前缀规则并遵循源站 TTL，无需新增强制缓存 JS/CSS 的条目。
+展示资源详见 [模型展示说明](model-showcase.md)，缓存策略见 [静态缓存说明](static-cache.md)。

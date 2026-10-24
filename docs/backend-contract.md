@@ -13,10 +13,10 @@
 
 | 环境 | 地址 | OAuth client | 说明 |
 | --- | --- | --- | --- |
-| 开发 | `https://8000-agqvfs7kbtbwvqh6bqtnr76x2a.instabox.tech`、`http://127.0.0.1:8000` | `ecommerce-money-copilot-dev` | Instabox 开发机，独立开发数据库 |
-| 测试/演示 | `https://money.acosx.top` | `ecommerce-money-copilot` | VM3；只部署通过测试并打 tag 的版本，可一键回滚 |
+| 开发 | `http://127.0.0.1:8000` | `ecommerce-money-copilot-dev` | 本地或隔离开发环境，独立开发数据库 |
+| 测试/演示 | `https://money.acosx.top` | `ecommerce-money-copilot` | 只部署通过测试并打 tag 的版本，可一键回滚 |
 
-- OAuth：OIDC 授权码 + PKCE（S256），`client_secret_post`，scope `openid profile email`，回调 `{origin}/auth/callback`。两个 client 均已在 Acos Connect 注册并启用游戏主题。
+- OAuth：OIDC 授权码 + PKCE（S256），`client_secret_post`，scope `openid profile email`，回调 `{origin}/auth/callback`。自行部署时须在 OIDC 服务注册对应 client 和回调地址。
 - 审核员：服务端配置 `EMC_REVIEWER_SUBS`（Acos Connect `sub`，逗号分隔）。前端无法自报角色。
 - 证据附件：单文件 ≤ 10 MiB，单次申请 ≤ 5 个；允许 PNG / JPEG / WebP / PDF（按文件头校验，不信任扩展名与 Content-Type）；私有目录存储，不进 MariaDB，不经静态站点暴露。
 - 如需与测试分离的比赛演示域名，可后续增加，不影响本约定。
@@ -56,7 +56,7 @@ uv run uvicorn emc_api.main:app --host 127.0.0.1 --port 8000
 uv run pytest
 ```
 
-同源部署：Apache 提供仓库根目录静态文件，并将 `/api/`、`/auth/`、`/admin/` 反向代理到 FastAPI（VM3 `127.0.0.1:8790`）。
+同源部署：Apache 提供仓库根目录静态文件，并将 `/api/`、`/auth/`、`/admin/` 反向代理到 FastAPI（模板默认 `127.0.0.1:8790`）。
 
 ## 4. 配置（环境变量）
 
