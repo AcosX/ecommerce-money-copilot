@@ -18,7 +18,7 @@
         ──HTTP──> VM1 SafeLine WAF（站点 id 17，server_names '*'）
         ──HTTP──> VM2 HAProxy :18090（按 Host 路由，money.acosx.top -> b_wp_vm3）
         ──HTTP──> VM3 Apache :80 name-based vhost money.acosx.top
-                    ├─ 静态文件：/srv/ecommerce-money-copilot/current/{index.html,assets/,css/,js/}
+                    ├─ 静态文件：/srv/ecommerce-money-copilot/current/{index.html,assets/,css/,js/,tools/展示清单}
                     └─ /api/ /auth/ /admin/ ──> 127.0.0.1:8790 FastAPI（uvicorn，用户 emc）
                                                    └─> MariaDB 127.0.0.1:3306（Galera 节点）
 ```
@@ -26,7 +26,7 @@
 - ESA 记录：`money.acosx.top` A/AAAA → SafeLine，开启代理，与 `storyoutside.acosx.top` 设置相同。
 - HAProxy：`/etc/haproxy/conf.d/p2-direct.cfg` 的已登记 Host 列表与 `use_backend b_wp_vm3` 各增加一行。未登记的 Host 一律 403。
 - Apache：`/etc/httpd/conf.d/money-acosx.conf`，由 `deploy/apache/money-acosx.conf.template` 渲染。
-  - 静态目录默认拒绝，只放行 `/`、`/index.html`、`/assets/`、`/css/`、`/js/` 和代理路径；点文件、`backend/`、`deploy/`、`docs/` 返回 403。
+  - 静态目录默认拒绝，只放行 `/`、`/index.html`、`/assets/`、`/css/`、`/js/`、模型展示清单和代理路径；点文件、`backend/`、`deploy/`、`docs/` 返回 403。
   - 统一设置 `X-Forwarded-Proto: https`（内部各跳均为 HTTP）。`X-Forwarded-For` 由各跳追加，uvicorn 只信任 127.0.0.1 传来的转发头。
   - 安全头：`X-Content-Type-Options`、`Referrer-Policy`、HSTS、`frame-ancestors 'self'` 的 CSP。当前前端含内联脚本，所以 CSP 允许 `'unsafe-inline'`；脚本迁移到 `js/` 后应收紧。
   - 请求体：`/api/evidence` 上限 11 MiB，其他代理路径上限 1 MiB，超限直接返回 413（后端仍按约定做精确校验）。
@@ -192,3 +192,11 @@ worker 使用现有 app.env/db.env 中的运行期 DML 账号和私有上传目�
 可在与服务相同的私有环境下运行 `python -m emc_api.services.review_queue --metrics` 查看队列状态与最早等待时间，`--once` 只处理一次。监控 `waiting_manual`、`retry`、最早等待时间及 systemd 重启次数；人工复核仍用既有管理员端。尚无全局金额预算，需同时在模型供应商侧设置额度。
 
 回滚应用时保留此增量 schema，不自动降库。已经生成 Agent 审核记录后，迁移 downgrade 会拒绝删除审核来源与报告，避免丢失记录或伪造人类审核员；空库往返已由迁移测试覆盖。
+
+## 模型展示静态入口
+
+统一地址为 `/tools/models.html`。公开的展示资源由 Apache 模板中的精确 `/tools/` LocationMatch 放行；原始录制/生成脚本和其他工具不在清单中。旧 Apache 配置会返回 403，因此从包含此改动的已审核版本运行 `sudo deploy/scripts/install-host.sh` 更新 vhost，再按现有 tag 流程发布；安装脚本先 `apachectl configtest`，失败会恢复配置。
+
+页面、CSS/JS、模型清单和 web/lite GLB 需随完整 tag 一起发布。展示页面和脚本使用 `no-cache`，模型依靠版本化 URL 缓存。无需新增 API、账户或数据库迁移；录制输出不随站点部署。
+
+发布后从 `/tools/models.html?level=3&quality=smooth` 逐步核对单体、浮岛、完整演示、返回单体及复制链接，并检查真实返回为 HTML、WebP、GLB 而不是 403/404 或站点首页。详细链路和本地命令见 [模型展示系统](model-showcase.md)。
