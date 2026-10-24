@@ -5,8 +5,8 @@
   const KEY='emc-journey-entry-v1';
   const STATUS={ready:'待行动',draft:'成果草稿',pending:'处理中',approved:'已通过',rejected:'需完善',locked:'未解锁'};
   function create(options){
-    let draft={saved:false,platform:'xiaohongshu',agent:'Codex',category:'',shop_name:options.shopName(),partner_name:options.partnerName()},project=null,projects=[],artifacts=[],verifications=[],owner=null,epoch=0;
-    try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&typeof raw==='object'){for(const key of ['category','shop_name','partner_name'])if(typeof raw[key]==='string')draft[key]=raw[key].slice(0,key==='category'?64:24);if(J.PLATFORMS[raw.platform])draft.platform=raw.platform;if(J.AGENTS.includes(raw.agent))draft.agent=raw.agent;draft.saved=raw.saved===true;}}catch(_){}
+    let draft={saved:false,platform:'xiaohongshu',agent:'Codex',category:'',shop_name:options.shopName(),partner_name:'小商'},project=null,projects=[],artifacts=[],verifications=[],owner=null,epoch=0;
+    try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&typeof raw==='object'){for(const key of ['category','shop_name'])if(typeof raw[key]==='string')draft[key]=raw[key].slice(0,key==='category'?64:24);if(J.PLATFORMS[raw.platform])draft.platform=raw.platform;if(J.AGENTS.includes(raw.agent))draft.agent=raw.agent;draft.saved=raw.saved===true;}}catch(_){}
     let view=draft.saved?'task':'setup',active='L1',kitOpen=false,busy=false,loading=false,confirmed=false,error='',notice='',files={},notes='',listingUrl='',attempt=null,advisorText=null,celebration=null;
     let welcomed=false,firstPrepared=false,firstNote={idea:'',budget:'',time:''};try{welcomed=localStorage.getItem('emc-journey-welcome-v1')==='1';}catch(_){}
     if(!welcomed)view='welcome';
@@ -52,7 +52,7 @@
       return `<div class="j-resource ${locked?'locked':''}"><span class="j-item-icon" aria-hidden="true">${id==='score'?'▦':'▣'}</span><span><b>${esc(name)}</b><small>${label}</small></span>${locked?'<span aria-label="未解锁">◇</span>':`<a href="${esc(url)}" ${external?'target="_blank" rel="noopener noreferrer"':'download'}>${external?'查看':'领取'} <span aria-hidden="true">↗</span></a>`}</div>`;
     }
     function setup(){
-      return `<div class="j-intro"><span class="j-label">先选一个起点</span><h3>你想先了解哪个平台？</h3><p>先选平台，其他事情让${esc(options.partnerName())}陪你一步步想。没有商品和货源也可以开始。</p></div><form id="journeySetup"><fieldset class="j-platforms"><legend>选择本次练习的平台</legend>${Object.entries(J.PLATFORMS).map(([id,p])=>`<label class="j-platform ${draft.platform===id?'selected':''}"><input type="radio" name="platform" value="${id}" ${draft.platform===id?'checked':''}><span style="--platform-color:${p.color}">${p.short}</span><b>${p.name}</b><small>${p.hint}</small></label>`).join('')}</fieldset><input type="hidden" name="shop_name" value="${esc(project?.name||draft.shop_name)}"><input type="hidden" name="partner_name" value="${esc(draft.partner_name)}"><input type="hidden" name="category" value="${esc(project?.category||draft.category||'待确定')}"><input type="hidden" name="agent" value="${esc(draft.agent)}"><button class="j-button primary wide" type="submit">看看第一关要做什么 →</button></form>`;
+      return `<div class="j-intro"><span class="j-label">先选一个起点</span><h3>你想先了解哪个平台？</h3><p>先选平台，其他事情让${esc(options.partnerName())}陪你一步步想。没有商品和货源也可以开始。</p></div><form id="journeySetup"><fieldset class="j-platforms"><legend>选择本次练习的平台</legend>${Object.entries(J.PLATFORMS).map(([id,p])=>`<label class="j-platform ${draft.platform===id?'selected':''}"><input type="radio" name="platform" value="${id}" ${draft.platform===id?'checked':''}><span style="--platform-color:${p.color}">${p.short}</span><b>${p.name}</b><small>${p.hint}</small></label>`).join('')}</fieldset><input type="hidden" name="shop_name" value="${esc(project?.name||draft.shop_name)}"><input type="hidden" name="category" value="${esc(project?.category||draft.category||'待确定')}"><input type="hidden" name="agent" value="${esc(draft.agent)}"><button class="j-button primary wide" type="submit">看看第一关要做什么 →</button></form>`;
     }
     function kit(l){
       const ids=J.kitIds(l.id,profile().platform);
@@ -161,11 +161,10 @@
     host.addEventListener('submit',e=>{
       if(!['journeySetup','journeyDelivery'].includes(e.target.id))return;e.preventDefault();if(busy)return;
       if(e.target.id==='journeyDelivery'){notes=e.target.elements.notes.value;listingUrl=e.target.elements.listing_url?.value||'';if(e.target.elements.category){draft.category=e.target.elements.category.value.trim();if(!draft.category){error='请确认这次的经营方向。';render();return;}remember();}confirmed=e.target.elements.confirm.checked;void submit();return;}
-      const data=new FormData(e.target),partner=global.EmcCopilot.validName(data.get('partner_name'));
-      if(!partner){error='伙伴名称请使用 1—12 个中英文字或数字。';render();return;}
+      const data=new FormData(e.target);
       if(project&&(project.platform!==data.get('platform')||project.category!==String(data.get('category')).trim())){error='当前项目的平台与类目已确定。请保留原设置，另一个方向需要单独建立经营项目。';render();return;}
       if(!String(data.get('shop_name')).trim()||!String(data.get('category')).trim()){error='请填写小店名称和想经营的类目。';render();return;}
-      draft={saved:true,platform:data.get('platform'),agent:data.get('agent'),category:String(data.get('category')).trim(),shop_name:String(data.get('shop_name')).trim().slice(0,12),partner_name:partner};
+      draft={saved:true,platform:data.get('platform'),agent:data.get('agent'),category:String(data.get('category')).trim(),shop_name:String(data.get('shop_name')).trim().slice(0,12),partner_name:'小商'};
       if(!remember()){render();return;}options.onProfile(draft);view='task';selectLevel(progress().current?.id||'L6');kitOpen=false;error='';notice='';render();options.onUpdate();host.scrollTop=0;
     });
     setInterval(()=>{if(!document.hidden&&Session.isLoggedIn()&&!busy&&!loading&&!(options.isOpen()&&['submit','setup'].includes(view))&&artifacts.some(a=>a.status==='submitted'))void refresh({silent:true});},15000);
