@@ -1,0 +1,27 @@
+[Unit]
+Description=Ecommerce Money Copilot durable Agent review worker
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emc
+Group=emc
+EnvironmentFile=/etc/ecommerce-money-copilot/app.env
+EnvironmentFile=/etc/ecommerce-money-copilot/db.env
+UnsetEnvironment=EMC_MIGRATE_DATABASE_URL
+WorkingDirectory=/srv/ecommerce-money-copilot/current/backend
+ExecStart=/srv/ecommerce-money-copilot/current/backend/.venv/bin/python -m emc_api.services.review_queue
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/ecommerce-money-copilot
+UMask=0077
+MemoryMax=768M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

@@ -1148,15 +1148,45 @@
         "summary": "Read Agent Memory",
         "description": "读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。",
         "operationId": "read_agent_memory_api_agent_memory_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Read Agent Memory Api Agent Memory Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1371,15 +1401,200 @@
         }
       }
     },
+    "/api/agent/xingyun/web-sessions": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Issue Web Session",
+        "operationId": "issue_web_session_api_agent_xingyun_web_sessions_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Issue Web Session Api Agent Xingyun Web Sessions Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/web-sessions/{grant_id}/turns": {
+      "post": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Prepare Web Turn",
+        "operationId": "prepare_web_turn_api_agent_xingyun_web_sessions__grant_id__turns_post",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionChatIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Prepare Web Turn Api Agent Xingyun Web Sessions  Grant Id  Turns Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/web-sessions/{grant_id}/turns/{turn_id}": {
+      "get": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Read Web Turn",
+        "operationId": "read_web_turn_api_agent_xingyun_web_sessions__grant_id__turns__turn_id__get",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "turn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Turn Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Read Web Turn Api Agent Xingyun Web Sessions  Grant Id  Turns  Turn Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/xingyun/web-sessions/{grant_id}": {
+      "delete": {
+        "tags": [
+          "agent-sdk"
+        ],
+        "summary": "Revoke Web Session",
+        "operationId": "revoke_web_session_api_agent_xingyun_web_sessions__grant_id__delete",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Revoke Web Session Api Agent Xingyun Web Sessions  Grant Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/xingyun/e2e-session": {
       "post": {
         "tags": [
           "agent-sdk"
         ],
         "summary": "Start Xingyun E2E Session",
-        "description": "代理魔珐星云 `POST /user/v1/ttsa_v2/session`（XingyunAvatarAgent 端到端 SDK 对比验证）。",
+        "description": "SDK handshake. Provider credentials and the scoped callback key stay on the server.",
         "operationId": "start_xingyun_e2e_session_api_agent_xingyun_e2e_session_post",
         "parameters": [
+          {
+            "name": "grant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "title": "Grant Id"
+            }
+          },
           {
             "name": "preset",
             "in": "query",
@@ -1428,8 +1643,20 @@
           "agent-sdk"
         ],
         "summary": "Stop Xingyun E2E Session",
-        "description": "代理魔珐星云 `DELETE /user/v1/ttsa_v2/session`。",
         "operationId": "stop_xingyun_e2e_session_api_agent_xingyun_e2e_session_delete",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "title": "Grant Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1439,6 +1666,16 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Stop Xingyun E2E Session Api Agent Xingyun E2E Session Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1496,7 +1733,7 @@
           "agent-sdk"
         ],
         "summary": "Openai Compatible Agent Bridge",
-        "description": "OpenAI Chat Completions 兼容桥接接口（供星云控制台『自定义对话模型』或外部客户端接入）。",
+        "description": "Native Web Agent callback; requires a server-issued, login-bound capability.",
         "operationId": "openai_compatible_agent_bridge_api_agent_v1_chat_completions_post",
         "responses": {
           "200": {
@@ -1866,6 +2103,14 @@
               }
             ],
             "title": "Client Context"
+          },
+          "guest_history": {
+            "items": {
+              "$ref": "#/components/schemas/GuestChatMessage"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Guest History"
           }
         },
         "type": "object",
@@ -1873,6 +2118,29 @@
           "message"
         ],
         "title": "CompanionChatIn"
+      },
+      "GuestChatMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "GuestChatMessage"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2131,7 +2399,6 @@
               "type": "string"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Evidence Ids"
           },
           "note": {
@@ -2151,8 +2418,7 @@
         "type": "object",
         "required": [
           "artifact_id",
-          "artifact_version",
-          "evidence_ids"
+          "artifact_version"
         ],
         "title": "VerificationSubmitIn"
       }

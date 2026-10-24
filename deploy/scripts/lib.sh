@@ -6,6 +6,7 @@ EMC_BASE=${EMC_BASE:-/srv/ecommerce-money-copilot}
 EMC_ETC=${EMC_ETC:-/etc/ecommerce-money-copilot}
 EMC_DB_NAME=${EMC_DB_NAME:-ecommerce_money_copilot}
 EMC_SERVICE=${EMC_SERVICE:-ecommerce-money-copilot-api.service}
+EMC_REVIEW_SERVICE=${EMC_REVIEW_SERVICE:-ecommerce-money-copilot-review.service}
 EMC_HEALTH_TIMER=${EMC_HEALTH_TIMER:-ecommerce-money-copilot-health.timer}
 EMC_API_HEALTH_URL=${EMC_API_HEALTH_URL:-http://127.0.0.1:8790/api/health}
 EMC_PUBLIC_HOST=${EMC_PUBLIC_HOST:-money.acosx.top}
@@ -76,6 +77,19 @@ emc_wait_url() { # $1=url $2=attempts [$3=Host header]
 # (Re)start whatever the given release needs and verify it is healthy.
 emc_start_and_check() {
   local rel=$1
+  # Stop before switching process code. An in-flight call keeps its bounded lease;
+  # the new worker recovers it, while rollback to old code leaves the queue intact.
+  if systemctl is-active --quiet "$EMC_REVIEW_SERVICE"; then
+    systemctl stop "$EMC_REVIEW_SERVICE" || return 1
+  fi
+  if [[ -f $EMC_BASE/$rel/backend/emc_api/services/review_queue.py ]]; then
+    systemctl cat "$EMC_REVIEW_SERVICE" > /dev/null 2>&1 || { emc_log "review unit missing; run install-host.sh first"; return 1; }
+    if [[ $EMC_ENABLE_UNITS == 1 ]]; then systemctl enable --quiet "$EMC_REVIEW_SERVICE" || return 1; fi
+    systemctl restart "$EMC_REVIEW_SERVICE" || return 1
+    systemctl is-active --quiet "$EMC_REVIEW_SERVICE" || return 1
+  elif systemctl is-enabled --quiet "$EMC_REVIEW_SERVICE" 2> /dev/null; then
+    systemctl disable --quiet "$EMC_REVIEW_SERVICE" || return 1
+  fi
   if emc_has_backend "$EMC_BASE/$rel"; then
     if [[ $EMC_ENABLE_UNITS == 1 ]]; then
       systemctl enable --quiet "$EMC_SERVICE"

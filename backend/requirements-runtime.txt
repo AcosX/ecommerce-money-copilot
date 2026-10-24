@@ -36,6 +36,8 @@ markupsafe==3.0.4
     # via mako
 opentelemetry-api==1.45.1
     # via fastapi
+pillow==12.3.0
+    # via emc-api
 pydantic==2.14.1
     # via
     #   emc-api
@@ -46,6 +48,8 @@ pydantic-core==2.50.1
 pydantic-settings==2.16.1
     # via emc-api
 pymysql==1.2.3
+    # via emc-api
+pypdf==6.21.2
     # via emc-api
 python-dotenv==1.2.4
     # via pydantic-settings

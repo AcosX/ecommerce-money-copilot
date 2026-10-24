@@ -10,7 +10,7 @@
 
 **不要恢复** PR 初稿并行的 `backend/emc_api/agent/`、`routers/agent_guest.py`、
 `/api/agent/projects/...`、0002–0004 Agent 迁移或 `agent_states` 等数据库表。
-本次整合不要求生产数据库增加 Agent 表。
+该旧整合未增加 Agent 表；2026-10-23 的正式审核队列另外使用 `0002_agent_review_queue` 迁移，见 [单步带关说明](./guided-journey.md)。
 
 已登录玩家的亲密度由服务端持久化；本地练习的耐心、连续提问和锦囊仅保存在浏览器，不能影响正式认证。游客可以发起 Agent 问答，但没有正式登录权限或云端对话存档承诺。由于旧的审计历史未公开模型来源，旧消息不标成“已验证为 AI”；新消息按服务器 provider 区分真实模型和规则回退。
 
@@ -18,4 +18,37 @@
 
 验证：`node --test js/tests/*.test.cjs`、后端 MariaDB `uv run pytest`、
 `js/tests/emc-agent-browser.cjs` 和六关 `js/tests/emc-journey-browser.cjs`。
-真实星云 SDK 鉴权、安卓微信/OIDC 往返及最后一单认证，仍需在对应真实场景验收。
+网页端原生星云会话已真实验收，见 [xingyun-web.md](./xingyun-web.md)。安卓微信/OIDC 往返和独立首单成就仍需在对应场景验收。
+
+2026-10-23 对话调优：登录对话在数据库查询时按玩家和 `session_id` 过滤，最近六轮作为真实
+user/assistant 消息送入模型；游客由浏览器携带最多 12 条 `guest_history`，只接受 user/assistant
+角色，不作持久化或权限依据。登录用户不采用客户端伪造的历史。浏览器同步当前平台、类目和任务，
+模型同时收到计算、审核、草稿和界面操作的真实结果；引用资料仅供参考，不再强制引用课程或通关清单。
+无主题命中时返回空检索，明确平台时排除其他平台资料，避免预算数字匹配课程编号。
+
+模型超时默认 20 秒（`EMC_AI_TIMEOUT_SECONDS`），请求上限 25 秒，低于前端 35 秒期限；
+不再强制截为 2.5 秒。兼容带 `/v1` 的网关地址。临时失败后短暂熔断 10 秒；失败仍明确标记
+`local_copilot_fallback`，不会把规则回复标成真实模型。若网关返回 429 且提示
+`All available accounts exhausted`，需网关方恢复可用账号/额度或配置有效上游，提示词无法解决。
+
+算账仅提取有售价、拿货/成本等标签的数据，保留亏损情况，计入明确的运费、包材、佣金，列出
+缺失费用，不再把估算毛利标成净利或生成无依据的评分。参考与计算以可折叠卡片展示，使用页面主题色。
+新增检查：`pytest tests/test_agent_dialogue.py tests/test_agent_runtime.py`、
+`node js/tests/emc-agent-dialogue-browser.cjs`（需要 Playwright，可用 `EMC_PLAYWRIGHT_MODULE` /
+`EMC_CHROMIUM` 指定模块与浏览器）。浏览器检查在本地临时端口提供页面，模拟 API，验证游客追问、
+日夜主题对比度和手机溢出；它不代表真实网关可用性。
+
+当前部署上游使用 `EMC_AI_BASE_URL=https://api.openai.com`，对话和预审模型均为
+`deepseek-v4-1-flash-261017`。API 密钥只放在本地 `.env` 或生产主机
+`/etc/ecommerce-money-copilot/app.env`，不进入 Git，也不下发浏览器。
+
+纯算账请求直接以 Decimal 工具验算结果生成费用明细，provider 为 `verified_calculation`，
+界面和恢复的历史均标注“工具验算”，不调用模型扩展数字。混合文案、规划和情景任务继续使用模型，
+同时传入验算结果并约束其说明缺失参数；不把不完整成本下的差额称为净利润或保证保本。
+
+2026-10-23 单步带关：当前任务、前序成果和审核队列已接入唯一聊天。最新行为与验收边界以 [guided-journey.md](./guided-journey.md) 为准；旧文中的规则预审和工作纸不再是通关流程。
+
+2026-10-23 Web E2E：主要网页传输切换到 `XingyunAvatarAgent`，回调使用同一个
+`run_companion_chat`，模型密钥仍只在服务器。`0003_xingyun_web` 只存短期传输授权和当前消息回执，
+不另建 Agent 记忆。普通文字 `/agent/chat` 在原生会话尚未建立时可继续使用；已发送的原生请求不会
+自动重复调用文字接口。语音识别结果必须先经用户在原输入框确认。完整协议和权限见网页端说明。

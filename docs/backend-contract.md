@@ -7,7 +7,7 @@
 - 关卡团队：关卡内容、玩法、教学交互；游客教学存档（localStorage）与教学进度接口（Phase 2）。
 - 后端：身份会话、经营项目、正式成果、证据附件、人工审核、审计、部署。
 - Acos Connect：注册、登录、邮箱验证、找回密码、游戏风格登录页。本项目不保存密码，不持有 Acos Connect 令牌于浏览器。
-- V1 不实现：平台对接、自动核验、真实 AI 执行。预留扩展点：成果 `content.extensions`（对象）与认证申请 `method`（V1 固定 `manual_review`）。
+- 当前不接管外部电商账号。2026-10-23 起真实 Agent 对话与持久化自动审核已接入；新提交 `method=agent_review`，保留历史 `manual_review`。人工复核继续可用，细则见 [单步带关说明](./guided-journey.md)。
 
 ## 2. 环境、域名与容量（#5）
 
@@ -181,7 +181,7 @@ uv run pytest
 - 项目创建：`{"name": "1–80 字", "platform": "可选", "category": "可选", "description": "≤ 2000 字，可选"}`；项目字段另有 `status`（`active` / `archived`）、`version`、`created_at`、`updated_at`。
 - 成果创建：`{"project_id", "artifact_type", "schema_version", "title", "content", "origin": "formal|tutorial_copy", "source_level_id"}`。
 - 成果修改：`{"version", "title"?, "content"?}`；内容变化生成新 revision，`version` 加 1。
-- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
+- 认证提交：`{"artifact_id", "artifact_version", "evidence_ids": [], "note": "≤ 2000 字"}`。规划、选品、复盘可直接提交至少 40 字的 `content.report_text`（兼容 `planning_report`、`summary`），可附 `conversation`。上架可提交 http(s) `listing_url`；其他成果需附件，L3/L5 核心图片要求由前端及真实审核共同检查。链接不自动抓取，也不因提交链接就认定在售。提交时把当前 revision 的内容复制为不可变快照（附 SHA-256），附件绑定到该申请。成果已有 pending 申请或版本不一致时返回 409。
 - 审核：`{"decision": "approved|rejected", "reason": "驳回必填，1–2000 字"}`；申请非 pending 返回 409 `invalid_state`；审核员不能审核本人申请（403）。
 
 ## 10. 数据表（初始迁移）
@@ -193,7 +193,29 @@ uv run pytest
 - `artifact_revisions`：`artifact_id` + `revision`（唯一）、`content`（JSON）、`content_sha256`、`created_by`、`created_at`。
 - `evidence_files`：`id`、`owner_id`、`submission_id`（可空）、`storage_key`、`original_filename`、`content_type`、`size_bytes`、`sha256`、`created_at`。
 - `verification_submissions`：`id`、`artifact_id`、`owner_id`、`artifact_revision`、`snapshot`（JSON）、`snapshot_sha256`、`note`、`method`、`status`、`created_at`、`decided_at`；同一成果最多一个 pending（数据库唯一约束保证）。
-- `verification_reviews`：`id`、`submission_id`、`reviewer_id`、`decision`、`reason`、`created_at`；只追加。
+- `verification_reviews`：`id`、`submission_id`、`reviewer_id`（Agent 为空）、`source`（manual/agent）、`report`（结构化依据）、`decision`、`reason`、`created_at`；只追加。
+- `review_jobs`（迁移 0002）：以 submission_id 为主键，包含状态、尝试次数、下次尝试时间、租约 token/到期时间、快照散列、rubric/model、错误码与报告。查询申请额外返回 `agent_review={state, attempts, rubric_version, report}`；审核历史额外返回 source/report。
 - `audit_events`：自增 `id`、`occurred_at`、`actor_player_id`、`action`、`target_type`、`target_id`、`request_id`、`details`（JSON）；只追加。
 - `idempotency_records`：`player_id` + `endpoint` + `key`（唯一）、`request_hash`、`response_status`、`response_body`、`created_at`、`expires_at`。
 - 教学进度相关表由 Phase 2 负责人以独立迁移添加。
+
+
+### 2026-10-23 小商对话与数字人
+
+- `/api/agent/chat` 的 `memory.intimacy_score`、`memory.patience_score` 是前端好感、耐心的数值来源。登录用户从服务器记忆更新，不采信客户端传入的分数；游客仅在本次浏览器会话延续显示，不产生经营奖励。
+- 游客聊天 `guest_history` 可传最近的 user/assistant 对话作为参考，不作为身份、进度或工具权限；登录对话使用服务端本人当前项目的历史。L1 可在对话里生成完整规划，前端检查后仍走现有成果及认证接口，冻结文本，不因省略附件自动认证。
+- 数字人使用仓库内 XmovAvatar SDK，经同源 `/api/agent/xingyun/session` 由服务器签名。首次发送消息自动尝试连接一次，失败仍可文字对话，支持重试、暂停与断开。前端不接触服务端 AppSecret。
+- Markdown 使用本地 vendored marked 15.0.12 / DOMPurify 3.3.3。只渲染回复，过滤脚本、事件、图片与危险链接；用户消息作为文本显示。
+
+### 项目对话历史筛选
+
+`GET /api/agent/memory?session_id=<项目ID>` 可只取当前玩家该项目的最近 10 轮对话，筛选先于条数限制执行。省略该参数时保持玩家全局最近对话。`session_id` 为 1–64 字符，不能绕过登录玩家隔离。
+
+历史对话仅额外投影审计中已有的 `llm_meta.provider`，不暴露完整上游元数据。前端区分模型回答、本地规则回退与“来源未记录”的旧历史；刷新与存档规范化保留来源。纯算账由工具直接生成费用明细，provider 为 `verified_calculation`，标注“工具验算”；混合规划、文案等任务继续由模型结合验算结果回答。
+
+小商对话补充（2026-10-23）：`POST /api/agent/chat` 可选接收 `guest_history`，最多 12 条
+`{role: "user" | "assistant", text: string}`，每条文本不超过 2000 字符。仅游客采用客户端历史，
+作为本轮模型输入，不建立云端存档或授予权限；登录用户使用服务端本人、当前 `session_id` 的最近六轮。
+其他角色返回字段校验错误。知识库无相关结果时 `knowledge_citations` 为空。`roi_calculation` 仅根据
+有明确标签的金额计算，`breakeven_roi` 在毛利非正时为 `null`，并以 `missing_costs` 提示未计入费用；
+不再返回伪精确的 `score_4d` 或误标净利的 `estimated_net_profit_yuan`。

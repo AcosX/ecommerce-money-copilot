@@ -105,12 +105,14 @@
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always set Permissions-Policy "geolocation=(), microphone=(self), camera=()"
     # The current frontend uses one inline <script>, inline <style>, inline
     # event handlers and a pixel font from the Feishu font CDN, hence
     # 'unsafe-inline'. Tighten once scripts move to js/ files.
+    # Xingyun: allow only the observed resource/session hosts; WASM and Blob workers
+    # are required by its bundled decoder. JavaScript eval remains disallowed.
     # setifempty: a backend-provided CSP (e.g. /admin/) takes precedence.
-    Header setifempty Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://miaoda.feishu.cn; font-src 'self' data: https://sf3-scmcdn-cn.feishucdn.com; img-src 'self' data: blob:; connect-src 'self'; form-action 'self' https://auth.acosx.top; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+    Header setifempty Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://miaoda.feishu.cn; font-src 'self' data: https://sf3-scmcdn-cn.feishucdn.com; img-src 'self' data: blob: https://media.xingyun3d.com https://public-xmov.oss-cn-hangzhou.aliyuncs.com; connect-src 'self' https://media.xingyun3d.com https://public-xmov.oss-cn-hangzhou.aliyuncs.com https://ttsa-gateway-lite.xingyun3d.com wss://ttsa-gateway-lite.xingyun3d.com wss://e2emp.xingyun3d.com; media-src 'self' blob: data: https://media.xingyun3d.com https://public-xmov.oss-cn-hangzhou.aliyuncs.com; worker-src 'self' blob:; form-action 'self' https://auth.acosx.top; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
     Header always setifempty X-Frame-Options "SAMEORIGIN"
 
     TraceEnable off

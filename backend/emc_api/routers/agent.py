@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import html
 import json
+import secrets
 import time
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from ..config import Settings
 from ..db import get_db
@@ -24,6 +27,7 @@ from ..security import (
     require_csrf,
     require_player,
 )
+from ..services import xingyun_web
 from ..services.agent_runtime import (
     AGENT_TOOL_SCHEMAS,
     KNOWLEDGE_BASE_META,
@@ -42,12 +46,18 @@ from ..services.agent_runtime import (
     tool_get_player_progress,
 )
 from ..services.audit import record_audit
+from ..timeutil import utcnow
 
 # 挂载在 include_api_router 下（自动带 /api 前缀与 require_csrf）
 router = APIRouter(tags=["agent"])
 
 # 供 XmovAvatar Web SDK 内部 fetch()、游客体验对话与 OpenAI 兼容网关调用的路由
 sdk_router = APIRouter(tags=["agent-sdk"])
+
+
+class GuestChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(max_length=2000)
 
 
 class CompanionChatIn(BaseModel):
@@ -62,6 +72,7 @@ class CompanionChatIn(BaseModel):
     preset_id: str | None = Field(default=None, max_length=32)
     session_id: str | None = Field(default=None, max_length=64)
     client_context: dict[str, Any] | None = Field(default=None)
+    guest_history: list[GuestChatMessage] = Field(default_factory=list, max_length=12)
 
 
 class ToolExecuteIn(BaseModel):
@@ -97,8 +108,8 @@ def get_agent_config(
 
     return {
         "architecture": {
-            "selected_scheme": "scheme_3_xingyun_sdk_plus_fastapi_runtime",
-            "title": "魔珐星云 3D 具身驱动 Web SDK (XmovAvatar) + 自建 FastAPI Agent Runtime",
+            "selected_scheme": "xingyun_web_e2e_plus_fastapi_runtime",
+            "title": "星云 Web Agent + 小商关卡服务",
             "rubric_version": RUBRIC_VERSION,
             "prompt_version": PROMPT_VERSION,
         },
@@ -106,6 +117,7 @@ def get_agent_config(
             "app_id": settings.xingyun_app_id,
             "gateway_server": "/api/agent/xingyun/session",
             "e2e_gateway_server": "/api/agent/xingyun/e2e-session",
+            "web_e2e": True,
             "default_preset": settings.xingyun_default_preset,
             "presets": presets_public,
         },
@@ -130,13 +142,16 @@ def get_agent_config(
 
 @router.get("/agent/memory")
 def read_agent_memory(
+    session_id: str | None = Query(default=None, min_length=1, max_length=64),
     player: CurrentPlayer = Depends(require_player),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """读取当前登录玩家的长期记忆与最近对话历史（按 player_id 强隔离）。"""
     return {
         "memory": get_player_memory(db, player.id),
-        "recent_conversation": get_recent_conversation(db, player.id, limit=10),
+        "recent_conversation": get_recent_conversation(
+            db, player.id, limit=10, session_id=session_id
+        ),
         "progress": tool_get_player_progress(db, player.id),
     }
 
@@ -257,34 +272,150 @@ async def stop_xingyun_session(
     return proxy_xingyun_stop_session(settings, payload, e2e=False)
 
 
+@sdk_router.post("/agent/xingyun/web-sessions")
+def issue_web_session(
+    request: Request,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    if player:
+        require_csrf(request, db, settings)
+    return xingyun_web.issue(db, settings, player)
+
+
+@sdk_router.post("/agent/xingyun/web-sessions/{grant_id}/turns")
+def prepare_web_turn(
+    grant_id: str,
+    body: CompanionChatIn,
+    request: Request,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    if player:
+        require_csrf(request, db, settings)
+    return xingyun_web.prepare(db, settings, grant_id, player, body.model_dump())
+
+
+@sdk_router.get("/agent/xingyun/web-sessions/{grant_id}/turns/{turn_id}")
+def read_web_turn(
+    grant_id: str,
+    turn_id: str,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return xingyun_web.result(db, settings, grant_id, turn_id, player)
+
+
+@sdk_router.delete("/agent/xingyun/web-sessions/{grant_id}")
+def revoke_web_session(
+    grant_id: str,
+    request: Request,
+    player: CurrentPlayer | None = Depends(get_current_player),
+    settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    if player:
+        require_csrf(request, db, settings)
+    grant = xingyun_web.owned(db, settings, grant_id, player, lock=True, active=False)
+    grant.expires_at = utcnow()
+    db.commit()
+    return {"revoked": True}
+
+
 @sdk_router.post("/agent/xingyun/e2e-session")
 async def start_xingyun_e2e_session(
     request: Request,
+    grant_id: str = Query(min_length=64, max_length=64),
     preset: str | None = Query(default=None, max_length=32),
+    player: CurrentPlayer | None = Depends(get_current_player),
     settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """代理魔珐星云 `POST /user/v1/ttsa_v2/session`（XingyunAvatarAgent 端到端 SDK 对比验证）。"""
+    """SDK handshake. Provider credentials and the scoped callback key stay on the server."""
     try:
         raw_body = await request.json()
-        payload = raw_body if isinstance(raw_body, dict) else {}
     except Exception:
-        payload = {}
-    chosen_preset = preset or str(payload.pop("preset_id", "") or settings.xingyun_default_preset)
-    return proxy_xingyun_session(settings, payload, preset_id=chosen_preset, e2e=True)
+        raw_body = {}
+
+    def handshake() -> dict[str, Any]:
+        grant = xingyun_web.owned(db, settings, grant_id, player, lock=True)
+        request_id = secrets.token_hex(16)
+        # The SDK sends its protocol version in config. Ignore all client Brain/provider settings.
+        config = raw_body.get("config") if isinstance(raw_body, dict) else {}
+        if not isinstance(config, dict):
+            config = {}
+        version = (config or {}).get("sdk_version") if isinstance(config, dict) else None
+        payload = {
+            "config": {
+                "sdk_version": str(version or "2.4.1")[:64],
+                "framedata_proto_version": 2,
+                "walk_version": 3,
+                "raw_audio": (config or {}).get("raw_audio") is True,
+            },
+            "session_speak_req_id": 1,
+            "request_id": request_id,
+            "brain_config": {
+                "provider": "openai",
+                "base_url": settings.public_origin.rstrip("/") + "/api/agent/v1",
+                "api_key": xingyun_web.bearer(settings, grant_id),
+                "model": "xiaoshang-agent-v1",
+                "history_length": 0,
+            },
+            "features": {"auto_send_asr_to_llm": False},
+        }
+        data = proxy_xingyun_session(
+            settings,
+            payload,
+            preset_id=preset or settings.xingyun_default_preset,
+            e2e=True,
+        )
+        session_id = str((data.get("data") or {}).get("session_id") or "")
+        if session_id:
+            grant.turn = {
+                **(grant.turn or {}),
+                "upstream": {"session_id": session_id, "request_id": request_id},
+            }
+        db.commit()
+        return xingyun_web.public_session_response(data)
+
+    return await run_in_threadpool(handshake)
 
 
 @sdk_router.delete("/agent/xingyun/e2e-session")
 async def stop_xingyun_e2e_session(
     request: Request,
+    grant_id: str = Query(min_length=64, max_length=64),
+    player: CurrentPlayer | None = Depends(get_current_player),
     settings: Settings = Depends(get_app_settings),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """代理魔珐星云 `DELETE /user/v1/ttsa_v2/session`。"""
     try:
         raw_body = await request.json()
         payload = raw_body if isinstance(raw_body, dict) else {}
     except Exception:
         payload = {}
-    return proxy_xingyun_stop_session(settings, payload, e2e=True)
+
+    def teardown() -> dict[str, Any]:
+        grant = xingyun_web.owned(db, settings, grant_id, player, lock=True, active=False)
+        upstream = (grant.turn or {}).get("upstream") or {}
+        # A receipt never authorizes terminating another connection. Late stop is idempotent.
+        if not upstream or (
+            payload.get("session_id") and payload["session_id"] != upstream.get("session_id")
+        ):
+            return {"error_code": 0}
+        result = proxy_xingyun_stop_session(
+            settings,
+            {**upstream, "stop_reason": "web_client_disconnect"},
+            e2e=True,
+        )
+        grant.turn = {**(grant.turn or {}), "upstream": None}
+        db.commit()
+        return result
+
+    return await run_in_threadpool(teardown)
 
 
 @sdk_router.post("/agent/chat")
@@ -320,6 +451,9 @@ def companion_chat(
         preset_id=body.preset_id,
         client_context=merged_context,
         session_id=body.session_id,
+        guest_history=[item.model_dump() for item in body.guest_history]
+        if player is None
+        else None,
     )
 
 
@@ -330,7 +464,7 @@ async def openai_compatible_agent_bridge(
     settings: Settings = Depends(get_app_settings),
     db: Session = Depends(get_db),
 ) -> Any:
-    """OpenAI Chat Completions 兼容桥接接口（供星云控制台『自定义对话模型』或外部客户端接入）。"""
+    """Native Web Agent callback; requires a server-issued, login-bound capability."""
     try:
         payload = await request.json()
     except Exception as exc:
@@ -341,18 +475,15 @@ async def openai_compatible_agent_bridge(
     if isinstance(messages, list):
         for msg in reversed(messages):
             if isinstance(msg, dict) and msg.get("role") == "user" and msg.get("content"):
-                user_msg = str(msg["content"])[:2000]
+                user_msg = str(msg["content"])[:2080]
                 break
 
-    chat_res = run_companion_chat(
-        db,
-        settings,
-        player_id=player.id if player else None,
-        message=user_msg,
-        level_id=payload.get("level_id") if isinstance(payload, dict) else None,
-        preset_id=payload.get("preset_id") if isinstance(payload, dict) else None,
+    chat_res = await run_in_threadpool(
+        xingyun_web.complete, db, settings, request.headers.get("authorization", ""), user_msg
     )
-    reply_text = chat_res["spoken_text"]
+    # Vendor subtitle widgets use innerHTML. Keep model text inert there too;
+    # the canonical Markdown reply stays intact in the authenticated receipt.
+    reply_text = html.escape(chat_res["spoken_text"], quote=True)
     completion_id = f"chatcmpl-emc-{int(time.time() * 1000)}"
     created_ts = int(time.time())
     model_name = str(payload.get("model") or "xiaoshang-agent-v1")
