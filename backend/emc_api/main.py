@@ -20,7 +20,7 @@ from .db import Database
 from .errors import install_exception_handlers
 from .logging_config import configure_logging
 from .middleware import BodySizeLimitMiddleware, RequestContextMiddleware
-from .routers import admin, agent, artifacts, auth, evidence, health, me, projects, verifications
+from .routers import agent, artifacts, auth, evidence, health, me, projects, verifications
 from .security import require_csrf
 
 # 仓库根目录（backend/ 的上一级），仅 EMC_ENV=dev 时用于提供前端静态文件。
@@ -127,10 +127,8 @@ def create_app(
     include_api_router(app, artifacts.router)
     include_api_router(app, evidence.router)
     include_api_router(app, verifications.router)
-    include_api_router(app, admin.router)
     include_api_router(app, agent.router)
     app.include_router(agent.sdk_router, prefix="/api")
-    app.include_router(admin.ui_router)
     # /auth/* 由 OIDC 登录模块实现（见 routers/auth.py）。
     app.include_router(auth.router)
 

@@ -901,221 +901,6 @@
         }
       }
     },
-    "/api/admin/verifications": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Admin List Verifications",
-        "description": "审核员查询认证申请列表（默认 `status=pending`，传 `status=all` 返回全部状态）。",
-        "operationId": "admin_list_verifications_api_admin_verifications_get",
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 32
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "pending",
-              "title": "Status"
-            }
-          },
-          {
-            "name": "artifact_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 64
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Artifact Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 512
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Admin List Verifications Api Admin Verifications Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/verifications/{submission_id}": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Admin Get Verification",
-        "description": "审核员读取认证申请详情（含冻结快照、证据列表与审核历史）。",
-        "operationId": "admin_get_verification_api_admin_verifications__submission_id__get",
-        "parameters": [
-          {
-            "name": "submission_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Submission Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Admin Get Verification Api Admin Verifications  Submission Id  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/verifications/{submission_id}/review": {
-      "post": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Admin Review Verification",
-        "description": "审核员执行通过或驳回（只追加审核记录，禁止自审与重复审核）。",
-        "operationId": "admin_review_verification_api_admin_verifications__submission_id__review_post",
-        "parameters": [
-          {
-            "name": "submission_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Submission Id"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReviewDecisionIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/agent/config": {
       "get": {
         "tags": [
@@ -2013,6 +1798,19 @@
             "minLength": 1,
             "title": "Message"
           },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Images"
+          },
+          "web_search": {
+            "type": "boolean",
+            "title": "Web Search",
+            "default": false
+          },
           "level_id": {
             "anyOf": [
               {
@@ -2277,36 +2075,6 @@
           "version"
         ],
         "title": "ProjectUpdateIn"
-      },
-      "ReviewDecisionIn": {
-        "properties": {
-          "decision": {
-            "type": "string",
-            "enum": [
-              "approved",
-              "rejected"
-            ],
-            "title": "Decision"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "decision"
-        ],
-        "title": "ReviewDecisionIn"
       },
       "ToolExecuteIn": {
         "properties": {

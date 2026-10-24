@@ -44,6 +44,8 @@ jobs:
           node js/tests/emc-journal-prompts-browser.cjs
           node js/tests/emc-centered-panels-browser.cjs
           node js/tests/emc-chat-composer-browser.cjs
+          node js/tests/emc-chat-upgrade-browser.cjs
+          node js/tests/emc-partner-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
