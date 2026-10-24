@@ -69,27 +69,27 @@ async function prepare(page,{welcome=false}={}){
   await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).mail.opening);
   await page.keyboard.press('Escape');
   if(width<=700){assert.equal(await page.locator('#copilotSuggestions').isVisible(),false);await page.locator('#copilotHistory').click();}
-  const suggestions=page.locator('#copilotSuggestions');assert.equal(await suggestions.getByRole('button').count(),2);assert.match(await suggestions.innerText(),/确认进度/);
-  await suggestions.getByRole('button').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L2/);
+  const suggestions=page.locator('#copilotSuggestions');assert.equal(await suggestions.locator('[data-chat-suggestion]').count(),2);assert.match(await suggestions.innerText(),/确认进度/);
+  await suggestions.locator('[data-chat-suggestion]').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L2/);
   assert.equal(fixture.calls.filter(c=>c.uri==='/api/agent/chat').length,0,'Suggestions fill the input without sending');
   await page.locator('#copilotInput').fill('');
   // Select a different task through the same journal and check prompt context updates.
   if(width<=700)await page.locator('#closeMobileChat').click();
   await page.getByRole('button',{name:'打开经营手帐',exact:true}).click();await page.locator('[data-mail-level=L1]').click();await page.waitForFunction(()=>JSON.parse(render_game_to_text()).journey.active==='L1');await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).mail.opening);await page.keyboard.press('Escape');
   if(width<=700)await page.locator('#openCompanionChat').click();
-  await suggestions.getByRole('button').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L1/);assert.doesNotMatch(await page.locator('#copilotInput').inputValue(),/L2/);
+  await suggestions.locator('[data-chat-suggestion]').first().click();assert.match(await page.locator('#copilotInput').inputValue(),/L1/);assert.doesNotMatch(await page.locator('#copilotInput').inputValue(),/L2/);
   const input=page.locator('#copilotInput');const original=await input.inputValue();await input.fill(original+' 我补充的情况。');
   const submitted=page.waitForRequest(r=>r.url().endsWith('/api/agent/chat'));
   await page.locator('#copilotSend').click();await submitted;
-  assert.equal(await suggestions.getByRole('button').first().isDisabled(),true);
+  assert.equal(await suggestions.locator('[data-chat-suggestion]').first().isDisabled(),true);
   fixture.releaseReply();await page.waitForFunction(()=>!JSON.parse(render_game_to_text()).chat.sending);
-  assert.equal(await suggestions.getByRole('button').first().isEnabled(),true);
+  assert.equal(await suggestions.locator('[data-chat-suggestion]').first().isEnabled(),true);
   const posted=fixture.calls.filter(c=>c.uri==='/api/agent/chat');assert.equal(posted.length,1);assert.equal(posted[0].body.level_id,'L1');assert.match(posted[0].body.message,/我补充的情况/);
   inside(await suggestions.boundingBox(),width,height);inside(await page.locator('#copilotForm').boundingBox(),width,height);
   assert.ok((await page.locator('#socialMessages').boundingBox()).height>=100);
   assert.equal(await suggestions.evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);
   await page.screenshot({path:path.join(shots,`chat-${width}.png`)});
-  await page.locator('#copilotInput').fill('暂时保留的输入');await suggestions.getByRole('button').last().focus();await page.keyboard.press('Enter');assert.match(await input.inputValue(),/L1/);
+  await page.locator('#copilotInput').fill('暂时保留的输入');await suggestions.locator('[data-chat-suggestion]').last().focus();await page.keyboard.press('Enter');assert.match(await input.inputValue(),/L1/);
   if(width<=700){
     await page.evaluate(()=>{document.body.classList.add('keyboard-open');document.documentElement.style.setProperty('--keyboard-offset','200px');});
     assert.equal(await suggestions.isVisible(),false);inside(await page.locator('#copilotForm').boundingBox(),width,height-200);
@@ -100,7 +100,7 @@ async function prepare(page,{welcome=false}={}){
   if(width<=700)await page.locator('#closeMobileChat').click();
   for(const selector of ['[data-panel=settings]','[data-panel=inventory]','.quest-peek']){await page.locator(selector).click();await page.locator('#drawer').waitFor();inside(await page.locator('#drawer').boundingBox(),width,height);await page.keyboard.press('Escape');}
   await page.reload();await page.waitForFunction(()=>window.render_game_to_text&&!JSON.parse(render_game_to_text()).journey.loading);await page.locator('#opening').waitFor({state:'hidden',timeout:45000});
-  assert.equal(await journal.evaluate(e=>getComputedStyle(e).position),'absolute');if(width<=700)await page.locator('#copilotHistory').click();assert.equal(await suggestions.getByRole('button').count(),2);
+  assert.equal(await journal.evaluate(e=>getComputedStyle(e).position),'absolute');if(width<=700)await page.locator('#copilotHistory').click();assert.equal(await suggestions.locator('[data-chat-suggestion]').count(),2);
   assert.deepEqual(errors,[]);await page.close();console.log('PASS',width+'x'+height,'journal card/panel/records, scoped editable suggestions, waiting/reply/reload, existing navigation');
  }
  const page=await browser.newPage({viewport:{width:390,height:844}});await prepare(page,{welcome:true});await page.locator('#copilotHistory').click();
