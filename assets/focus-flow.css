@@ -60,4 +60,4 @@
 
 /* 从原信纸按比例取出邮戳区域；九宫格边框只延展直线，不拉伸图案。 */
 .mail-art-content .j-focus-card:before{content:'';position:absolute;top:14px;right:14px;width:clamp(100px,32%,170px);aspect-ratio:390/240;background:url('./game/mail/letter-paper-v1.webp') 84.699% 8.176% / 287.692% 584.167% no-repeat;pointer-events:none;}
-.mail-extracted-stage:has(>.j-focus-card):before{inset:50px -14px -8px;background-size:100% auto;background-position:center bottom;}
+.mail-extracted-stage:has(>.j-focus-card):before{inset:55% -14px -8px;background-size:100% auto;background-position:center bottom;}
