@@ -29,7 +29,9 @@ const read=page=>page.evaluate(()=>JSON.parse(render_game_to_text()));
     await page.screenshot({path:path.join(shots,'evolution-paused.png')});
     await page.locator('#pause').click();
    }
-   await page.waitForFunction(()=>JSON.parse(render_game_to_text()).phase==='complete',null,{timeout:60000});
+   // Software WebGL advances frame-capped animation more slowly than a real GPU.
+   // Keep all five-upgrade assertions and allow bounded playback on CI runners.
+   await page.waitForFunction(()=>JSON.parse(render_game_to_text()).phase==='complete',null,{timeout:180000});
    const complete=await read(page);assert.deepEqual(complete.history,[0,1,2,3,4,5]);
    assert.equal(complete.canvasCount,1);assert.equal(complete.audio.effect_count,width===1440?5:0);
    assert.equal(complete.upgrade,null);assert.equal(complete.audio.playing,false);
