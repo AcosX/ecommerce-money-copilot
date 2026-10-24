@@ -106,3 +106,8 @@
  .shortcuts{top:calc(var(--mobile-top) + 116px);}
  .scene-framing{top:calc(var(--mobile-top) + 158px);}
 }
+.npc-bubble #npcSpeech{font-size:12px;line-height:1.8;max-height:132px;margin:8px 0 10px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;overflow-wrap:anywhere}
+.npc-bubble #npcSpeech :is(p,ul,ol,blockquote){max-height:none!important;overflow:visible;margin:0 0 .5em;padding:0;font:inherit}
+.npc-bubble #npcSpeech>:last-child{margin-bottom:0}.npc-bubble-actions{gap:12px}.npc-bubble-actions .npc-continue{margin-left:auto;white-space:nowrap}
+@media(max-width:700px){.npc-bubble{width:min(278px,calc(100vw - 32px));padding:32px 30px 28px}.npc-bubble header{height:auto;min-height:28px;display:flex;align-items:center;gap:8px}.npc-bubble header b{display:block;font-size:12px}.npc-bubble header small{display:none}.npc-bubble header button{position:static;width:28px;height:28px;min-height:28px;margin-left:auto}.npc-bubble #npcSpeech{max-height:60px!important;font-size:12px;line-height:20px;margin:6px 0 10px;padding:0}.npc-bubble-actions{min-height:30px;align-items:center}.npc-bubble-actions>small{font-size:9px;line-height:1.5}.npc-bubble .npc-continue{min-height:30px;padding:4px 0;font-size:11px}}
+@media(max-width:700px) and (max-height:650px){.npc-bubble{padding:28px 28px 24px}.npc-bubble #npcSpeech{max-height:40px!important}}
