@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#cae4ef">
+  <title>店铺蜕变 · 完整演示</title>
+  <link rel="stylesheet" href="building-evolution.css?v=1">
+  <script type="importmap">{"imports":{"three":"../assets/vendor/three/build/three.module.js","three/addons/":"../assets/vendor/three/examples/jsm/"}}</script>
+  <script src="../js/emc-audio.js?v=evolution1" defer></script>
+  <script type="module" src="building-evolution.js?v=1"></script>
+</head>
+<body>
+  <div class="sky" aria-hidden="true"><i class="sun"></i><i class="cloud one"></i><i class="cloud two"></i></div>
+  <header class="masthead"><div><strong>电商搞钱参谋<span>✦</span></strong><small>店铺蜕变 / 完整演示</small></div><a href="buildings-preview.html" id="inspect">模型检查 ↗</a></header>
+  <main>
+    <div class="chapter" aria-live="polite"><p id="level">LV.00 <span>/ 05</span></p><h1 id="name">地摊起步</h1><p id="description">第一块摊布，也是第一步。</p></div>
+    <div id="scene" aria-label="六级店铺连续升级演示"></div>
+    <div id="loading" role="status"><span class="loading-mark" aria-hidden="true">✦</span><p id="loading-text">正在布置你的小岛…</p></div>
+  </main>
+  <footer class="player">
+    <ol id="timeline" aria-label="店铺成长路线"></ol>
+    <div class="player-row"><p id="status" role="status">准备六级店铺与升级音效</p><div class="actions"><button id="sound" aria-pressed="true" aria-label="关闭演示声音">♪ 声音开</button><button id="pause" hidden disabled>暂停</button><button id="play" class="primary" disabled>正在准备…</button></div></div>
+  </footer>
+</body>
+</html>
