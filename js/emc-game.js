@@ -43,7 +43,7 @@
   ].map(task=>({...task,xp:20,level:'side',topic:'支线探索'}));
   const COLORS=['#eee0c5','#a6c4b0','#a8bdd4','#d4b8a2','#c4b6d8'];
   const PALETTES={wall:COLORS,sign:['#9c531e','#407766','#426a9c','#805284','#cc9741'],roof:['#bd3f23','#517b61','#4c6e97','#715589','#806453']};
-  function create(){return {schema_version:1,graphics_quality:'auto',theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'阿策',companion_named:false};}
+  function create(){return {schema_version:1,graphics_quality:'auto',theme:'auto',main:[],side:[],placements:[],npc_chat:[],inventory_seen:Object.entries(PALETTES).flatMap(([category,colors])=>colors.map(color=>category+':'+color)),wall_color:COLORS[0],sign_color:PALETTES.sign[0],roof_color:PALETTES.roof[0],shop_name:'我的小店',companion_name:'小商',companion_named:true};}
   function normalize(value){
     const s=create();if(!value||value.schema_version!==1)return s;
     s.graphics_quality=['auto','smooth','detail'].includes(value.graphics_quality)?value.graphics_quality:'auto';
@@ -55,8 +55,8 @@
     s.wall_color=COLORS.includes(value.wall_color)?value.wall_color:COLORS[0];
     for(const part of ['sign','roof'])s[part+'_color']=PALETTES[part].includes(value[part+'_color'])?value[part+'_color']:PALETTES[part][0];
     s.npc_chat=typeof EmcCopilot!=='undefined'?EmcCopilot.history(value.npc_chat):(typeof require==='function'?require('./emc-copilot.js').history(value.npc_chat):[]);
-    const copilot=typeof EmcCopilot!=='undefined'?EmcCopilot:require('./emc-copilot.js');
-    s.companion_name=copilot.companionName(value.companion_name);s.companion_named=value.companion_named===true&&!!copilot.validName(value.companion_name);
+    // Legacy custom names are replaced without changing progress or conversation history.
+    s.companion_name='小商';s.companion_named=true;
     s.shop_name=typeof value.shop_name==='string'?value.shop_name.trim().slice(0,12)||s.shop_name:s.shop_name;
     if(Array.isArray(value.placements)){
       const seen=new Set();

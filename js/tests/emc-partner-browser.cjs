@@ -1,17 +1,35 @@
+/* Fixed companion identity and login without a naming detour. */
 'use strict';
-const assert=require('node:assert/strict'),path=require('node:path'),os=require('node:os');
-const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright'),state=p=>p.evaluate(()=>JSON.parse(render_game_to_text()));
-(async()=>{const browser=await chromium.launch({headless:true,channel:process.env.EMC_BROWSER_CHANNEL||undefined});try{for(const width of [1440,390]){
- const context=await browser.newContext({viewport:{width,height:width===390?844:1000}}),p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));let logins=0;
- await p.route('**/auth/login?**',route=>{logins++;return route.fulfill({contentType:'text/html',body:'<h1>认证服务测试入口</h1>'});});
- await p.addInitScript(()=>{window.partnerRequests=[];window.EmcCopilotTransport=async body=>{window.partnerRequests.push(body);return {text:'我是'+body.context.companion_name+'，陪你开好第一间小店。'};};});
- const url=process.env.EMC_TEST_URL||'http://127.0.0.1:5173';await p.goto(url);await p.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).scene_status==='ready');assert.equal((await state(p)).companion_name,'阿策');
- await p.locator('#emcLoginBtn').click();await p.locator('#confirmPartnerName').waitFor();assert.equal(logins,0);await p.locator('#partnerNameInput').fill('<script>');await p.locator('#confirmPartnerName').click();assert.equal(logins,0);assert.match(await p.locator('#partnerNameError').textContent(),/有效/);
- await p.locator('#partnerNameInput').fill('小满');assert.equal(await p.locator('#partnerNameError').textContent(),'');await p.screenshot({path:path.join(os.tmpdir(),'emc-partner-onboarding-'+width+'.png')});await p.locator('#confirmPartnerName').click();await p.waitForURL('**/auth/login?**');assert.equal(logins,1);
- await p.goto(url);await p.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).npc?.visible);assert.equal((await state(p)).companion_name,'小满');assert.equal((await state(p)).companion_named,true);assert.equal(await p.locator('#npcInteract span').textContent(),'小满');assert.match(await p.locator('#copilotInput').getAttribute('placeholder'),/小满/);
- await p.locator('#copilotInput').fill('你叫什么');await p.locator('#copilotSend').click();await p.waitForFunction(()=>JSON.parse(render_game_to_text()).chat.history_count===2);let request=await p.evaluate(()=>partnerRequests[0]);assert.equal(request.context.companion_name,'小满');assert.match(request.system_prompt,/"小满"/);assert.match((await state(p)).chat.bubble,/我是小满/);
- await p.locator('[data-panel="settings"]').click();await p.locator('#partnerNameInput').fill('星河伙伴十二字名字测');await p.locator('#savePartnerName').click();assert.equal((await state(p)).companion_name,'星河伙伴十二字名字测');await p.locator('#partnerNameInput').fill('小麦');await p.locator('#partnerNameInput').press('Enter');assert.equal((await state(p)).companion_name,'小麦');assert.equal((await state(p)).chat.history_count,2);
- await p.locator('#closePanel').click();await p.waitForFunction(()=>JSON.parse(render_game_to_text()).npc?.visible);await p.locator('#copilotInput').fill('你好');await p.locator('#copilotSend').click();await p.waitForFunction(()=>JSON.parse(render_game_to_text()).chat.history_count===4);request=await p.evaluate(()=>partnerRequests.at(-1));assert.equal(request.context.companion_name,'小麦');assert.match(request.system_prompt,/"小麦"/);assert.equal(await p.locator('#npcBubble header b').textContent(),'小麦');await p.waitForTimeout(3400);await p.screenshot({path:path.join(os.tmpdir(),'emc-partner-chat-'+width+'.png')});
- await p.locator('#copilotHistory').click();assert.equal(await p.locator('.chat-message.assistant header b').first().textContent(),'小麦');await p.reload();await p.waitForFunction(()=>window.render_game_to_text);assert.equal((await state(p)).companion_name,'小麦');assert.equal((await state(p)).chat.history_count,4);
- await p.locator('#emcLoginBtn').click();await p.waitForURL('**/auth/login?**');assert.equal(logins,2);assert.deepEqual(errors,[]);await context.close();console.log('PASS '+width+'px 注册前命名、校验、设置改名、名称/提示词同步、历史与刷新、已设置后直接登录');
-}}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
+const {chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
+const G=require('../emc-game.js'),S=require('../emc-tutorial-save.js');
+const shots=process.env.EMC_SCREENSHOTS||'/tmp/emc-fixed-name';
+const url=process.env.EMC_TEST_URL||'http://127.0.0.1:5173/';
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.EMC_CHROMIUM||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+ try{for(const width of [1440,390])for(const legacy of [false,true]){
+  const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'}),p=await context.newPage(),errors=[];let logins=0;
+  p.on('pageerror',e=>errors.push(e.message));
+  if(legacy){
+   const save=S.createDefault();save.levels.L1.exercise_result.shop_game_v1={...G.create(),companion_name:'旧伙伴',companion_named:true,shop_name:'原来的小店',side:['light'],npc_chat:[{role:'assistant',text:'旧对话内容',time:1}]};
+   await p.addInitScript(save=>{if(!localStorage.getItem('emc.tutorial.guest'))localStorage.setItem('emc.tutorial.guest',JSON.stringify(save));if(!localStorage.getItem('emc-journey-entry-v1'))localStorage.setItem('emc-journey-entry-v1',JSON.stringify({saved:false,partner_name:'旧伙伴',shop_name:'原来的小店',platform:'xiaohongshu',agent:'Codex',category:'收纳'}));},save);
+  }
+  await p.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({authenticated:false,items:[],next_cursor:null})}));
+  await p.route('**/auth/login?**',r=>{logins++;return r.fulfill({contentType:'text/html',body:'<h1>认证服务测试入口</h1>'});});
+  async function ready(){await p.waitForFunction(()=>window.render_game_to_text&&!JSON.parse(render_game_to_text()).journey.loading);await p.locator('#opening').waitFor({state:'hidden',timeout:45000});}
+  await p.goto(url);await ready();
+  assert.equal(await p.locator('#socialName').innerText(),'小商');
+  let state=await p.evaluate(()=>JSON.parse(render_game_to_text()));assert.equal(state.companion_name,'小商');assert.equal(state.journey.profile.partner_name,'小商');
+  if(legacy)assert.equal(state.shop_name,'原来的小店');
+  await p.locator('[data-panel=settings]').click();assert.equal(await p.locator('#partnerNameInput,#savePartnerName').count(),0);assert.equal(await p.locator('#shopNameInput').count(),1);await p.locator('#closePanel').click();
+  await p.locator('#continueButton').click();await p.locator('[data-j-action=begin]').click();
+  await p.locator('#journeySetup').waitFor();assert.equal(await p.locator('[name=partner_name],#partnerNameInput').count(),0);
+  await p.locator('#journeySetup button[type=submit]').click();
+  await p.waitForFunction(()=>JSON.parse(render_game_to_text()).journey.profile.saved);
+  assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('emc-journey-entry-v1')).partner_name),'小商');
+  await p.keyboard.press('Escape');await p.reload();await ready();assert.equal(await p.locator('#socialName').innerText(),'小商');
+  fs.mkdirSync(shots,{recursive:true});await p.screenshot({path:path.join(shots,`fixed-name-${width}-${legacy?'legacy':'new'}.png`)});
+  await p.locator('#emcLoginBtn').click();await p.waitForURL('**/auth/login?**');assert.equal(logins,1);assert.equal(await p.locator('#partnerNameInput,#confirmPartnerName').count(),0);
+  assert.deepEqual(errors,[]);await context.close();console.log('PASS',width,legacy?'legacy':'new','fixed identity, setup/settings without naming, refresh, direct login');
+ }}finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

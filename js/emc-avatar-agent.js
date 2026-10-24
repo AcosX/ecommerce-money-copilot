@@ -126,7 +126,7 @@
     const mute=make('button','avatar-mute');mute.type='button';mute.id='emcAvatarMuteBtn';mute.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4Z"/><path class="volume-on" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="volume-off" d="m16 9 6 6m0-6-6 6"/></svg>';mute.onclick=()=>setMuted(!agentState.muted);toolbar.append(mute);footer.append(stage);
     const voice=make('button','copilot-voice');voice.type='button';voice.id='emcVoiceInput';voice.setAttribute('aria-label','语音输入');voice.setAttribute('aria-pressed','false');voice.title='语音输入';voice.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>';voice.onclick=()=>{void toggleVoice();};doc.getElementById('copilotForm')?.insertBefore(voice,doc.getElementById('copilotSend'));
     const finish=make('button','chat-finish-action','整理本关成果 ↗');finish.id='copilotFinish';finish.type='button';finish.dataset.companionAction='report';finish.hidden=true;toolbar.append(finish);
-    dock.insertBefore(composer,doc.getElementById('copilotStatus'));composer.append(footer,doc.getElementById('copilotForm'),toolbar);
+    dock.insertBefore(composer,doc.getElementById('copilotStatus'));composer.append(footer,doc.querySelector('.chat-media-tools'),doc.querySelector('.chat-image-previews'),doc.getElementById('copilotForm'),toolbar);
     settings.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();settings.open=false;settings.querySelector('summary').focus();}});
     doc.addEventListener('pointerdown',event=>{if(settings.open&&!settings.contains(event.target))settings.open=false;});
     Object.assign(els,{stage,screen,mount,connect,status:line,select,mute,voice});setMuted(agentState.muted);
@@ -207,11 +207,11 @@
   async function runDeliverablePreReview(submissionId, containerEl) {
     if (!submissionId) return null;
     setPose('think');
-    setBubble('正在执行六关成果 AI 预审：' + submissionId);
+    setBubble('正在执行六关成果 AI 建议：' + submissionId);
     try {
       var data = await global.EmcApi.post('/api/agent/reviews/' + submissionId, {});
       speakText(
-        'AI 预审完成：' + (data.recommendation_label || data.status || data.recommendation || '') + '。' + (data.summary || data.feedback || ''),
+        'AI 建议已生成，不影响通过。' + (data.summary || data.feedback || ''),
         data.recommendation === 'approve_candidate' ? 'happy' : 'think'
       );
       if (containerEl) {
@@ -220,10 +220,11 @@
         var box = make('div', 'emc-ai-review-box');
         box.setAttribute('data-emc-ai-review-result', submissionId);
         var head = make('div', 'emc-ai-review-head');
-        head.appendChild(make('span', '', '小商 AI 预审结论：' + (data.recommendation_label || data.status || data.recommendation)));
+        head.appendChild(make('span', '', '小商改进建议（不影响通过）'));
 
         box.appendChild(head);
         box.appendChild(make('div', '', data.summary || data.feedback || ''));
+        if (Array.isArray(data.suggestions)) box.appendChild(make('div', '', data.suggestions.join('；')));
         if (Array.isArray(data.rework_instructions) && data.rework_instructions.length) {
           box.appendChild(make('div', '', '整改建议：' + data.rework_instructions.join('；')));
         }
@@ -233,7 +234,7 @@
     } catch (e) {
       setPose('idle');
       if (typeof global.toast === 'function') {
-        global.toast((e && e.message) || 'AI 预审调用失败');
+        global.toast((e && e.message) || 'AI 建议调用失败');
       }
       return null;
     }
