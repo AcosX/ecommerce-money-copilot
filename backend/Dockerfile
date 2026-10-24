@@ -1,4 +1,5 @@
-FROM public.ecr.aws/docker/library/python:3.12-slim
+ARG PYTHON_IMAGE=python:3.12-slim
+FROM ${PYTHON_IMAGE}
 WORKDIR /app/backend
 COPY requirements-runtime.txt ./
 RUN pip install --index-url https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir -r requirements-runtime.txt
