@@ -56,6 +56,8 @@ python -m http.server 5189 --bind 127.0.0.1
 
 `tools/island-buildings-preview.html` 可逐级检查浮岛实装和升级演出；正式升级在当前画布快速旋转建筑并微幅缩放回弹，以金色泛光和淡入淡出换模，揭开新建筑时播放音效。下载失败保留原模型。
 
+`tools/building-evolution.html` 提供六级店铺完整连播：从地摊连续升级到百货地标，支持暂停、重播和声音开关。两个模型检查页均有入口。安装 Playwright 和 FFmpeg/ffprobe 后，可用 `tools/record-building-evolution.cjs` 录制真实画面与 WebAudio 音轨为 MP4；通过 `EMC_PLAYWRIGHT_MODULE` 指向 Playwright、`EMC_VIDEO_OUTPUT` 指定输出文件，默认输出到不入库的 `output/building-evolution/`。
+
 ## 说明
 
 - 当前为 Demo 版本：游客模式可完整体验教学流程，绑定平台 / 真实选品单等实操环节预留了「引导注册」入口。
