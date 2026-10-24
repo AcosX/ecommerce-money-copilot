@@ -70,7 +70,7 @@ export class ShopScene{
       if(entry.modular&&!this.environmentTarget){this.environmentTarget=createBuildingEnvironment(this.renderer);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.7;}
       try{await this.renderer.compileAsync(group,this.camera,this.scene);}catch(error){disposeAsset(group);throw error;}if(this.disposed){disposeAsset(group);return false;}
       const oldObjects=[this.shopModel,this.shopSign,this.signBoard].filter(Boolean),oldMaterials=new Set();oldObjects.forEach(o=>o.traverse(c=>{for(const m of c.material?(Array.isArray(c.material)?c.material:[c.material]):[])oldMaterials.add(m);}));
-      onStart();this.upgradeEffect=startShopUpgrade(this,oldObjects,()=>{
+      await onStart();await this.focusUpgrade();if(this.disposed){disposeAsset(group);return false;}this.upgradeEffect=startShopUpgrade(this,oldObjects,()=>{
         this.shopSign=null;this.signBoard=null;this.signBoardWood=null;this.signCanvas=null;this.signTexture=null;this.buildingEntry=entry;this.modelLevel=level;this.options.modelLevel=level;this.buildingParts=parts;this.paintMaterials=[];
         asset.scene.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){this.materials.push(m);if(!entry.modular&&entry.wall_mask==='cream'){installPartTint(m,this.paintUniforms);this.paintMaterials.push(m);}}});
         this.root.add(group);this.shopModel=group;this.seatShop(group);this.roofHeight=group.position.y+size.y*scale*(entry.roof_ratio||1);if(entry.modular)this.createModuleSign(group);else this.createShopSign(group,entry.sign,size.y*scale);
@@ -80,6 +80,17 @@ export class ShopScene{
       if(this.shopModel===group){oldObjects.forEach(disposeAsset);this.materials=this.materials.filter(m=>!oldMaterials.has(m));this.texturePixels?.clear();this.renderer.shadowMap.needsUpdate=true;this.render();}else disposeAsset(group);return completed;
     };
     this.upgradePromise=run();try{return await this.upgradePromise;}finally{this.upgradePromise=null;}
+  }
+  async focusUpgrade(){
+    // 清除用户旋转的惯性，先回到房屋正面的安全构图，再开始换模。
+    const controls=this.controls,enabled=controls.enabled,damping=controls.enableDamping;
+    controls.enabled=false;controls.enableDamping=false;controls.update();
+    const from=this.camera.position.clone(),targetFrom=controls.target.clone();
+    const target=new THREE.Vector3(0,Math.max(1.7,this.options.stage*.6),0);
+    const position=new THREE.Vector3(14,9.3,18).multiplyScalar(this.framing||1).add(target);
+    const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:450,start=performance.now();
+    try{await new Promise(resolve=>{const frame=()=>{if(this.disposed){resolve();return;}const t=duration?Math.min(1,(performance.now()-start)/duration):1,ease=t*t*(3-2*t);this.camera.position.lerpVectors(from,position,ease);controls.target.lerpVectors(targetFrom,target,ease);controls.update();this.render();if(t<1)requestAnimationFrame(frame);else resolve();};frame();});}
+    finally{controls.enableDamping=damping;controls.enabled=enabled;}
   }
   createModuleSign(shop){
     shop.updateMatrixWorld(true);let face=null;shop.traverse(o=>{if(o.isMesh&&o.material?.name.replace(/\.\d+$/,'')==='sign')face=o;});if(!face)return;

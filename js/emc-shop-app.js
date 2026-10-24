@@ -105,10 +105,11 @@
     if(homeScene&&homeStage===sceneKey){homeScene.draft=game;homeScene.sync();homeScene.setShopName(game.shop_name);homeScene.setAtmosphere(skyState.light);return homeScene.ready;}
     if(homeStage===sceneKey)return;
     if(homeScene?.presentable&&modelLevel>homeScene.modelLevel){
-      const current=homeScene,previousKey=homeStage,token=++homeToken;homeStage=sceneKey;let restorePanel=null;finishConversation();cancelPaint();
-      try{await current.upgradeTo(modelLevel,{onStart:()=>{restorePanel={panel,drawer:$('drawer').hidden,backdrop:$('missionBackdrop').hidden};$('drawer').hidden=true;$('missionBackdrop').hidden=true;$('npcAnchor').hidden=true;},onReveal:()=>{audio.play('upgrade');toast('小店升级！'+current.buildingEntry.name,true);juice.burst($('continueButton'));}});}
+      const current=homeScene,previousKey=homeStage,token=++homeToken,dock=document.querySelector('.copilot-dock'),dockVisibility=dock.style.visibility;homeStage=sceneKey;finishConversation();cancelPaint();
+      try{await current.upgradeTo(modelLevel,{onStart:()=>{closePanel();dock.classList.remove('mobile-chat-open');dock.style.visibility='hidden';$('npcAnchor').hidden=true;$('continueButton').focus({preventScroll:true});},onReveal:()=>{audio.play('upgrade');toast('小店升级！'+current.buildingEntry.name,true);juice.burst($('continueButton'));}});}
       catch(error){if(token===homeToken){homeStage=previousKey;recordSceneError(error,game.graphics_quality,'upgrade');toast('升级模型加载失败，当前小店已保留，请稍后重试。');}}
-      finally{if(restorePanel&&panel===restorePanel.panel){$('drawer').hidden=restorePanel.drawer;$('missionBackdrop').hidden=restorePanel.backdrop;}}return;
+      finally{dock.style.visibility=dockVisibility;}
+      return;
     }
     const token=++homeToken;selected=null;homeStage=sceneKey;homeScene?.dispose();homeScene=null;$('homeCanvas').hidden=false;
     sceneLoading('home');
