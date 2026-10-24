@@ -182,3 +182,53 @@ def test_missing_visual_provider_and_search_are_honest(client):
     assert response.status_code == 200
     assert "无法看清图片内容" in response.json()["reply"]
     assert "联网搜索暂不可用" in response.json()["reply"]
+
+
+def test_search_filters_fiction_unrelated_and_duplicate_results(settings, monkeypatch):
+    settings.anysearch_api_key = SecretStr("test-key")
+    rows = [
+        {"title": "潮玩最新章节", "url": "https://reader.example/book/1"},
+        {"title": "潮玩市场", "url": "https://book.qidian.com/1"},
+        {"title": "今日天气", "url": "https://weather.example/1"},
+        {"title": "潮玩趋势报告", "url": "https://research.example/1", "snippet": "授权IP商品"},
+        {"title": "潮玩趋势报告", "url": "https://research.example/1"},
+    ]
+    monkeypatch.setattr(
+        httpx.Client,
+        "post",
+        lambda self, url, **kwargs: httpx.Response(
+            200, request=httpx.Request("POST", url), json={"code": 0, "data": {"results": rows}}
+        ),
+    )
+    result = anysearch.search(settings, "帮我查一下潮玩市场趋势")
+    assert [r["url"] for r in result["results"]] == ["https://research.example/1"]
+    # A spoofed suffix must not be confused with the actual reading host.
+    assert anysearch._relevant_result("qidian.com.example.org", "潮玩研究", "", {"潮玩"})
+    assert anysearch._relevant_result("research.example", "网络小说IP周边商品", "", {"小说"})
+
+
+@pytest.mark.parametrize(
+    ("platform", "expected", "excluded"),
+    [
+        ("xiaohongshu", "name: xhs-product-scout", "name: pdd-product-scout"),
+        ("pinduoduo", "name: pdd-product-scout", "name: xhs-product-scout"),
+    ],
+)
+def test_l2_loads_platform_specific_selection_method(
+    client, monkeypatch, platform, expected, excluded
+):
+    captured = []
+
+    def complete(self, **kwargs):
+        captured.append(kwargs["system_prompt"])
+        return "先确认商品需求，再整理选品判断书。", {"provider": "ai_gateway_live"}
+
+    monkeypatch.setattr(AgentProviderAdapter, "complete_json_or_text", complete)
+    response = client.post(
+        "/api/agent/chat",
+        json={"message": "帮我选品", "level_id": "L2", "client_context": {"platform": platform}},
+    )
+    assert response.status_code == 200, response.text
+    assert expected in captured[0]
+    assert excluded not in captured[0]
+    assert "不声称访问了未配置的平台数据工具" in captured[0]

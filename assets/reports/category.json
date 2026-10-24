@@ -1,0 +1,380 @@
+{
+  "title": "类目生意分析规划报告 · 小红书电商 · 潮玩",
+  "example": true,
+  "body_html": "<div class=\"wrap\">\n\n  <!-- ===== 封面 ===== -->\n  <header class=\"cover\">\n    <div class=\"kicker\">电商搞钱参谋 · 类目生意规划（第一站）</div>\n    <h1>小红书电商 · 潮玩类目生意分析规划报告</h1>\n    <p class=\"sub\">判断\"是不是好赛道、有没有机会、是不是你的机会\"，并在公开信息基础上给出方向结论；本报告只做方向判断，不含毛利与启动资金测算。</p>\n    <div class=\"meta-row\">\n      <span><b>平台</b> 小红书电商</span>\n      <span><b>分析对象</b> 潮玩（先拆细分，不直接进大类）</span>\n      <span><b>日期</b> 2026-10-21</span>\n      <span><b>数据性质</b> 公开检索 · 缺口标注 · 不编造</span>\n    </div>\n    <div class=\"verdict\">\n      <span class=\"v-tag\">谨慎 · 待补充自身资源后终审</span>\n      <h2>大盘扩容、站内高增长，但大牌授权盲盒已红海且在破发降温；机会在原创IP养成、手作改娃、娃衣等非标细分。</h2>\n      <p>因尚未提供货源、内容能力、资金库存等个人资源，第三段\"是不是你的机会\"暂不打分，综合分无法计算，本轮不出最终 GO / NO-GO。</p>\n    </div>\n  </header>\n\n  <!-- ===== 0 执行摘要 ===== -->\n  <section id=\"summary\">\n    <div class=\"sec-head\"><span class=\"sec-num\">00</span><h2>执行摘要</h2><span class=\"en\">EXECUTIVE SUMMARY</span></div>\n    <div class=\"score-grid\">\n      <div class=\"score-card sc-good\">\n        <div class=\"label\">① 是不是好赛道 <span class=\"weight\">权重 30%</span></div>\n        <div class=\"num\">7.5</div>\n        <div class=\"desc\">大盘扩容、站内双11潮玩下单人数同比翻倍；但行业增速趋稳、头部单品降温，不能用\"潮玩很火\"推导随便做都成。</div>\n      </div>\n      <div class=\"score-card sc-mid\">\n        <div class=\"label\">② 有没有机会 <span class=\"weight\">权重 30%</span></div>\n        <div class=\"num\">6.0</div>\n        <div class=\"desc\">标品盲盒红海、个人无授权；原创/手作/细分长尾分散、平台主动孵化新IP，属结构性机会而非大盘机会。</div>\n      </div>\n      <div class=\"score-card sc-tbd\">\n        <div class=\"label\">③ 是不是你的机会 <span class=\"weight\">权重 40%</span></div>\n        <div class=\"num\">待填</div>\n        <div class=\"desc\">需补充货源、原创/内容能力、资金库存、圈层理解后打分，本段权重最高，决定终审结论。</div>\n      </div>\n    </div>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:22%\"><col style=\"width:48%\"><col style=\"width:30%\"></colgroup>\n        <thead><tr><th>结论项</th><th>要点</th><th>状态</th></tr></thead>\n        <tbody>\n          <tr><td>赛道判断</td><td>大盘成立，但只建议切入原创/手作等非标细分，不建议正面做大牌授权盲盒</td><td><span class=\"tag t-watch\">谨慎</span></td></tr>\n          <tr><td>首选方向（待资源确认）</td><td>原创IP养成 / 手作改娃 / 娃衣与棉花娃娃周边，三选一匹配自身能力</td><td><span class=\"tag t-watch\">待验证</span></td></tr>\n          <tr><td>硬性红线</td><td>无授权不做知名IP；不追热门盲盒囤货；不碰伪IP货源</td><td><span class=\"tag t-no\">必须遵守</span></td></tr>\n          <tr><td>终审前提</td><td>补齐第6节资源匹配表 → 重算综合分 → 进入选品环节</td><td><span class=\"tag t-go\">下一步</span></td></tr>\n        </tbody>\n      </table>\n    </div>\n  </section>\n\n  <!-- ===== 1 市场大盘 ===== -->\n  <section id=\"market\">\n    <div class=\"sec-head\"><span class=\"sec-num\">01</span><h2>是不是好赛道：市场空间与增速</h2><span class=\"en\">MARKET SIZE &amp; GROWTH</span></div>\n\n    <h3>1.1 行业规模：多口径并列，不强行统一</h3>\n    <p>不同机构对\"潮玩\"边界定义不同，规模数字存在口径差异，下表并列呈现，取区间而非单点。</p>\n    <div class=\"tbl-wrap wide w4\">\n      <table>\n        <colgroup><col style=\"width:24%\"><col style=\"width:22%\"><col style=\"width:22%\"><col style=\"width:32%\"></colgroup>\n        <thead><tr><th>来源 / 口径</th><th>2025 规模</th><th>增速 / 预测</th><th>说明</th></tr></thead>\n        <tbody>\n          <tr><td>弗若斯特沙利文（新浪转引）</td><td>约 875 亿元</td><td>2020 年 249 亿 → 2025 年 875 亿，2026 破千亿</td><td>宽口径潮玩产业</td></tr>\n          <tr><td>广东玩具协会 / 中国经济网</td><td>约 879.7 亿元，同比 +21%</td><td>2026 产业总价值预计 1101 亿，年均增速超 20%</td><td>首超传统玩具市场（801.3 亿）</td></tr>\n          <tr><td>毕马威（新华网转引）</td><td>超 825 亿元，同比 +40.5%</td><td>2030 预计突破 2133 亿</td><td>增速口径偏高，仅作上限参考</td></tr>\n        </tbody>\n      </table>\n    </div>\n    <div class=\"chart\">\n      <div class=\"ct\">中国潮玩市场规模（亿元，弗若斯特沙利文口径）</div>\n      <div class=\"cd\">2020 → 2025 实际，2026 为\"突破千亿\"趋势示意，非精确预测</div>\n      <div id=\"chart-size\" class=\"chart-box\"></div>\n    </div>\n\n    <h3>1.2 小红书站内：高增长的情绪消费阵地</h3>\n    <div class=\"two-col\">\n      <div class=\"panel\">\n        <h4>需求基本盘</h4>\n        <ul>\n          <li>平台聚集约 <b>2.1 亿</b> 潮玩兴趣人群，以高线城市年轻女性为主，消费力与分享意愿强。</li>\n          <li>2025 双11 首周（10.10–20）潮玩垂类下单人数同比 <b>+100%</b>，订单数 <b>+89%</b>。</li>\n          <li>#当潮玩融入生活 #带着潮玩去旅行 两话题截至 2025.10 累计互动 1.6 亿+，情绪陪伴属性强。</li>\n        </ul>\n      </div>\n      <div class=\"panel\">\n        <h4>阶段判断</h4>\n        <ul>\n          <li>行业从爆发期进入<b>趋稳扩容期</b>：大盘仍增长，但不再是普涨。</li>\n          <li>增长高度集中于头部单一爆款（如 LABUBU 家族），并不代表全品类均匀景气。</li>\n          <li>站内\"种草—晒单—二创—成交\"闭环完整，适合内容驱动的非标新品类生长。</li>\n        </ul>\n      </div>\n    </div>\n    <p class=\"note\">结论：好赛道成立（7.5/10）。需求真实、大盘扩容、站内高增长；但需警惕\"行业增长 ≠ 你选的细分增长\"。</p>\n  </section>\n\n  <!-- ===== 2 用户画像 ===== -->\n  <section id=\"user\">\n    <div class=\"sec-head\"><span class=\"sec-num\">02</span><h2>用户画像与需求动机</h2><span class=\"en\">AUDIENCE &amp; MOTIVATION</span></div>\n    <h3>2.1 人群：年轻、女性向、高线城市</h3>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:20%\"><col style=\"width:44%\"><col style=\"width:36%\"></colgroup>\n        <thead><tr><th>维度</th><th>特征</th><th>来源口径</th></tr></thead>\n        <tbody>\n          <tr><td>年龄</td><td>以 95 后 / 00 后职场年轻人为主；盲盒消费者 18–24 岁约 40%、25–34 岁约 35%</td><td>闲鱼潮玩洞察 / 东财盲盒报告</td></tr>\n          <tr><td>性别</td><td>女性向明显（泡泡玛特用户女性近 70%，2023 口径）；小红书站内高线年轻女性为主力</td><td>潮玩产业发展报告 2023</td></tr>\n          <tr><td>消费力</td><td>闲鱼口径人均单次潮玩消费约 218 元；整体趋于理性，多数人年花费有限额</td><td>2025 闲鱼潮玩消费洞察</td></tr>\n          <tr><td>城市</td><td>一二线 / 高线城市为主，为审美和情绪付费，对主理人风格敏感</td><td>小红书手工行业指南</td></tr>\n        </tbody>\n      </table>\n    </div>\n    <h3>2.2 购买动机：情绪驱动为主</h3>\n    <div class=\"chart\">\n      <div class=\"ct\">青年购买潮玩的原因（多选，受访占比）</div>\n      <div class=\"cd\">新华网 2026 调研；用于理解内容该打什么情绪点</div>\n      <div id=\"chart-motive\" class=\"chart-box\" style=\"height:320px;\"></div>\n    </div>\n    <p>动机排序说明：<b>拆盒惊喜 &gt; 喜欢IP/设计 &gt; 集齐 &gt; 解压 &gt; 社交分享</b>。做原创/手作时，\"设计审美 + 情绪陪伴 + 可晒可交换\"比\"赌博式抽盒\"更适合个人长期经营。</p>\n  </section>\n\n  <!-- ===== 3 细分赛道拆解 ===== -->\n  <section id=\"segments\">\n    <div class=\"sec-head\"><span class=\"sec-num\">03</span><h2>有没有机会：细分赛道拆解与对比</h2><span class=\"en\">SEGMENT MAP</span></div>\n    <p>潮玩是大类，不能整体判断。下表把可切入方向拆成 6 条，分别评估需求、竞争、门槛、库存与小红书适配度。</p>\n    <div class=\"tbl-wrap wide\">\n      <table>\n        <colgroup><col style=\"width:15%\"><col style=\"width:17%\"><col style=\"width:17%\"><col style=\"width:15%\"><col style=\"width:16%\"><col style=\"width:20%\"></colgroup>\n        <thead><tr><th>细分方向</th><th>需求热度</th><th>竞争烈度</th><th>个人门槛</th><th>库存压力</th><th>建议</th></tr></thead>\n        <tbody>\n          <tr>\n            <td><b>大牌授权盲盒 / 热门IP标品</b></td>\n            <td>高，但降温</td><td>极高，红海</td><td>需授权，个人拿不到</td><td>高，易破发积压</td>\n            <td><span class=\"tag t-no\">回避</span> 无授权不碰，不囤货</td>\n          </tr>\n          <tr>\n            <td><b>原创IP养成（自绘形象）</b></td>\n            <td>上升，平台孵化</td><td>分散，新IP多</td><td>高：需持续创作养粉</td><td>低：先内容后货</td>\n            <td><span class=\"tag t-go\">优先评估</span> 适合有审美/表达力者</td>\n          </tr>\n          <tr>\n            <td><b>手作改娃（爆改/定制）</b></td>\n            <td>圈层稳定</td><td>中，重原创口碑</td><td>高：手艺+审美，抄袭被封杀</td><td>低：孤品/定制</td>\n            <td><span class=\"tag t-go\">优先评估</span> 小而美，难规模化</td>\n          </tr>\n          <tr>\n            <td><b>娃衣 / 棉花娃娃周边</b></td>\n            <td>高增长、复购好</td><td>中，供应链分散</td><td>中：需打版/找厂开团</td><td>中：按需开团可控</td>\n            <td><span class=\"tag t-watch\">可评估</span> 非IP定制复购约2.8次/年</td>\n          </tr>\n          <tr>\n            <td><b>平价解压抽象玩具（白牌改造）</b></td>\n            <td>脉冲式爆火</td><td>高，跟风快</td><td>中：靠内容创意</td><td>中：爆款窗口短</td>\n            <td><span class=\"tag t-watch\">谨慎</span> 追热点、生命周期短</td>\n          </tr>\n          <tr>\n            <td><b>收藏卡牌</b></td>\n            <td>圈层强</td><td>高，集卡体系成熟</td><td>高：依赖IP与发行机制</td><td>中高</td>\n            <td><span class=\"tag t-no\">不建议新手</span> 规则复杂</td>\n          </tr>\n        </tbody>\n      </table>\n    </div>\n\n    <h3>3.1 定位四象限：市场吸引力 × 个人可进入性（示意）</h3>\n    <div class=\"chart\" style=\"padding:18px;\">\n      <div id=\"chart-quad\" class=\"chart-box\" style=\"height:360px;\"></div>\n      <div class=\"cd\">示意定位，用于直观区分\"热闹但进不去\"与\"小众但适合个人\"；坐标为定性判断，非精确测量。</div>\n    </div>\n    <p>读图要点：右上（高吸引 + 易进入）是原创IP、手作改娃的落点；左上（高吸引但难进入）是大牌盲盒，看着热闹个人却进不去；右下（易进入但价值薄）是白牌跟风款。</p>\n  </section>\n\n  <!-- ===== 4 竞争格局 ===== -->\n  <section id=\"competition\">\n    <div class=\"sec-head\"><span class=\"sec-num\">04</span><h2>竞争格局与降温信号</h2><span class=\"en\">COMPETITIVE LANDSCAPE</span></div>\n    <h3>4.1 头部未垄断，长尾分散</h3>\n    <p>2025 年 GMV 875 亿口径下，前五大零售商合计份额约 32.5%，市场并未被单一品牌锁死，长尾与新锐仍有空间。</p>\n    <div class=\"chart\">\n      <div class=\"ct\">头部品牌份额（2025，GMV 口径，仅列已具名两家）</div>\n      <div class=\"cd\">泡泡玛特 21.8% 第一，TOP TOY 4.8% 第二；CR5 合计 32.5%，其余高度分散</div>\n      <div id=\"chart-share\" class=\"chart-box\" style=\"height:260px;\"></div>\n    </div>\n    <h3>4.2 必须看到的降温信号</h3>\n    <div class=\"two-col\">\n      <div class=\"panel\" style=\"border-left:3px solid var(--red);\">\n        <h4 style=\"color:var(--red);\">破发与二手跳水</h4>\n        <ul>\n          <li>LABUBU 大规模放量后，二手价较高点跌约 90%，多款新品上市即跌破发售价。</li>\n          <li>新品未发售先破价，隐藏款之外整盒成交均价低于官方售价。</li>\n          <li>泡泡玛特存货周转天数由约 83 天升至 201 天，行业库存压力上行。</li>\n        </ul>\n      </div>\n      <div class=\"panel\" style=\"border-left:3px solid var(--green);\">\n        <h4 style=\"color:var(--green);\">新IP的缺口仍在</h4>\n        <ul>\n          <li>#一个不知名的IP悄悄诞生了 沉淀 5 万+ 笔记，2026 上半年催生 300+ 新IP。</li>\n          <li>头部增长高度依赖单一IP，市场对\"新面孔\"的需求远未被填满。</li>\n          <li>改娃、痛包搭配、棉花娃娃换装等玩法由社区UGC自发涌现，品牌方难以覆盖。</li>\n        </ul>\n      </div>\n    </div>\n    <p class=\"note\">结论：竞争评分 6.0/10。大盘不垄断，但标品正面战场拥挤；机会窗在\"头部顾不到的原创与非标细分\"。</p>\n  </section>\n\n  <!-- ===== 5 平台环境 ===== -->\n  <section id=\"platform\">\n    <div class=\"sec-head\"><span class=\"sec-num\">05</span><h2>小红书平台环境（进入镜头）</h2><span class=\"en\">PLATFORM PLAYBOOK</span></div>\n    <h3>5.1 流量逻辑：内容种草 → 晒单二创 → 成交闭环</h3>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:22%\"><col style=\"width:48%\"><col style=\"width:30%\"></colgroup>\n        <thead><tr><th>环节</th><th>小红书玩法</th><th>对个人的要求</th></tr></thead>\n        <tbody>\n          <tr><td>种草</td><td>持续发布养IP/过程/成品笔记，靠审美与情绪打标签</td><td>稳定内容产出，非一次性铺货</td></tr>\n          <tr><td>扩散</td><td>用户晒单、二创、交换形成UGC二次传播</td><td>产品要有\"可晒、可玩、可改\"的点</td></tr>\n          <tr><td>成交</td><td>笔记挂车 / 买店 / 买手带货承接</td><td>浅库存、定制、孤品均可起步</td></tr>\n          <tr><td>冷启动</td><td>新品牌通常需 10–14 周内容积累（经验值，非平台承诺）</td><td>要有耐心，不能指望爆款一夜起量</td></tr>\n        </tbody>\n      </table>\n    </div>\n    <h3>5.2 入驻与费用（第三方整理，以平台最新规则为准）</h3>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:24%\"><col style=\"width:44%\"><col style=\"width:32%\"></colgroup>\n        <thead><tr><th>项目</th><th>参考情况</th><th>备注 / 待核</th></tr></thead>\n        <tbody>\n          <tr><td>个人店入驻</td><td>身份证可开，适合创作者/设计师/手作人；基础保证金约 1000 元</td><td>第三方整理，开店前以官方页面为准</td></tr>\n          <tr><td>平台佣金</td><td>个人店月销 1 万以下免佣、超出部分约 5%（第三方口径，区间1%–5%）</td><td>类目不同有差异，待核</td></tr>\n          <tr><td>买手模式</td><td>新入驻买手曾享 0 保证金、前 3 月佣金减免等扶持（阶段性政策）</td><td>政策时效性强，需查当期</td></tr>\n          <tr><td>合规红线</td><td>无授权做知名IP手办/3D打印属侵权；1688\"伪IP\"缺授权链路不能碰</td><td>著作权/商标/外观专利三重风险</td></tr>\n        </tbody>\n      </table>\n    </div>\n  </section>\n\n  <!-- ===== 6 是不是你的机会 ===== -->\n  <section id=\"fit\">\n    <div class=\"sec-head\"><span class=\"sec-num\">06</span><h2>是不是你的机会：资源匹配（待你填写）</h2><span class=\"en\">YOUR FIT · 40%</span></div>\n    <p>本段权重最高（40%）。以下逐项对号入座，补齐后才能打出第③段分数并终审。</p>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:22%\"><col style=\"width:34%\"><col style=\"width:22%\"><col style=\"width:22%\"></colgroup>\n        <thead><tr><th>类目要求</th><th>具体看什么</th><th>你的现状（待填）</th><th>匹配度（待评）</th></tr></thead>\n        <tbody>\n          <tr><td>原创 / 设计能力</td><td>会自绘IP形象、有个人审美风格，或具备手作/改娃手艺</td><td>？</td><td>待评</td></tr>\n          <tr><td>内容产出力</td><td>能否持续拍/写笔记，表达情绪与过程，有无出镜或绘画基础</td><td>？</td><td>待评</td></tr>\n          <tr><td>合规货源</td><td>原创自产，或拿到完整授权链；能否避开伪IP</td><td>？</td><td>待评</td></tr>\n          <tr><td>资金与库存承受力</td><td>可承受浅库存/定制的资金，能接受10–14周冷启动不盈利</td><td>？</td><td>待评</td></tr>\n          <tr><td>圈层理解</td><td>是否本身玩娃/混圈，懂黑话、梗和玩家真实痛点</td><td>？</td><td>待评</td></tr>\n          <tr><td>时间投入</td><td>能否把内容更新作为长期主业/重副业经营</td><td>？</td><td>待评</td></tr>\n        </tbody>\n      </table>\n    </div>\n    <p class=\"note\">自评参考：6 项中满足 4 项以上且无硬性短板，第③段才可能进入 GO 区间；若\"原创/内容/合规货源\"三项全缺，即使大盘好也建议 NO-GO。</p>\n  </section>\n\n  <!-- ===== 7 SWOT ===== -->\n  <section id=\"swot\">\n    <div class=\"sec-head\"><span class=\"sec-num\">07</span><h2>SWOT 速览</h2><span class=\"en\">SWOT</span></div>\n    <div class=\"swot\">\n      <div class=\"cell s\"><h4>S 优势（平台侧可借）</h4><ul style=\"padding-left:18px;\"><li>2.1亿兴趣人群、女性向审美与小红书气质契合</li><li>种草—晒单—二创闭环对原创友好</li><li>个人店门槛低、浅库存/定制可起步</li></ul></div>\n      <div class=\"cell w\"><h4>W 劣势（个人侧先天）</h4><ul style=\"padding-left:18px;\"><li>无品牌、无粉丝，冷启动需10–14周</li><li>手作非标难规模化，产能受限</li><li>个人无议价权，易被同款跟卖</li></ul></div>\n      <div class=\"cell o\"><h4>O 机会（缺口）</h4><ul style=\"padding-left:18px;\"><li>新IP被平台主动孵化，头部顾不到</li><li>娃衣/改娃/原创风格细分有空白</li><li>情绪消费长期上行，收藏+陪伴需求稳</li></ul></div>\n      <div class=\"cell t\"><h4>T 威胁（外部风险）</h4><ul style=\"padding-left:18px;\"><li>爆款生命周期短、破发与库存风险</li><li>版权侵权红线，伪IP陷阱</li><li>跟风白牌涌入，热点退潮快</li></ul></div>\n    </div>\n  </section>\n\n  <!-- ===== 8 风险清单 ===== -->\n  <section id=\"risk\">\n    <div class=\"sec-head\"><span class=\"sec-num\">08</span><h2>风险清单与前提条件</h2><span class=\"en\">RISKS</span></div>\n    <div class=\"tbl-wrap\">\n      <table>\n        <colgroup><col style=\"width:18%\"><col style=\"width:14%\"><col style=\"width:40%\"><col style=\"width:28%\"></colgroup>\n        <thead><tr><th>风险</th><th>等级</th><th>说明</th><th>规避前提</th></tr></thead>\n        <tbody>\n          <tr><td>版权侵权</td><td><span class=\"tag t-no\">高</span></td><td>无授权做知名IP、3D打印仿制、抄设计，触著作权/商标/外观专利</td><td>只做原创或完整授权链</td></tr>\n          <tr><td>爆款破发/库存</td><td><span class=\"tag t-no\">高</span></td><td>追热门盲盒囤货，放量后二手跳水、积压贬值</td><td>不囤标品，按需/定制/开团</td></tr>\n          <tr><td>生命周期短</td><td><span class=\"tag t-watch\">中</span></td><td>抽象解压等热点脉冲式起量，退潮快</td><td>建立自有IP/风格，不追单点热点</td></tr>\n          <tr><td>产能受限</td><td><span class=\"tag t-watch\">中</span></td><td>手作孤品无法放大，收入天花板低</td><td>明确小而美定位或提前规划代工</td></tr>\n          <tr><td>数据缺口</td><td><span class=\"tag t-watch\">待补</span></td><td>站内细分搜索量、价格带、退货率公开渠道拿不到精确值</td><td>用后台/第三方工具补测后再定</td></tr>\n        </tbody>\n      </table>\n    </div>\n  </section>\n\n  <!-- ===== 9 进入路径 ===== -->\n  <section id=\"path\">\n    <div class=\"sec-head\"><span class=\"sec-num\">09</span><h2>进入路径（方向版，不含财务测算）</h2><span class=\"en\">ENTRY PATH</span></div>\n    <div class=\"phase\">\n      <div class=\"ph-tag\">阶段一 · 验证期<br><span style=\"font-weight:400;font-size:12px;color:var(--faint);\">0–4 周</span></div>\n      <ul>\n        <li>锁定 1 个细分（原创IP / 改娃 / 娃衣三选一），不铺多线。</li>\n        <li>补齐第6节资源表，用后台/第三方工具补测该细分搜索量与价格带。</li>\n        <li>发 10–15 条内容测反应，验证审美方向，不急于备货。</li>\n        <li>验证指标：互动是否集中在同一风格、有无私信求购、评论区真实痛点。</li>\n      </ul>\n    </div>\n    <div class=\"phase\">\n      <div class=\"ph-tag\">阶段二 · 冷启动<br><span style=\"font-weight:400;font-size:12px;color:var(--faint);\">4–14 周</span></div>\n      <ul>\n        <li>围绕验证出的风格持续更新，把账号标签打准。</li>\n        <li>用孤品/定制/小批量开团测试转化，避免一次压库存。</li>\n        <li>引导晒单与二创，沉淀第一批核心玩家。</li>\n        <li>验证指标：稳定自然互动、首批复购/定制询单、内容可复制。</li>\n      </ul>\n    </div>\n    <div class=\"phase\">\n      <div class=\"ph-tag\">阶段三 · 放大<br><span style=\"font-weight:400;font-size:12px;color:var(--faint);\">14 周后</span></div>\n      <ul>\n        <li>确认可持续后再考虑扩SKU、找代工或固定开团节奏。</li>\n        <li>把跑通的内容方法沉淀为模板，进入工作台\"素材→上架\"环节。</li>\n        <li>定期复盘热点退潮信号，及时切换自有风格，不恋战单点爆款。</li>\n      </ul>\n    </div>\n  </section>\n\n  <!-- ===== 10 判定块 ===== -->\n  <section id=\"judge\">\n    <div class=\"sec-head\"><span class=\"sec-num\">10</span><h2>通关判定块（结构化）</h2><span class=\"en\">DECISION BLOCK</span></div>\n    <div class=\"judge\">平台: 小红书电商\n赛道: 潮玩（待收敛到具体细分：原创IP / 手作改娃 / 娃衣周边）\n三段得分: 好赛道 7.5 ｜ 有没有机会 6.0 ｜ 是不是你的机会 待填\n综合分: 无法计算（第③段缺失）\n结论: <span class=\"ok\">谨慎 · 待补充自身资源后终审</span>\n硬性红线: 无授权不做知名IP / 不追热门盲盒囤货 / 不碰伪IP货源\n待验证项: 站内细分搜索量 · 价格带分布 · 退货率 · 合规货源链路 · 个人冷启动周期\n下一步: 补齐第6节资源匹配表 → 重算综合分 → 进入选品与素材环节</div>\n  </section>\n\n  <!-- ===== 来源 ===== -->\n  <section id=\"sources\">\n    <div class=\"sec-head\"><span class=\"sec-num\">附</span><h2>数据来源与说明</h2><span class=\"en\">SOURCES</span></div>\n    <ul class=\"src\">\n      <li>弗若斯特沙利文潮玩规模（新浪财经转引）：https://t.cj.sina.cn/articles/view/5630511110/14f9ac80600101l57e</li>\n      <li>广东玩具协会/中国经济网：2025约879.7亿、+21%，2026预计1101亿：http://www.ce.cn/macro/more/202603/t20260330_2865949.shtml</li>\n      <li>毕马威（新华网转引）：2025超825亿、+40.5%，2030破2133亿：https://www.news.cn/expo/20260710/9629b291999d4cbe946067f1230be956/c.html</li>\n      <li>2025双11小红书潮玩下单人数+100%（腾讯新闻）：http://news.qq.com/rain/a/20251024A04TXR00</li>\n      <li>小红书2.1亿潮玩兴趣人群（今日头条转引）：http://m.toutiao.com/group/7690856376100323881/</li>\n      <li>#当潮玩融入生活 等话题1.6亿互动（36氪）：https://36kr.com/p/3607525484987139</li>\n      <li>竞争格局CR5=32.5%、泡泡玛特21.8%、TOPTOY4.8%（东方财富研报）：https://pdf.dfcfw.com/pdf/H3_AP202606231823779652_1.pdf</li>\n      <li>新IP孵化：5万+笔记、上半年300+新IP（腾讯新闻）：http://news.qq.com/rain/a/20260929A07BY900</li>\n      <li>LABUBU二手跌约90%、破发（新浪财经）：https://finance.sina.com.cn/roll/2026-09-18/doc-inishrap2995256.shtml.md</li>\n      <li>库存周转83→201天（新浪财经）：https://finance.sina.com.cn/stock/observe/2026-08-27/doc-iniptxkt5334593.shtml.md</li>\n      <li>消费动机调研（新华网2026）：http://www.news.cn/fashion/20260910/425f3a98787a4a6f9a464cae3e3ca8ae/c.html</li>\n      <li>闲鱼潮玩洞察：人均单次218元、95/00后（新华网）：http://www.xinhuanet.com/tech/20250909/03a20345043a4c85b48579187cf33fa2/c.html</li>\n      <li>盲盒年龄结构（东方财富研报）：https://pdf.dfcfw.com/pdf/H3_AP202506111688924171_1.pdf</li>\n      <li>娃衣市场53.2亿、非IP复购2.8次/年（钛媒体）：https://www.tmtpost.com/8047179.html</li>\n      <li>伪IP授权链风险（1688百科）：https://www.1688.com/wiki/zh/WKfubc82xcre2o</li>\n      <li>改娃圈原创/抄袭封杀（36氪）：https://m.36kr.com/p/3927415606777473</li>\n      <li>个人店保证金/佣金为第三方整理，开店前以小红书官方规则为准：https://www.mihooo.com/ruzhu/xiaohongshu/xiaohongshu-feiyong/</li>\n    </ul>\n    <footer>\n      本报告为方向判断示例，基于公开检索信息整理，不构成投资或经营承诺；规模数字存在机构口径差异，已并列标注；站内精确经营数据需以平台后台或授权第三方工具为准。报告不含毛利与启动资金测算，财务环节留待后续选品阶段。\n    </footer>\n  </section>\n\n<!-- APPEND -->\n</div>",
+  "charts": {
+    "chart-size": {
+      "grid": {
+        "left": 70,
+        "right": 40,
+        "top": 20,
+        "bottom": 36
+      },
+      "xAxis": {
+        "type": "value",
+        "axisLabel": {
+          "color": "rgba(255,255,255,0.62)"
+        },
+        "splitLine": {
+          "lineStyle": {
+            "color": "rgba(94,220,244,0.18)"
+          }
+        },
+        "axisLine": {
+          "show": false
+        }
+      },
+      "yAxis": {
+        "type": "category",
+        "data": [
+          "2026E(破千亿示意)",
+          "2025",
+          "2020"
+        ],
+        "axisLabel": {
+          "color": "#ffffff",
+          "fontSize": 13
+        },
+        "axisLine": {
+          "show": false
+        },
+        "axisTick": {
+          "show": false
+        }
+      },
+      "series": [
+        {
+          "type": "bar",
+          "barWidth": 34,
+          "data": [
+            {
+              "value": 1000,
+              "itemStyle": {
+                "color": "#3f5078"
+              }
+            },
+            {
+              "value": 875,
+              "itemStyle": {
+                "color": "#5EDCF4"
+              }
+            },
+            {
+              "value": 249,
+              "itemStyle": {
+                "color": "#3f5078"
+              }
+            }
+          ],
+          "label": {
+            "show": true,
+            "position": "right",
+            "color": "rgba(255,255,255,0.62)",
+            "formatter": "{c} 亿"
+          }
+        }
+      ]
+    },
+    "chart-motive": {
+      "grid": {
+        "left": 120,
+        "right": 50,
+        "top": 16,
+        "bottom": 30
+      },
+      "xAxis": {
+        "type": "value",
+        "max": 80,
+        "axisLabel": {
+          "color": "rgba(255,255,255,0.62)",
+          "formatter": "{value}%"
+        },
+        "splitLine": {
+          "lineStyle": {
+            "color": "rgba(94,220,244,0.18)"
+          }
+        },
+        "axisLine": {
+          "show": false
+        }
+      },
+      "yAxis": {
+        "type": "category",
+        "data": [
+          "社交分享",
+          "缓解压力获取快乐",
+          "集齐全套满足感",
+          "喜欢特定IP/设计",
+          "拆盒惊喜感"
+        ],
+        "axisLabel": {
+          "color": "#ffffff",
+          "fontSize": 13
+        },
+        "axisLine": {
+          "show": false
+        },
+        "axisTick": {
+          "show": false
+        }
+      },
+      "series": [
+        {
+          "type": "bar",
+          "barWidth": 20,
+          "data": [
+            34.5,
+            45.4,
+            45.7,
+            48.3,
+            66.5
+          ],
+          "itemStyle": {
+            "color": "#5EDCF4",
+            "borderRadius": [
+              0,
+              4,
+              4,
+              0
+            ]
+          },
+          "label": {
+            "show": true,
+            "position": "right",
+            "color": "rgba(255,255,255,0.62)",
+            "formatter": "{c}%"
+          }
+        }
+      ]
+    },
+    "chart-quad": {
+      "grid": {
+        "left": 60,
+        "right": 30,
+        "top": 30,
+        "bottom": 46
+      },
+      "xAxis": {
+        "type": "value",
+        "min": 0,
+        "max": 10,
+        "name": "个人可进入性 →",
+        "nameLocation": "middle",
+        "nameGap": 28,
+        "axisLabel": {
+          "color": "rgba(255,255,255,0.62)"
+        },
+        "splitLine": {
+          "show": false
+        },
+        "axisLine": {
+          "lineStyle": {
+            "color": "rgba(94,220,244,0.18)"
+          }
+        }
+      },
+      "yAxis": {
+        "type": "value",
+        "min": 0,
+        "max": 10,
+        "name": "市场吸引力 ↑",
+        "nameLocation": "middle",
+        "nameGap": 38,
+        "axisLabel": {
+          "color": "rgba(255,255,255,0.62)"
+        },
+        "splitLine": {
+          "show": false
+        },
+        "axisLine": {
+          "lineStyle": {
+            "color": "rgba(94,220,244,0.18)"
+          }
+        }
+      },
+      "series": [
+        {
+          "type": "scatter",
+          "symbolSize": 16,
+          "data": [
+            {
+              "value": [
+                6.6,
+                7.6
+              ],
+              "name": "原创IP养成",
+              "itemStyle": {
+                "color": "#5EDCF4"
+              }
+            },
+            {
+              "value": [
+                6,
+                6.6
+              ],
+              "name": "手作改娃",
+              "itemStyle": {
+                "color": "#5EDCF4"
+              }
+            },
+            {
+              "value": [
+                6.6,
+                5.9
+              ],
+              "name": "娃衣/棉花娃娃",
+              "itemStyle": {
+                "color": "#F4D03F"
+              }
+            },
+            {
+              "value": [
+                2,
+                8.6
+              ],
+              "name": "大牌授权盲盒",
+              "itemStyle": {
+                "color": "#F0A6CA"
+              }
+            },
+            {
+              "value": [
+                7.2,
+                4
+              ],
+              "name": "平价解压白牌",
+              "itemStyle": {
+                "color": "#F4D03F"
+              }
+            },
+            {
+              "value": [
+                2.6,
+                5.4
+              ],
+              "name": "收藏卡牌",
+              "itemStyle": {
+                "color": "#F0A6CA"
+              }
+            }
+          ],
+          "label": {
+            "show": true,
+            "position": "right",
+            "color": "#ffffff",
+            "fontSize": 12.5,
+            "formatter": "{b}"
+          },
+          "markLine": {
+            "silent": true,
+            "symbol": "none",
+            "lineStyle": {
+              "color": "rgba(255,255,255,0.28)",
+              "type": "dashed"
+            },
+            "data": [
+              {
+                "xAxis": 5
+              },
+              {
+                "yAxis": 5
+              }
+            ]
+          },
+          "markArea": {
+            "silent": true,
+            "itemStyle": {
+              "color": "rgba(94,220,244,0.09)"
+            },
+            "data": [
+              [
+                {
+                  "xAxis": 5,
+                  "yAxis": 5
+                },
+                {
+                  "xAxis": 10,
+                  "yAxis": 10
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    "chart-share": {
+      "grid": {
+        "left": 90,
+        "right": 50,
+        "top": 16,
+        "bottom": 30
+      },
+      "xAxis": {
+        "type": "value",
+        "max": 100,
+        "axisLabel": {
+          "color": "rgba(255,255,255,0.62)",
+          "formatter": "{value}%"
+        },
+        "splitLine": {
+          "lineStyle": {
+            "color": "rgba(94,220,244,0.18)"
+          }
+        },
+        "axisLine": {
+          "show": false
+        }
+      },
+      "yAxis": {
+        "type": "category",
+        "data": [
+          "其他长尾",
+          "TOP TOY",
+          "泡泡玛特"
+        ],
+        "axisLabel": {
+          "color": "#ffffff",
+          "fontSize": 13
+        },
+        "axisLine": {
+          "show": false
+        },
+        "axisTick": {
+          "show": false
+        }
+      },
+      "series": [
+        {
+          "type": "bar",
+          "barWidth": 22,
+          "data": [
+            {
+              "value": 73.4,
+              "itemStyle": {
+                "color": "#3f5078"
+              }
+            },
+            {
+              "value": 4.8,
+              "itemStyle": {
+                "color": "#F4D03F"
+              }
+            },
+            {
+              "value": 21.8,
+              "itemStyle": {
+                "color": "#5EDCF4"
+              }
+            }
+          ],
+          "label": {
+            "show": true,
+            "position": "right",
+            "color": "rgba(255,255,255,0.62)",
+            "formatter": "{c}%"
+          }
+        }
+      ]
+    }
+  }
+}

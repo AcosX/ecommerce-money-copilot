@@ -7,7 +7,7 @@
     'xhs-visual-material':'小红书视觉素材','pdd-listing-optimizer':'拼多多商品优化','xhs-keyword-topic':'小红书关键词与选题','pdd-keyword-title':'拼多多关键词与标题',
     'xhs-video-script':'小红书视频脚本','pdd-video-script':'拼多多视频脚本','xhs-note-optimizer':'小红书笔记优化','xhs-ads-doctor':'小红书广告诊断','pdd-ads-doctor':'拼多多广告诊断'
   };
-  const SCORE_URL='assets/templates/四维选品单-示例.csv';
+  const SCORE_URL='assets/templates/product-selection.xlsx';
   const LEVELS=[
     {id:'L1',type:'business_plan',topic:'定方向',title:'给小生意定个方向',description:'开店前先想清楚：这个赛道有没有得做？竞争有多大？凭什么是你？',goal:'和小商聊清方向，整理成《生意规划报告》后提交确认；附件选填。',deliverable:'生意规划报告',tip:'告诉伙伴你的预算、货源和可投入的时间，一起判断先做哪个平台、哪个类目。',checks:['赛道空间与增长线索','竞争情况与切入机会','你的资源、优势与下一步'],slots:[{id:'report',label:'生意规划报告',hint:'可选：补充 PDF 或清晰截图；也可直接提交和小商聊出的规划',required:false}],kits:{both:['category-business-advisor']},reward:'score',method:'report'},
     {id:'L2',type:'product_selection',topic:'会选品',title:'选出能卖得动的商品',description:'用规则跑一版选品单，再用打分表比较热度、竞争与利润。AI 帮你跑单，最后由你拍板。',goal:'提交选品单或选品报告，附上你的选择理由。',deliverable:'选品单 / 选品报告',tip:'从销量、高增低供、趋势信号和供给优势中选一个角度，让你的 agent 跑出候选单。',checks:['候选商品与参考来源','热度、竞争、利润的比较','你确认的商品与理由'],slots:[{id:'selection',label:'选品单或报告',hint:'选填：补充来源截图或选品表 PDF；报告可直接写在成果内容中',required:false}],kits:{xiaohongshu:['xhs-product-scout'],pinduoduo:['pdd-product-scout']},reward:'competitor',method:'selection'},
@@ -20,7 +20,7 @@
   const GROWTH=['新手店主','成长店主','成熟店主','进阶店主','破零卖家'];
   function level(id){return LEVELS.find(l=>l.id===id);}
   function kitIds(id,platform){const kits=level(id)?.kits||{};return [...(kits.both||[]),...(kits[platform]||[])];}
-  function rewards(id,platform){const reward=level(id)?.reward;if(reward==='score')return [{id:'score',name:'四维选品打分表示例',url:SCORE_URL,external:false}];if(reward==='competitor')return platform==='xiaohongshu'?[{id:'xhs-competitor-analyzer',name:SKILLS['xhs-competitor-analyzer']}]:[];const key=reward==='keyword'?(platform==='pinduoduo'?'pdd-keyword-title':'xhs-keyword-topic'):reward==='ads'?(platform==='pinduoduo'?'pdd-ads-doctor':'xhs-ads-doctor'):null;return key?[{id:key,name:SKILLS[key]}]:[];}
+  function rewards(id,platform){const reward=level(id)?.reward;if(reward==='score')return [{id:'score',name:'选品单模板（小红书 + 拼多多）',url:SCORE_URL,external:false}];if(reward==='competitor')return platform==='xiaohongshu'?[{id:'xhs-competitor-analyzer',name:SKILLS['xhs-competitor-analyzer']}]:[];const key=reward==='keyword'?(platform==='pinduoduo'?'pdd-keyword-title':'xhs-keyword-topic'):reward==='ads'?(platform==='pinduoduo'?'pdd-ads-doctor':'xhs-ads-doctor'):null;return key?[{id:key,name:SKILLS[key]}]:[];}
   function progress(project,artifacts=[],verifications=[]){
     // A successful formal submission, not an AI/human approval, opens the next lesson.
     // Backend-reviewed "approved" and "rejected" artifacts also prove a prior submission.

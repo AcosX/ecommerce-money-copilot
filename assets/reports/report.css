@@ -1,0 +1,4 @@
+.example-notice{position:relative;z-index:100;background:#0f1b3d;color:#fff;border-bottom:2px solid #f4d03f;padding:14px 20px;font:14px/1.6 sans-serif}
+.example-notice a{color:#5edcf4;margin-left:12px}
+.report-error{padding:40px;color:#fff;background:#0f1b3d}
+@media print{.example-notice{position:static}}

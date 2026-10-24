@@ -2156,6 +2156,18 @@ def run_companion_chat(
         )
     if target_level == "L1":
         sys_prompt += "\n" + (prompt_dir / "l1-planning.txt").read_text(encoding="utf-8")
+    if target_level == "L2":
+        selection_platform = active_platform
+        selection_prompt = (
+            "pdd-product-scout.txt"
+            if selection_platform in {"pinduoduo", "拼多多"}
+            else "xhs-product-scout.txt"
+        )
+        sys_prompt += "\n" + (prompt_dir / selection_prompt).read_text(encoding="utf-8")
+        sys_prompt += (
+            "\n当前聊天只输出报告正文，不生成脚本或样式，不声称访问了未配置的平台数据工具。"
+            "样稿数据不作为店主事实，缺口标待验证；一次只追问当前最关键的一个信息。"
+        )
     if want_save_draft:
         sys_prompt += (
             "\n保存操作由服务端执行，不能声称已保存。用户要求生成或整理时，"
