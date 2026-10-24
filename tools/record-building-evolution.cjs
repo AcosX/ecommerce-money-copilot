@@ -6,7 +6,7 @@ const{chromium}=require(process.env.EMC_PLAYWRIGHT_MODULE||'playwright');
 const output=path.resolve(process.env.EMC_VIDEO_OUTPUT||'output/building-evolution/building-evolution.mp4');
 (async()=>{
  fs.mkdirSync(path.dirname(output),{recursive:true});const work=fs.mkdtempSync(path.join(os.tmpdir(),'emc-evolution-video-'));
- const browser=await chromium.launch({channel:process.env.EMC_BROWSER_CHANNEL||'msedge',headless:true});
+ const browser=await chromium.launch({headless:true,...(process.env.EMC_CHROMIUM?{executablePath:process.env.EMC_CHROMIUM}:{channel:process.env.EMC_BROWSER_CHANNEL||'msedge'})});
  let video,audio;
  try{
   const context=await browser.newContext({viewport:{width:1280,height:720},recordVideo:{dir:work,size:{width:1280,height:720}}});
@@ -23,7 +23,7 @@ const output=path.resolve(process.env.EMC_VIDEO_OUTPUT||'output/building-evoluti
    };
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));video=page.video();
-  await page.goto((process.env.EMC_TEST_URL||'http://127.0.0.1:5173')+'/tools/building-evolution.html');
+  await page.goto((process.env.EMC_TEST_URL||'http://127.0.0.1:5173')+'/tools/building-evolution.html?presentation=1');
   await page.waitForFunction(()=>window.render_game_to_text&&JSON.parse(render_game_to_text()).phase==='ready');
   await page.waitForTimeout(600);
   const button=await page.locator('#play').boundingBox();await page.mouse.move(button.x+button.width/2,button.y+button.height/2);await page.mouse.down();
