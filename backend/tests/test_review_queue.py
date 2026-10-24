@@ -95,28 +95,18 @@ def test_worker_writes_real_history_once(
     status, client, make_player, login_as, database, db_session, settings, monkeypatch
 ):
     sub, _ = submit(client, make_player, login_as)
+    assert sub["status"] == "approved"
     monkeypatch.setattr(queue, "review_submission", lambda *a, **kw: report(status=status))
     assert queue.run_one(database, settings)
     assert not queue.run_one(database, settings)
     from emc_api.services.agent_runtime import get_latest_ai_review
 
-    assert (
-        get_latest_ai_review(db_session, sub["id"])["summary"] == report(status=status)["summary"]
-    )
+    assert get_latest_ai_review(db_session, sub["id"])["summary"] == report()["summary"]
     db_session.expire_all()
-    current = db_session.get(VerificationSubmission, sub["id"])
-    assert current.status == (
-        "pending"
-        if status == "manual_review"
-        else "approved"
-        if status == "approved"
-        else "rejected"
-    )
-    rows = db_session.scalars(select(VerificationReview)).all()
-    assert len(rows) == (0 if status == "manual_review" else 1)
-    if rows:
-        assert rows[0].source == "agent" and rows[0].reviewer_id is None
-        assert rows[0].report["summary"]
+    assert db_session.get(VerificationSubmission, sub["id"]).status == "approved"
+    assert db_session.get(Artifact, sub["artifact_id"]).status == "approved"
+    assert db_session.get(ReviewJob, sub["id"]).report["status"] == status
+    assert db_session.scalar(select(func.count()).select_from(VerificationReview)) == 0
 
 
 def test_outage_retries_without_failing_player(
@@ -135,8 +125,8 @@ def test_outage_retries_without_failing_player(
         assert job.attempts == attempt + 1
         job.next_attempt_at = utcnow() - timedelta(seconds=1)
         db_session.commit()
-    assert job.status == "waiting_manual"
-    assert db_session.get(VerificationSubmission, sub["id"]).status == "pending"
+    assert job.status == "completed"
+    assert db_session.get(VerificationSubmission, sub["id"]).status == "approved"
     assert db_session.scalar(select(func.count()).select_from(VerificationReview)) == 0
 
 
@@ -183,7 +173,7 @@ def test_new_revision_is_never_overwritten(
     monkeypatch.setattr(queue, "review_submission", revise)
     queue.run_one(database, settings)
     with database.sessionmaker() as db:
-        assert db.get(VerificationSubmission, sub["id"]).status == "pending"
+        assert db.get(VerificationSubmission, sub["id"]).status == "approved"
         assert db.get(ReviewJob, sub["id"]).last_error == "superseded"
 
 
@@ -235,24 +225,18 @@ def test_real_image_bytes_and_strict_rubric(
 
 
 @pytest.mark.parametrize("state", ["leased", "waiting_manual"])
-def test_human_review_closes_job_in_same_transaction(
+def test_removed_human_review_cannot_override_approval(
     state, client, make_player, login_as, db_session
 ):
     sub, _ = submit(client, make_player, login_as)
     job = db_session.get(ReviewJob, sub["id"])
     job.status = state
-    job.lease_token = "a-worker-token"
-    job.lease_until = utcnow() + timedelta(seconds=120)
     db_session.commit()
-    reviewer = make_player()
-    login_as(reviewer, reviewer=True)
+    login_as(make_player(), reviewer=True)
     response = client.post(
         "/api/admin/verifications/" + sub["id"] + "/review",
-        json={"decision": "approved", "reason": "人工实际复核"},
+        json={"decision": "rejected", "reason": "人工驳回"},
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 404
     db_session.expire_all()
-    job = db_session.get(ReviewJob, sub["id"])
-    assert job.status == "completed"
-    assert job.lease_token is None and job.lease_until is None
-    assert response.json()["reviews"][-1]["source"] == "manual"
+    assert db_session.get(VerificationSubmission, sub["id"]).status == "approved"

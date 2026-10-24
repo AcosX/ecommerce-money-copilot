@@ -86,6 +86,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("EMC_XINGYUN_DEFAULT_PRESET", "XINGYUN_DEFAULT_PRESET"),
     )
 
+    anysearch_api_key: SecretStr = SecretStr("")
+    anysearch_base_url: str = "https://api.anysearch.com"
+    anysearch_timeout_seconds: float = Field(default=8.0, gt=0, le=15)
+
     # AI 大模型网关配置（支持 GOOGLE_GEMINI_BASE_URL / GEMINI_API_KEY）
     ai_base_url: str = Field(
         default="https://ai.acosx.xyz",

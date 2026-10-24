@@ -368,223 +368,35 @@ def test_evidence_download_permissions_and_path_traversal(
 # -------------------------------------------------------- #29 #30 #32 #33 状态机与人工审核闭环
 
 
-def test_full_verification_lifecycle_reject_revise_resubmit_approve(
-    client: TestClient,
-    make_client,
-    db_session: Session,
-    make_player,
-    login_as,
-) -> None:
-    player = make_player(display_name="创业店主")
-    reviewer = make_player(display_name="审核组长")
-    login_as(player)
-
-    rev1_content = {
-        "target_platform": "拼多多",
-        "items": [{"sku": "PDD-101", "price": 39.9, "margin": 0.35}],
-    }
-    artifact = create_project_and_artifact(
-        db_session,
-        player,
-        title="拼多多日用百货选品方案 v1",
-        origin="tutorial_copy",
-        source_level_id="L2",
-        content=rev1_content,
-    )
-
-    ev1 = upload_sample_evidence(client, filename="supplier_quote.png", data=PNG_BYTES)
-    ev2 = upload_sample_evidence(client, filename="margin_sheet.pdf", data=PDF_BYTES)
-
-    # 1. 提交认证申请（附幂等键）
-    submit_resp = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 1,
-            "evidence_ids": [ev1["id"], ev2["id"]],
-            "note": "已完成供应商核价与毛利测算",
-        },
-        headers={"Idempotency-Key": "sub-1"},
-    )
-    assert submit_resp.status_code == 201, submit_resp.text
-    sub1 = submit_resp.json()
-    assert ids.has_prefix(sub1["id"], ids.VERIFICATION)
-    assert sub1["status"] == "pending"
-    assert sub1["method"] == "agent_review"
-    assert sub1["artifact_revision"] == 1
-    assert sub1["rejection_reason"] is None
-    assert sub1["evidence_count"] == 2
-    assert [e["id"] for e in sub1["evidence"]] == [ev1["id"], ev2["id"]]
-    assert sub1["snapshot"] == {
+def test_immediate_approval_freezes_snapshot_and_is_idempotent(
+    client, make_player, login_as, db_session
+):
+    owner = make_player()
+    login_as(owner)
+    artifact = create_project_and_artifact(db_session, owner)
+    ev = upload_sample_evidence(client, filename="proof.png", data=PNG_BYTES)
+    body = {
         "artifact_id": artifact.id,
-        "project_id": artifact.project_id,
-        "artifact_type": "product_selection",
-        "schema_version": 1,
-        "title": "拼多多日用百货选品方案 v1",
-        "origin": "tutorial_copy",
-        "source_level_id": "L2",
-        "revision": 1,
-        "content": rev1_content,
-        "content_sha256": json_sha256(rev1_content),
+        "artifact_version": artifact.version,
+        "evidence_ids": [ev["id"]],
     }
-    assert sub1["snapshot_sha256"] == json_sha256(sub1["snapshot"])
-
-    # 幂等重放返回同一申请
-    replay = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 1,
-            "evidence_ids": [ev1["id"], ev2["id"]],
-            "note": "已完成供应商核价与毛利测算",
-        },
-        headers={"Idempotency-Key": "sub-1"},
+    response = client.post(
+        "/api/verifications", json=body, headers={"Idempotency-Key": "instant-case"}
     )
-    assert replay.status_code == 201
-    assert replay.headers.get("Idempotency-Replayed") == "true"
-    assert replay.json()["id"] == sub1["id"]
-
-    # 成果已变为 submitted，再次发起新申请返回 409 invalid_state
-    ev_extra = upload_sample_evidence(client, filename="extra.jpg", data=JPEG_BYTES)
-    dup_submit = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 2,
-            "evidence_ids": [ev_extra["id"]],
-        },
+    assert response.status_code == 201, response.text
+    submission = response.json()
+    assert submission["status"] == "approved" and submission["decided_at"]
+    assert submission["method"] == "self_submit"
+    assert submission["snapshot_sha256"] == json_sha256(submission["snapshot"])
+    again = client.post(
+        "/api/verifications", json=body, headers={"Idempotency-Key": "instant-case"}
     )
-    assert_error(dup_submit, 409, "invalid_state")
-
-    # 2. 审核员在后台查看待审核列表并执行驳回
-    rev_client = make_client()
-    login_as(reviewer, reviewer=True, test_client=rev_client)
-
-    pending_list = rev_client.get("/api/admin/verifications", params={"status": "pending"}).json()
-    assert [i["id"] for i in pending_list["items"]] == [sub1["id"]]
-    assert pending_list["items"][0]["owner_display_name"] == "创业店主"
-
-    # 驳回时未填原因 → 422 validation_error
-    no_reason = rev_client.post(
-        f"/api/admin/verifications/{sub1['id']}/review",
-        json={"decision": "rejected", "reason": "   "},
-    )
-    assert_error(no_reason, 422, "validation_error")
-
-    reject_resp = rev_client.post(
-        f"/api/admin/verifications/{sub1['id']}/review",
-        json={"decision": "rejected", "reason": "请补充 1688 真实拿货凭证截图"},
-        headers={"Idempotency-Key": "rev-decision-1"},
-    )
-    assert reject_resp.status_code == 200, reject_resp.text
-    rejected_sub = reject_resp.json()
-    assert rejected_sub["status"] == "rejected"
-    assert rejected_sub["decided_at"] is not None
-    assert rejected_sub["rejection_reason"] == "请补充 1688 真实拿货凭证截图"
-    assert len(rejected_sub["reviews"]) == 1
-    assert rejected_sub["reviews"][0]["decision"] == "rejected"
-    assert rejected_sub["reviews"][0]["reviewer_id"] == reviewer.id
-
-    # 审核幂等重放
-    reject_replay = rev_client.post(
-        f"/api/admin/verifications/{sub1['id']}/review",
-        json={"decision": "rejected", "reason": "请补充 1688 真实拿货凭证截图"},
-        headers={"Idempotency-Key": "rev-decision-1"},
-    )
-    assert reject_replay.status_code == 200
-    assert reject_replay.headers.get("Idempotency-Replayed") == "true"
-
-    # 玩家查询本人申请详情与列表，看到驳回原因与历史记录
-    my_detail = client.get(f"/api/verifications/{sub1['id']}")
-    assert my_detail.status_code == 200
-    assert my_detail.json()["status"] == "rejected"
-    assert my_detail.json()["rejection_reason"] == "请补充 1688 真实拿货凭证截图"
-
-    my_list = client.get("/api/verifications", params={"status": "rejected"}).json()
-    assert [i["id"] for i in my_list["items"]] == [sub1["id"]]
-
-    # 3. 玩家修改成果生成 revision 2，但第一次申请的快照必须保持不可变
-    db_session.expire_all()
-    art_db = db_session.get(Artifact, artifact.id)
-    assert art_db is not None and art_db.status == "rejected" and art_db.version == 3
-
-    rev2_content = {
-        "target_platform": "拼多多",
-        "items": [{"sku": "PDD-101", "price": 39.9, "margin": 0.40, "supplier_verified": True}],
-    }
-    add_artifact_revision(
-        db_session,
-        art_db,
-        title="拼多多日用百货选品方案 v2（含拿货凭证）",
-        content=rev2_content,
-    )
-
-    # 旧申请快照仍为 revision 1 的内容与哈希
-    old_check = client.get(f"/api/verifications/{sub1['id']}").json()
-    assert old_check["artifact_revision"] == 1
-    assert old_check["snapshot"]["title"] == "拼多多日用百货选品方案 v1"
-    assert old_check["snapshot"]["content"] == rev1_content
-    assert old_check["snapshot_sha256"] == sub1["snapshot_sha256"]
-
-    # 旧证据已绑定 sub1，不能复用
-    reuse_ev = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 4,
-            "evidence_ids": [ev1["id"]],
-        },
-    )
-    assert_error(reuse_ev, 409, "invalid_state")
-
-    # 4. 上传新证据并再次提交 revision 2
-    ev3 = upload_sample_evidence(client, filename="1688_order.webp", data=WEBP_BYTES)
-    submit2_resp = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 4,
-            "evidence_ids": [ev3["id"]],
-            "note": "已补充 1688 真实订单凭证",
-        },
-    )
-    assert submit2_resp.status_code == 201, submit2_resp.text
-    sub2 = submit2_resp.json()
-    assert sub2["id"] != sub1["id"]
-    assert sub2["artifact_revision"] == 2
-    assert sub2["snapshot"]["revision"] == 2
-    assert sub2["snapshot"]["content"] == rev2_content
-    assert sub2["status"] == "pending"
-
-    # 5. 审核员通过第二次申请
-    approve_resp = rev_client.post(
-        f"/api/admin/verifications/{sub2['id']}/review",
-        json={"decision": "approved", "reason": "拿货凭证与毛利测算一致，予以通过"},
-    )
-    assert approve_resp.status_code == 200, approve_resp.text
-    approved_sub = approve_resp.json()
-    assert approved_sub["status"] == "approved"
-    assert approved_sub["rejection_reason"] is None
-    assert len(approved_sub["reviews"]) == 1
-    assert approved_sub["reviews"][0]["decision"] == "approved"
-
-    db_session.expire_all()
-    art_final = db_session.get(Artifact, artifact.id)
-    assert art_final is not None
-    assert art_final.status == "approved"
-    assert art_final.version == 6
-
-    # 已通过成果不允许再次提交认证
-    ev4 = upload_sample_evidence(client, filename="another.png", data=PNG_BYTES)
-    resubmit_approved = client.post(
-        "/api/verifications",
-        json={
-            "artifact_id": artifact.id,
-            "artifact_version": 6,
-            "evidence_ids": [ev4["id"]],
-        },
-    )
-    assert_error(resubmit_approved, 409, "invalid_state")
+    assert again.json() == submission
+    assert client.get("/api/artifacts/" + artifact.id).json()["status"] == "approved"
+    assert client.post("/api/verifications", json=body).status_code == 409
+    stored = client.get("/api/verifications/" + submission["id"]).json()
+    assert stored["evidence"][0]["id"] == ev["id"]
+    assert stored["snapshot"] == submission["snapshot"]
 
 
 # ---------------------------------------------------------------- #30 #34 #35 边界、越权与防篡改
@@ -668,113 +480,61 @@ def test_verification_submit_validation_and_version_conflict(
     assert_error(cross_art, 404, "not_found")
 
 
-def test_reviewer_authorization_self_review_and_append_only_guards(
-    client: TestClient,
-    make_client,
-    db_session: Session,
-    make_player,
-    login_as,
-) -> None:
-    # 既是卖家又是审核员的账号，用于测试禁止自审（#34）
-    reviewer_seller = make_player(display_name="兼职店主审核员")
-    other_reviewer = make_player(display_name="独立审核员")
-    normal_player = make_player(display_name="普通买家")
-
-    login_as(reviewer_seller, reviewer=True)
-    artifact = create_project_and_artifact(db_session, reviewer_seller)
-    ev = upload_sample_evidence(client, filename="self.png", data=PNG_BYTES)
+def test_removed_review_endpoints_player_isolation_and_append_only_history(
+    client, make_client, make_player, login_as, db_session
+):
+    owner = make_player()
+    login_as(owner)
+    artifact = create_project_and_artifact(db_session, owner)
+    ev = upload_sample_evidence(client, filename="proof.png", data=PNG_BYTES)
     sub = client.post(
         "/api/verifications",
         json={
             "artifact_id": artifact.id,
-            "artifact_version": 1,
+            "artifact_version": artifact.version,
             "evidence_ids": [ev["id"]],
         },
     ).json()
-
-    # 1. 普通玩家访问任何 /api/admin/* 接口均返回 403 forbidden（即使伪造请求头）
-    normal_client = make_client()
-    login_as(normal_player, reviewer=False, test_client=normal_client)
-    normal_client.headers["X-Role"] = "reviewer"
-
-    assert_error(normal_client.get("/api/admin/verifications"), 403, "forbidden")
-    assert_error(normal_client.get(f"/api/admin/verifications/{sub['id']}"), 403, "forbidden")
-    assert_error(
-        normal_client.post(
-            f"/api/admin/verifications/{sub['id']}/review",
-            json={"decision": "approved"},
-        ),
-        403,
-        "forbidden",
+    other = make_client()
+    login_as(make_player(), test_client=other)
+    assert other.get("/api/verifications/" + sub["id"]).status_code == 404
+    assert other.post("/api/agent/reviews/" + sub["id"]).status_code == 404
+    for connection in (client, other):
+        assert (
+            connection.post(
+                "/api/admin/verifications/" + sub["id"] + "/review", json={"decision": "rejected"}
+            ).status_code
+            == 404
+        )
+    # Historical attributed review records remain immutable after removing human review.
+    row = VerificationReview(
+        id=ids.new_id(ids.REVIEW),
+        submission_id=sub["id"],
+        reviewer_id=None,
+        source="agent",
+        decision="approved",
+        reason="历史记录",
     )
-    # 普通玩家也不能通过玩家端详情接口偷看他人申请
-    assert_error(normal_client.get(f"/api/verifications/{sub['id']}"), 404, "not_found")
-
-    # 2. 审核员不能审核本人提交的申请 → 403 forbidden
-    self_review = client.post(
-        f"/api/admin/verifications/{sub['id']}/review",
-        json={"decision": "approved", "reason": "自己给自己过"},
-    )
-    assert_error(self_review, 403, "forbidden")
-
-    # 3. 独立审核员通过审核
-    rev2_client = make_client()
-    login_as(other_reviewer, reviewer=True, test_client=rev2_client)
-    ok_resp = rev2_client.post(
-        f"/api/admin/verifications/{sub['id']}/review",
-        json={"decision": "approved", "reason": "材料真实有效"},
-    )
-    assert ok_resp.status_code == 200
-
-    # 4. 已完成审核的申请不能再次审核 → 409 invalid_state
-    repeat_review = rev2_client.post(
-        f"/api/admin/verifications/{sub['id']}/review",
-        json={"decision": "rejected", "reason": "试图反悔修改结果"},
-    )
-    assert_error(repeat_review, 409, "invalid_state")
-
-    # 5. VerificationReview 与 AuditEvent 只追加不可修改/删除（#35）
-    review_row = db_session.scalars(
-        select(VerificationReview).where(VerificationReview.submission_id == sub["id"])
-    ).one()
-    review_row.decision = "rejected"
+    db_session.add(row)
+    db_session.commit()
+    identifier = row.id
+    row.decision = "rejected"
     with pytest.raises(AppendOnlyViolation):
         db_session.flush()
     db_session.rollback()
-
-    review_row = db_session.scalars(
-        select(VerificationReview).where(VerificationReview.submission_id == sub["id"])
-    ).one()
-    db_session.delete(review_row)
+    db_session.delete(db_session.get(VerificationReview, identifier))
     with pytest.raises(AppendOnlyViolation):
         db_session.flush()
     db_session.rollback()
-
-    # 校验完整审计链路已落库
-    actions = list(
-        db_session.scalars(select(AuditEvent.action).order_by(AuditEvent.id.asc())).all()
-    )
-    assert actions == ["evidence.upload", "verification.submit", "verification.review"]
+    actions = db_session.scalars(select(AuditEvent.action)).all()
+    assert "verification.submit" in actions and "verification.review" not in actions
 
 
-def test_admin_ui_and_openapi_routes(client: TestClient) -> None:
-    for path in ("/admin", "/admin/"):
-        resp = client.get(path)
-        assert resp.status_code == 200
-        assert "text/html" in resp.headers["content-type"]
-        assert resp.headers["cache-control"] == "no-store"
-        assert "正式成果人工审核工作台" in resp.text
-
-    openapi = client.get("/api/openapi.json")
-    assert openapi.status_code == 200
-    paths = openapi.json()["paths"]
-    assert "/api/evidence" in paths
-    assert "/api/evidence/{evidence_id}/content" in paths
-    assert "/api/verifications" in paths
-    assert "/api/verifications/{submission_id}" in paths
-    assert "/api/admin/verifications" in paths
-    assert "/api/admin/verifications/{submission_id}" in paths
-    assert "/api/admin/verifications/{submission_id}/review" in paths
+def test_admin_ui_and_openapi_routes(client):
+    assert client.get("/admin").status_code == 404
+    assert client.get("/admin/").status_code == 404
+    assert client.get("/api/admin/verifications").status_code == 404
+    assert not any(path.startswith("/api/admin") for path in client.app.openapi()["paths"])
 
 
 @pytest.mark.parametrize(
@@ -821,7 +581,7 @@ def test_text_reports_without_duplicate_attachment(
     assert response.status_code == expected, response.text
     if expected == 201:
         data = response.json()
-        assert data["status"] == "pending"
+        assert data["status"] == "approved"
         assert data["snapshot"]["content"]["planning_report"] == report
         replay = client.get("/api/verifications/" + data["id"])
         assert replay.status_code == 200
@@ -874,7 +634,7 @@ def test_long_conversation_plan_uses_real_artifact_schema(
     assert data["snapshot"]["content"]["planning_report"] == report
     review = client.post("/api/agent/reviews/" + data["id"], json={})
     assert review.status_code == 503  # no provider configured; never synthesize approval
-    assert client.get("/api/verifications/" + data["id"]).json()["status"] == "pending"
+    assert client.get("/api/verifications/" + data["id"]).json()["status"] == "approved"
     other = make_player()
     login_as(other)
     assert client.get("/api/verifications/" + data["id"]).status_code == 404
@@ -904,4 +664,4 @@ def test_listing_link_is_an_alternative_to_upload(
     assert response.status_code == expected, response.text
     if expected == 201:
         assert response.json()["snapshot"]["content"]["listing_url"] == url
-        assert response.json()["status"] == "pending"
+        assert response.json()["status"] == "approved"
