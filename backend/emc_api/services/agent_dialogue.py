@@ -35,15 +35,34 @@ def normalize_history(items: list[dict[str, Any]]) -> list[dict[str, str]]:
 
 def calculate_unit_roi(message: str) -> dict[str, Any] | None:
     """Read labelled amounts only; budgets, level numbers and days are not prices."""
-    amount = r"\s*(?:是|为|价|约|大概|每单|改为|改成|：|:)?\s*[¥￥]?\s*(-?\d+(?:\.\d+)?)"
-
-    def read(labels: str) -> Decimal | None:
-        matches = re.findall(rf"(?:{labels}){amount}", message, flags=re.IGNORECASE)
-        return Decimal(matches[-1]) if matches else None
-
-    price = read(r"售价|零售价|卖价|定价|卖|售")
-    cost = read(r"拿货成本|拿货价|进货价|供货价|采购成本|拿货|进货|(?<!包邮)(?<!运费)成本")
-    total_given = read(r"综合成本|总成本|全部成本")
+    # One left-to-right scan consumes complete labels and each amount exactly once.
+    labels = {
+        "total": r"综合成本|总成本|全部成本",
+        "combined": r"快递包材(?:成本|费)?|运费[及和与+、/]包材(?:成本|费)?",
+        "shipping": r"运费成本|快递成本|快递费|运费|快递|物流费|包邮成本",
+        "packaging": r"包材成本|包装成本|包装费|包材费|包材|包装",
+        "cost": r"拿货成本|拿货价|进货价|供货价|采购成本|拿货|进货|成本",
+        "price": r"零售价|售价|卖价|定价|卖|售",
+        "commission": r"佣金|扣点|平台费率",
+    }
+    label_pattern = "|".join(f"(?P<{key}>{value})" for key, value in labels.items())
+    amount = r"\s*(?:(?:改为|改成|大概|每单|是|为|价|约|：|:)\s*)?[¥￥]?\s*"
+    pattern = rf"(?:{label_pattern}){amount}(?P<amount>-?\d+(?:\.\d+)?)(?P<rate>\s*[%％])?"
+    values: dict[str, Decimal] = {}
+    commission_is_rate = False
+    for match in re.finditer(pattern, message, flags=re.IGNORECASE):
+        key = next(key for key in labels if match.group(key) is not None)
+        # Do not interpret an unknown qualified cost (e.g. 广告成本) as supply cost.
+        if key == "cost" and match.group(key) == "成本":
+            prefix = message[: match.start()]
+            if prefix and re.search(r"[a-zA-Z\u4e00-\u9fff]$", prefix):
+                continue
+        values[key] = Decimal(match.group("amount"))
+        if key == "commission":
+            commission_is_rate = bool(match.group("rate"))
+    price = values.get("price")
+    cost = values.get("cost")
+    total_given = values.get("total")
     if total_given is not None:
         cost = total_given
     if (
@@ -53,24 +72,30 @@ def calculate_unit_roi(message: str) -> dict[str, Any] | None:
         or not (0 <= cost <= 1_000_000_000)
     ):
         return None
-    shipping = read(r"快递包材|快递费|运费|快递|物流费|包邮成本")
-    packaging = read(r"包装费|包材费|包材|包装")
-    commission = read(r"佣金|扣点|平台费率")
-    # A bare fee is not a percentage. Keep rate and currency accounting separate.
+    shipping = values.get("shipping")
+    packaging = values.get("packaging")
+    combined = values.get("combined")
+    # A combined total alongside separate components needs clarification.
+    if combined is not None and (shipping is not None or packaging is not None):
+        return None
+    commission = values.get("commission")
     fee = Decimal(0)
     if commission is not None:
-        rate = re.search(r"(?:佣金|扣点|平台费率)" + amount + r"\s*[%％]", message)
-        fee = price * commission / 100 if rate else commission
-    extras = [v for v in (shipping, packaging, commission) if v is not None]
+        fee = price * commission / 100 if commission_is_rate else commission
+    extras = [v for v in (shipping, packaging, combined, commission) if v is not None]
     if any(v < 0 or v > 1_000_000_000 for v in extras):
         return None
-    total = cost if total_given is not None else cost + (shipping or 0) + (packaging or 0) + fee
+    total = (
+        cost
+        if total_given is not None
+        else cost + (shipping or 0) + (packaging or 0) + (combined or 0) + fee
+    )
     profit = price - total
     margin = profit / price
     missing = [
         name
         for name, v in (("运费", shipping), ("包材", packaging), ("平台费用", commission))
-        if v is None
+        if v is None and not (combined is not None and name in ("运费", "包材"))
     ]
     missing += ["广告费", "退货损耗", "税费"]
     if total_given is not None:
@@ -93,6 +118,7 @@ def calculate_unit_roi(message: str) -> dict[str, Any] | None:
                 ("拿货成本", cost),
                 ("运费", shipping),
                 ("包材", packaging),
+                ("快递包材合计", combined),
                 ("平台费用", fee if commission is not None else None),
             )
             if value is not None
