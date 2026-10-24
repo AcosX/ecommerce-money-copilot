@@ -152,7 +152,7 @@ def test_chat_and_native_keep_images_and_search_in_the_trusted_turn(client, sett
             ],
         },
     )
-    body = {"message": "请看看图片并查证", "images": [image_data()], "web_search": True}
+    body = {"message": "请看看图片并查一下最新市场信息", "images": [image_data()]}
     ordinary = client.post("/api/agent/chat", json=body)
     assert ordinary.status_code == 200, ordinary.text
     assert "https://example.org/source" in ordinary.json()["reply"]

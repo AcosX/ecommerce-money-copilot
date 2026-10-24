@@ -5,8 +5,6 @@
 .chat-media-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px;padding:6px 0}
 .chat-media-tools button{font:inherit;padding:6px 10px;background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:5px;cursor:pointer}
 .copilot-dock #chatPickImage{width:auto;height:auto;min-height:32px;flex:none;white-space:nowrap}
-.chat-media-tools label{display:flex;gap:4px;align-items:center}
-.chat-media-tools input[type=checkbox]{flex:none;width:16px;height:16px}
 .chat-media-tools small{color:var(--muted);flex-basis:100%}
 .chat-image-previews{display:flex;gap:8px;flex-wrap:wrap}
 .chat-image-previews:empty{display:none}
