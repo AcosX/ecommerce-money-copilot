@@ -20,6 +20,10 @@ API 的教学资源随 `backend/emc_api/data` 一起复制进镜像，不需要�
 `backend/resources` 目录或旧的 skills 挂载。本地 API 的同源地址为
 `http://127.0.0.1:5188`，与 web 入口一致。
 
+默认使用 Docker 官方 `python:3.12-slim` 基础镜像；需要镜像源时可通过
+`EMC_PYTHON_IMAGE` 指定等价的 Python 3.12 镜像。直接构建 Dockerfile 时，
+对应参数是 `--build-arg PYTHON_IMAGE=镜像地址`。
+
 安装 Docker Compose v2 后，在仓库根目录运行：
 
 ```sh
