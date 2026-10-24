@@ -22,17 +22,16 @@
   function hide(){
     previousMute=g.EmcAvatarAgent?._state?.muted||false;
     g.EmcAvatarAgent?.setMuted(true);void g.EmcAvatarAgent?.stopVoice();g.EmcAvatarAgent?.interrupt();
-    dock.classList.add('companion-hidden');dock.classList.remove('mobile-chat-open');
-    $('openCompanionChat').hidden=false;$('openCompanionChat').setAttribute('aria-expanded','false');
-    $('copilotHistory').setAttribute('aria-expanded','false');$('openCompanionChat').focus();
+    dock.classList.remove('companion-hidden','mobile-chat-open','chat-expanded');dock.classList.add('chat-collapsed');
+    $('expandCompanionChat').textContent='展开';$('expandCompanionChat').setAttribute('aria-expanded','false');$('expandCompanionChat').setAttribute('aria-label','展开对话阅读');
+    $('copilotInput').blur();$('copilotHistory').setAttribute('aria-expanded','false');$('copilotHistory').focus();
   }
   function show(){
-    const wasHidden=dock.classList.contains('companion-hidden');dock.classList.remove('companion-hidden');
-    $('openCompanionChat').hidden=true;$('openCompanionChat').setAttribute('aria-expanded','true');
+    const wasHidden=dock.classList.contains('chat-collapsed');dock.classList.remove('companion-hidden','chat-collapsed');
     if(wasHidden)g.EmcAvatarAgent?.setMuted(previousMute);
     if(innerWidth<=700){dock.classList.add('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','true');}
   }
-  $('openCompanionChat').onclick=()=>{show();$('copilotInput').focus();};
+  $('copilotInput').addEventListener('focus',()=>{if(dock.classList.contains('chat-collapsed'))show();});
   $('chatPickImage').onclick=()=>$('chatImageFiles').click();
   async function compress(file){
     if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>10*1024*1024)
