@@ -6,7 +6,7 @@
   const sent=new Map(),owner=()=>g.EmcSession?.current()?.player?.id||'guest';
   let currentOwner=owner();
   const tools=document.createElement('div');tools.className='chat-media-tools';
-  tools.innerHTML='<button id="chatPickImage" type="button">＋ 图片</button><input id="chatImageFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><label><input id="chatWebSearch" type="checkbox"> 联网查资料</label><small id="chatImageStatus" role="status"></small>';
+  tools.innerHTML='<button id="chatPickImage" type="button">＋ 图片</button><input id="chatImageFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><small id="chatImageStatus" role="status"></small>';
   const previews=document.createElement('div');previews.className='chat-image-previews';
   form.before(tools,previews);
   function update(){
@@ -61,7 +61,6 @@
   g.EmcSession?.onChange?.(()=>{if(owner()!==currentOwner){currentOwner=owner();epoch++;pending=[];sent.clear();update();}});
   g.EmcChatMedia={
     hide,show,images:()=>pending.slice(),sent:text=>sent.get(text)||[],
-    searchEnabled:()=>$('chatWebSearch').checked,
     clear:()=>{epoch++;pending=[];update();},
     busy:value=>{busy=value;$('chatPickImage').disabled=value;update();},
     remember:(text,images)=>{if(images.length){sent.set(text,images);while(sent.size>30)sent.delete(sent.keys().next().value);}}
