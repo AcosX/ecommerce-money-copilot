@@ -1,0 +1,81 @@
+diff --git a/app.py b/app.py
+index 658ee6c..aec6191 100644
+--- a/app.py
++++ b/app.py
+@@ -24,6 +24,7 @@ from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse
+ import httpx
+ import jwt
+ import mail_queue
++import theme_branding
+ from cryptography.hazmat.primitives import serialization
+ from cryptography.hazmat.primitives.asymmetric import rsa
+ from starlette.applications import Starlette
+@@ -1654,6 +1655,8 @@ def token_hash(token_value: str) -> str:
+ 
+ 
+ def make_message_page(title: str, message: str, links: list[tuple[str, str]] | None = None, status_code: int = 200) -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_message_page(title, message, links, status_code)
+     link_html = "".join(f'<p><a href="{html.escape(href)}">{html.escape(text)}</a></p>' for href, text in (links or []))
+     body = f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{html.escape(title)} - Acos Connect</title>
+ <style>body{{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#111827;background:#fff}}main{{width:min(92vw,520px);text-align:center;line-height:1.6}}h1{{font-size:28px}}p{{color:#4b5563}}a{{color:#4f63ff}}</style></head><body><main><h1>{html.escape(title)}</h1><p>{html.escape(message)}</p>{link_html}</main></body></html>"""
+@@ -1749,6 +1752,8 @@ async def homepage(request: Request) -> HTMLResponse:
+ 
+ 
+ def auth_page(mode: str = "login", error: str = "") -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_auth_page(mode, error)
+     is_register = mode == "register"
+     title = "创建账号" if is_register else "登录"
+     submit_label = "注册" if is_register else "继续"
+@@ -2024,6 +2029,11 @@ def auth_page(mode: str = "login", error: str = "") -> HTMLResponse:
+ 
+ 
+ def authorization_confirmation_page(account: sqlite3.Row, pending: dict[str, Any]) -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_consent_page(
++            str(pending.get("client_name") or pending.get("client_id") or "OAuth 应用"),
++            str(account["email"] or "未设置邮箱"),
++        )
+     email = html.escape(str(account["email"] or "未设置邮箱"))
+     client_name = html.escape(str(pending.get("client_name") or pending.get("client_id") or "OAuth 应用"))
+     body = f"""<!doctype html>
+@@ -2234,6 +2244,8 @@ async def register_password(request: Request):
+ 
+ 
+ async def resend_verification_page(request: Request) -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_email_form_page("resend")
+     return HTMLResponse("""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>重新发送验证邮件 - Acos Connect</title><style>body{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh;margin:0}.panel{width:min(92vw,380px);display:grid;gap:14px}input,button{height:48px;border-radius:24px;font-size:16px;padding:0 18px}input{border:1px solid #d9d9e3}button{border:0;background:#4f63ff;color:white}a{color:#4f63ff;text-align:center}</style></head><body><form class="panel" method="post" action="/resend-verification"><h1>重新发送验证邮件</h1><input name="username" type="email" autocomplete="username" required placeholder="邮箱"><button type="submit">发送</button><a href="/login">返回登录</a></form></body></html>""")
+ 
+ 
+@@ -2291,6 +2303,8 @@ async def verify_email(request: Request) -> HTMLResponse:
+ 
+ 
+ async def forgot_password_page(request: Request) -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_email_form_page("forgot")
+     return HTMLResponse("""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>忘记密码 - Acos Connect</title><style>body{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh;margin:0}.panel{width:min(92vw,380px);display:grid;gap:14px}input,button{height:48px;border-radius:24px;font-size:16px;padding:0 18px}input{border:1px solid #d9d9e3}button{border:0;background:#4f63ff;color:white}a{color:#4f63ff;text-align:center}</style></head><body><form class="panel" method="post" action="/forgot-password"><h1>忘记密码</h1><p>请输入注册邮箱。如果账号存在，系统会发送重置链接。</p><input name="username" type="email" autocomplete="username" required placeholder="邮箱"><button type="submit">发送重置链接</button><a href="/login">返回登录</a></form></body></html>""")
+ 
+ 
+@@ -2306,6 +2320,8 @@ async def forgot_password(request: Request) -> HTMLResponse:
+ 
+ 
+ def reset_password_form(token_value: str, error: str = "") -> HTMLResponse:
++    if theme_branding.pixel_active():
++        return theme_branding.pixel_reset_form(token_value, error)
+     error_html = f'<p style="color:#b3261e">{html.escape(error)}</p>' if error else ""
+     return HTMLResponse(f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>重置密码 - Acos Connect</title><style>body{{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh;margin:0}}.panel{{width:min(92vw,380px);display:grid;gap:14px}}input,button{{height:48px;border-radius:24px;font-size:16px;padding:0 18px}}input{{border:1px solid #d9d9e3}}button{{border:0;background:#4f63ff;color:white}}a{{color:#4f63ff;text-align:center}}</style></head><body><form class="panel" method="post" action="/reset-password"><h1>重置密码</h1>{error_html}<input type="hidden" name="token" value="{html.escape(token_value)}"><input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="新密码（至少 8 位）"><button type="submit">更新密码</button><a href="/login">返回登录</a></form></body></html>""")
+ 
+@@ -3968,7 +3984,10 @@ def create_app() -> Starlette:
+     if len(SECRET_KEY) < 32:
+         raise RuntimeError("ACOS_CONNECT_SECRET_KEY must be set to at least 32 characters")
+     init_db()
+-    return Starlette(debug=False, routes=routes)
++    app = Starlette(debug=False, routes=routes)
++    # Cosmetic only: picks the login theme from the signed pending OAuth cookie.
++    app.add_middleware(theme_branding.BrandingMiddleware, read_cookie=read_cookie, cookie_name=COOKIE_PENDING)
++    return app
+ 
+ 
+ app = create_app()
