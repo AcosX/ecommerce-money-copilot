@@ -61,8 +61,8 @@
   }
   const effects={reward:[[72,0,.13,.2],[76,.09,.13,.19],[79,.18,.13,.18],[84,.3,.33,.17]],upgrade:[[72,0,.15,.19],[76,.12,.15,.18],[79,.24,.15,.18],[84,.36,.2,.18],[88,.5,.2,.17],[91,.65,.45,.15]]};
   function effect(ctx,bus,name,time){if(name==='upgrade'){drum(ctx,bus,time,[105,1.15,.35]);for(const n of [48,60,64,67])tone(ctx,bus,n,time+.08,.85,.08,'triangle');}if(drums[name])drum(ctx,bus,time,drums[name]);else effects[name]?.forEach(([n,offset,duration,volume])=>tone(ctx,bus,n,time+offset,duration,volume,'square'));}
-  function create(){
-    let preferences={music:true,sfx:true,musicVolume:.45,sfxVolume:.6};try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p==='object')for(const k of Object.keys(preferences)){if(typeof p[k]===typeof preferences[k])preferences[k]=typeof p[k]==='number'&&Number.isFinite(p[k])?Math.max(0,Math.min(1,p[k])):typeof p[k]==='boolean'?p[k]:preferences[k];}}catch(_){}
+  function create({persist=true}={}){
+    let preferences={music:true,sfx:true,musicVolume:.45,sfxVolume:.6};if(persist)try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p==='object')for(const k of Object.keys(preferences)){if(typeof p[k]===typeof preferences[k])preferences[k]=typeof p[k]==='number'&&Number.isFinite(p[k])?Math.max(0,Math.min(1,p[k])):typeof p[k]==='boolean'?p[k]:preferences[k];}}catch(_){}
     let ctx,music,sfx,master,timer=null,next=0,index=0,unlocked=false,disposed=false,lastEffect=null,effectCount=0;
     const available=!!(window.AudioContext||window.webkitAudioContext);
     function gains(){if(!ctx)return;const now=ctx.currentTime;music.gain.setTargetAtTime(preferences.music?preferences.musicVolume*.65:0,now,.04);sfx.gain.setTargetAtTime(preferences.sfx?preferences.sfxVolume*.6:0,now,.015);}
@@ -77,7 +77,7 @@
       }catch(_){} // 音频不可用时仍可完整游玩。
     }
     function play(name){if(!ctx||ctx.state!=='running'||document.hidden||!preferences.sfx||(!effects[name]&&!drums[name]))return;lastEffect=name;effectCount++;effect(ctx,sfx,name,ctx.currentTime+.005);}
-    function set(key,value){if(!(key in preferences))return;preferences[key]=typeof preferences[key]==='boolean'?!!value:Math.max(0,Math.min(1,Number(value)||0));try{localStorage.setItem(KEY,JSON.stringify(preferences));}catch(_){}gains();if(key==='music'){if(preferences.music)start();else stop();}}
+    function set(key,value){if(!(key in preferences))return;preferences[key]=typeof preferences[key]==='boolean'?!!value:Math.max(0,Math.min(1,Number(value)||0));if(persist)try{localStorage.setItem(KEY,JSON.stringify(preferences));}catch(_){}gains();if(key==='music'){if(preferences.music)start();else stop();}}
     function gesture(e){if(e.isTrusted&&(e.type!=='keydown'||!e.repeat))void unlock();}
     function visibility(){if(!ctx)return;if(document.hidden){stop();void ctx.suspend().catch(()=>{});}else if(unlocked)void unlock();}
     document.addEventListener('pointerdown',gesture,{capture:true});document.addEventListener('keydown',gesture,{capture:true});document.addEventListener('visibilitychange',visibility);
