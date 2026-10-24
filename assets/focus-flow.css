@@ -61,3 +61,11 @@
 /* 从原信纸按比例取出邮戳区域；九宫格边框只延展直线，不拉伸图案。 */
 .mail-art-content .j-focus-card:before{content:'';position:absolute;top:14px;right:14px;width:clamp(100px,32%,170px);aspect-ratio:390/240;background:url('./game/mail/letter-paper-v1.webp') 84.699% 8.176% / 287.692% 584.167% no-repeat;pointer-events:none;}
 .mail-extracted-stage:has(>.j-focus-card):before{inset:55% -14px -8px;background-size:100% auto;background-position:center bottom;}
+
+/* 任务附件沿用首封信的背面、信纸、前袋三层结构。 */
+.mail-art-content .mail-task-envelope:before{display:none;}
+.mail-art-content .mail-task-envelope{padding-bottom:0;}
+.mail-art-content .mail-task-envelope .mail-art-back{height:60%;bottom:0;inset:auto 0 0;transform:none;}
+.mail-art-content .mail-task-envelope>.j-focus-card{flex:0 0 auto;height:calc(100% - 76px);padding-bottom:34px;z-index:1;}
+.mail-art-content .mail-task-envelope .mail-art-pocket{height:108px;bottom:0;z-index:2;object-fit:cover;object-position:center bottom;}
+@media(max-width:700px){.mail-art-content .mail-task-envelope>.j-focus-card{height:calc(100% - 56px);padding-bottom:28px;}.mail-art-content .mail-task-envelope .mail-art-pocket{height:80px;}}
