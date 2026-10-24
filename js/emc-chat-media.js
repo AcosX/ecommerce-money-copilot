@@ -20,6 +20,12 @@
     $('copilotInput').dispatchEvent(new Event('input',{bubbles:true}));
   }
   function hide(){
+    if(innerWidth>700){
+      dock.classList.remove('companion-hidden','mobile-chat-open','chat-expanded','chat-collapsed');
+      $('expandCompanionChat').setAttribute('aria-expanded','false');
+      $('expandCompanionChat').setAttribute('aria-label','展开到中央阅读');
+      $('expandCompanionChat').focus();return;
+    }
     previousMute=g.EmcAvatarAgent?._state?.muted||false;
     g.EmcAvatarAgent?.setMuted(true);void g.EmcAvatarAgent?.stopVoice();g.EmcAvatarAgent?.interrupt();
     dock.classList.remove('companion-hidden','mobile-chat-open','chat-expanded');dock.classList.add('chat-collapsed');
@@ -32,6 +38,10 @@
     if(innerWidth<=700){dock.classList.add('mobile-chat-open');$('copilotHistory').setAttribute('aria-expanded','true');}
   }
   $('copilotInput').addEventListener('focus',()=>{if(dock.classList.contains('chat-collapsed'))show();});
+  matchMedia('(min-width:701px)').addEventListener('change',event=>{
+    if(event.matches)hide();
+    else{dock.classList.remove('chat-expanded');$('expandCompanionChat').setAttribute('aria-expanded','false');}
+  });
   $('chatPickImage').onclick=()=>$('chatImageFiles').click();
   async function compress(file){
     if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>10*1024*1024)
