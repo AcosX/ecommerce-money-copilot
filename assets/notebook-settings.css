@@ -19,3 +19,17 @@
 @media(max-width:700px){.settings-with-nav{grid-template-columns:minmax(0,1fr);gap:18px;}.settings-nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid #8a9aa740;padding:0 0 10px;gap:6px;background:var(--surface);z-index:2;}.settings-nav button{flex-shrink:0;min-height:40px;white-space:nowrap;padding:8px 10px;font-size:11px;}.settings-nav button svg{width:16px;height:16px;}}
 
 @media(max-width:700px){.settings-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;}.settings-nav button{min-width:0;justify-content:center;gap:5px;padding:8px 3px;font-size:10px;}}
+
+/* 设置使用紧凑的独立窗口尺寸，避免继承阅读面板的大面积空白。 */
+.drawer.centered-panel:has(.settings-with-nav){width:min(760px,calc(100vw - 48px));height:min(550px,calc(100svh - 48px));}
+.centered-panel:has(.settings-with-nav) .drawer-header{padding:18px 24px 16px;}
+.centered-panel:has(.settings-with-nav) .drawer-body{padding:22px 24px;}
+.settings-with-nav{grid-template-columns:140px minmax(0,1fr);gap:22px;}
+.settings-content .quality-settings{padding-top:16px;border-bottom:0;}
+.quality-intro{font-size:12px;line-height:1.8;color:var(--muted);margin:0 0 16px;}
+.settings-layout .quality-options{gap:10px;}
+.settings-layout .quality-options .quality-option{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px;min-height:108px;padding:14px 10px;text-align:left;white-space:normal;}
+.quality-option b{font-size:12px;line-height:1.5;}
+.quality-option small{font-size:10px;font-weight:400;line-height:1.7;color:var(--muted);}
+.settings-layout .quality-note{margin-top:20px;padding-top:14px;border-top:1px dashed #8a9aa740;}
+@media(max-width:700px){.drawer.centered-panel:has(.settings-with-nav){width:calc(100vw - 24px);height:min(650px,calc(100svh - var(--keyboard-offset,0px) - 24px));}.settings-with-nav{grid-template-columns:minmax(0,1fr);gap:18px;}.centered-panel:has(.settings-with-nav) .drawer-body{padding:18px;}.settings-layout .quality-options{flex-direction:column;}.settings-layout .quality-options .quality-option{width:100%;min-height:76px;padding:12px 14px;gap:4px;}}
