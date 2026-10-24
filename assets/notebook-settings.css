@@ -5,3 +5,17 @@
 
 /* 伙伴肖像作为手账贴纸，避免模型参考图的灰底破坏纸张质感。 */
 .journal-cover img{border:3px solid var(--surface);outline:1px solid #8a9aa750;box-shadow:3px 4px 0 #26334320;transform:rotate(3deg);filter:none}.journal-cover{padding-top:6px;padding-bottom:20px}.journal-illustrated .journal-section{margin-top:20px;padding-top:16px}.journal-illustrated .journal-next{padding:16px}.journal-illustrated .journal-empty{padding:16px 12px}
+
+/* 设置分类保持可见，内容按分类切换，避免长页隐藏入口。 */
+.settings-with-nav{grid-template-columns:138px minmax(0,1fr);gap:20px;align-items:start;}
+.settings-nav{display:flex;flex-direction:column;gap:6px;position:sticky;top:0;padding-right:14px;border-right:1px solid #8a9aa740;}
+.settings-nav button{display:flex;align-items:center;gap:9px;min-height:46px;padding:10px 8px;border:1px solid transparent;background:transparent;color:var(--muted);text-align:left;font-size:11px;line-height:1.6;}
+.settings-nav button svg{width:18px;height:18px;flex-shrink:0;}
+.settings-nav button[aria-current]{color:var(--ink);background:var(--gold);border-color:var(--ink);box-shadow:2px 2px 0 #26334320;font-weight:800;}
+.settings-nav button:hover:not([aria-current]){background:#449c9f12;}
+.settings-content{min-width:0;}
+.settings-content .settings-group>h3{padding-top:4px;}
+.settings-content .settings-preview{flex-wrap:wrap;}
+@media(max-width:700px){.settings-with-nav{grid-template-columns:minmax(0,1fr);gap:18px;}.settings-nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid #8a9aa740;padding:0 0 10px;gap:6px;background:var(--surface);z-index:2;}.settings-nav button{flex-shrink:0;min-height:40px;white-space:nowrap;padding:8px 10px;font-size:11px;}.settings-nav button svg{width:16px;height:16px;}}
+
+@media(max-width:700px){.settings-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;}.settings-nav button{min-width:0;justify-content:center;gap:5px;padding:8px 3px;font-size:10px;}}
