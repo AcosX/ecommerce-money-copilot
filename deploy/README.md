@@ -12,6 +12,8 @@
 部署前备份数据库并检查迁移；部署后检查 Apache、服务、上传、模型资源和公共 API。
 出现异常应回滚到最近已验收标签。
 
+模型展示入口为 `/tools/models.html`，部署时须同步本次 Apache 精确放行清单，否则旧 vhost 会返回 403。页面链路、缓存与验收见 [模型展示发布说明](../docs/model-showcase.md)。
+
 ## 本地栈验收
 
 API 的教学资源随 `backend/emc_api/data` 一起复制进镜像，不需要额外的
