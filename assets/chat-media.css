@@ -53,8 +53,8 @@
  .copilot-dock .social-heading{position:static;grid-template-columns:44px minmax(0,1fr);}
  .copilot-dock .social-heading .social-close{display:none!important;}
  .copilot-dock .social-heading .chat-expand{position:absolute;left:-25px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:24px;height:64px;min-width:24px;padding:0;border:1px solid #26334350;border-right:0;border-radius:7px 0 0 7px;background:#fff9e980;backdrop-filter:blur(6px);box-shadow:-2px 2px 0 #26334318;font-size:0;opacity:.65;z-index:3;transition:opacity .15s,background .15s;}
- .copilot-dock .chat-expand:before{content:'‹';font:26px/1 system-ui;color:var(--ink);}
+ .copilot-dock .chat-expand:before{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translate(-25%,-50%) rotate(45deg);}
  .copilot-dock .chat-expand:hover,.copilot-dock .chat-expand:focus-visible{opacity:1;background:#fff9e9dd;}
  .copilot-dock.chat-expanded{left:50%;right:auto;top:104px;bottom:24px;transform:translateX(-50%);width:min(800px,calc(100vw - 96px));z-index:16;}
- .copilot-dock.chat-expanded .chat-expand:before{content:'›';}
+ .copilot-dock.chat-expanded .chat-expand:before{transform:translate(-75%,-50%) rotate(225deg);}
 }
