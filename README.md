@@ -54,9 +54,15 @@ python -m http.server 5189 --bind 127.0.0.1
 
 新版六级建筑发布资源统一位于 `assets/models/buildings/`，由 `assets/models/manifest.json` 指向；低级原模型与后三级模块建筑均保留几何，按设备选择 web/lite 贴图。39 个废弃发布资产与旧生成脚本（约 146 MiB）已移出项目，位于本机 `../_archive/ecommerce-assets-retired-20261022/`，不随站点部署。当前岛屿原始源网格、角色与模块制作源文件继续保留。
 
-`tools/island-buildings-preview.html` 可逐级检查浮岛实装和升级演出；正式升级在当前画布快速旋转建筑并微幅缩放回弹，以金色泛光和淡入淡出换模，揭开新建筑时播放音效。下载失败保留原模型。
+## 模型展示
 
-`tools/building-evolution.html` 提供六级店铺完整连播：从地摊连续升级到百货地标，支持暂停、重播和声音开关。两个模型检查页均有入口。安装 Playwright 和 FFmpeg/ffprobe 后，可用 `tools/record-building-evolution.cjs` 录制真实画面与 WebAudio 音轨为 MP4；通过 `EMC_PLAYWRIGHT_MODULE` 指向 Playwright、`EMC_VIDEO_OUTPUT` 指定输出文件，默认输出到不入库的 `output/building-evolution/`。
+统一入口：[展示中心](tools/models.html)（部署后为 `/tools/models.html`）。从这里选择等级与画质，再进入完整蜕变、单体 DIY 或浮岛预览；三个页面支持带状态互跳和复制直达链接。
+
+- 完整演示：六级店铺、五次真实升级，支持暂停、重播、声音开关。
+- 单体 DIY：检查正背面、底部、模块拆分与个性组件。
+- 浮岛预览：检查地表、角色比例及单次升级；共用正式游戏模型和加载器。
+
+[模型展示使用、架构与发布说明](docs/model-showcase.md) 包含 URL 约定、生产 Apache 路由、浏览器验收、缩略图重渲染及 MP4 录制。录制产物留在本机 `output/`，不随站点部署。
 
 ## 说明
 
