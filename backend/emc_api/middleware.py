@@ -86,6 +86,10 @@ class RequestContextMiddleware:
         async def send_wrapper(message: Message) -> None:
             nonlocal started, status_code, buffering, pending_start
             if message["type"] == "http.response.start":
+                # 防御：若上一个响应的 start 仍被暂扣（app 异常后兜底 500 等），
+                # 先丢弃旧状态，避免把旧 200 start 重放出去形成 ASGI 双 start。
+                buffering = False
+                pending_start = None
                 status_code = message["status"]
                 message.setdefault("headers", [])
                 headers = MutableHeaders(scope=message)
@@ -95,21 +99,20 @@ class RequestContextMiddleware:
                     # OIDC 流程携带 Set-Cookie 与一次性 state，禁止缓存。
                     headers.setdefault("Cache-Control", "no-store")
                 elif path.startswith("/api/"):
-                    if (
-                        status_code >= 400
-                        or path == _HEALTH_PATH
-                        or "set-cookie" in headers
-                        or method not in ("GET", "HEAD")
-                    ):
-                        headers.setdefault("Cache-Control", "no-store")
-                    elif (
+                    cacheable_json_get = (
                         status_code == 200
+                        and method in ("GET", "HEAD")
+                        and path != _HEALTH_PATH
+                        and "set-cookie" not in headers
                         and headers.get("content-type", "").startswith(_JSON_CONTENT_TYPE)
-                    ):
+                    )
+                    if cacheable_json_get:
                         # 可条件缓存的 JSON GET：暂扣 start，待收齐响应体后注入 ETag。
                         buffering = True
                         pending_start = message
                         return
+                    # 其余 API 响应（错误、写操作、健康探针、带 Set-Cookie）禁止缓存。
+                    headers.setdefault("Cache-Control", "no-store")
                 started = True
                 await send(message)
                 return
