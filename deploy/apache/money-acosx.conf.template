@@ -43,7 +43,6 @@
     # Public read-only model showcase. Keep other tools and recording scripts private.
     <LocationMatch "^/tools/(models\.(html|css|js)|model-showcase\.(css|js)|building-evolution\.(html|css|js)|buildings-preview\.html|island-buildings-preview\.html|building-diy\.(css|js))$">
         Require all granted
-        Header set Cache-Control "no-cache"
     </LocationMatch>
     <LocationMatch "^/(api|auth|admin)/">
         Require all granted
@@ -94,16 +93,14 @@
     AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml model/gltf-binary
 
     # ---- Caching ----
+    # 比赛已结束、项目转为归档：静态内容冻结（代码资产以 ?v= 版本串区分内容），
+    # 全部放行一年期不可变缓存，最大化缓存命中率。若日后需要紧急更新，先
+    # 提升 index.html/代码资产的 ?v= 版本串，再清理边缘缓存。
     <LocationMatch "^/(index\.html)?$">
-        Header set Cache-Control "no-cache"
+        Header set Cache-Control "public, max-age=31536000, immutable"
     </LocationMatch>
-    <LocationMatch "^/(assets|css|js)/">
-        Header set Cache-Control "public, max-age=3600"
-    </LocationMatch>
-    # Unversioned module graphs and the model index must revalidate together.
-    # Keep large model/image files cacheable, but don't mix an old app with new JS.
-    <LocationMatch "^/(css|js)/|^/assets/models/manifest\.json$">
-        Header set Cache-Control "no-cache"
+    <LocationMatch "^/(assets|css|js|tools)/">
+        Header set Cache-Control "public, max-age=31536000, immutable"
     </LocationMatch>
 
     # ---- Security headers ----

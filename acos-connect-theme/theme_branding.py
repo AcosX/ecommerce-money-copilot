@@ -108,7 +108,7 @@ def _asset_data(name: str) -> str:
     return "data:image/webp;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def _page(title: str, inner: str, status_code: int = 200) -> HTMLResponse:
+def _page(title: str, inner: str, status_code: int = 200, *, cacheable: bool = False) -> HTMLResponse:
     css = _CSS.replace("assets/login-sky.webp", _asset_data("login-sky.webp"))
     island = _asset_data("login-island.webp")
     game_url = html.escape(os.getenv("ACOS_CONNECT_GAME_URL", "https://money.acosx.top/"), quote=True)
@@ -127,8 +127,16 @@ def _page(title: str, inner: str, status_code: int = 200) -> HTMLResponse:
 </section></div></main>{_SUBMIT_SCRIPT}</body></html>""",
         status_code=status_code,
     )
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Pragma"] = "no-cache"
+    if cacheable:
+        # 通用表单页（登录/注册/找回密码）：内容与访问者无关，可被浏览器
+        # 缓存一天。`private` 禁止共享缓存（边缘 CDN）存储；页面不含任何
+        # 用户数据，也不会在 GET 时发放 Cookie。
+        response.headers["Cache-Control"] = "private, max-age=86400"
+    else:
+        # 含每用户状态（授权确认里的邮箱、消息页流程状态、重置表单里的
+        # token）或错误变体的页面：禁止缓存。
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
     return response
 
 
@@ -161,7 +169,8 @@ def pixel_auth_page(mode: str, error: str = "") -> HTMLResponse:
 <div class="links"><a href="{"/login" if register else "/register"}">{"已有账号？返回登录" if register else "还没有账号？创建账号"}</a></div>
 <div class="divider">其他登录方式</div><a class="secondary" href="/login/entra"><span class="ms-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>使用 Microsoft 账号登录</a>
 {"" if register else '<p class="note resend"><a href="/resend-verification">没收到验证邮件？</a></p>'}"""
-    return _page(title, inner)
+    # 无错误的登录/注册页内容与访问者无关，允许浏览器缓存；错误变体保持 no-store。
+    return _page(title, inner, cacheable=not error)
 
 
 def pixel_message_page(title: str, message: str, links: list[tuple[str, str]] | None = None, status_code: int = 200) -> HTMLResponse:
@@ -196,7 +205,7 @@ def pixel_email_form_page(kind: str) -> HTMLResponse:
 <input id="username" name="username" type="email" autocomplete="username" required maxlength="254">
 <button type="submit">{"发送重置链接 →" if forgot else "重新发送 →"}</button></form>
 <div class="links center"><a href="/login">返回登录</a></div>"""
-    return _page(title, inner)
+    return _page(title, inner, cacheable=True)
 
 
 def pixel_reset_form(token_value: str, error: str = "") -> HTMLResponse:

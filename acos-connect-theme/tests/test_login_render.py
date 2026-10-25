@@ -19,13 +19,33 @@ def test_form_contract(mode, action, complete):
     assert 'name="password"' in markup
     assert f'autocomplete="{complete}"' in markup
     assert 'href="/login/entra"' in markup
-    assert response.headers["Cache-Control"] == "no-store"
-    assert response.headers["Pragma"] == "no-cache"
+    # 无错误的表单页与访问者无关，允许浏览器缓存一天（private 禁止共享缓存）。
+    assert response.headers["Cache-Control"] == "private, max-age=86400"
+    assert "Pragma" not in response.headers
     assert markup.count('<div class="password-field">') == 1
     assert 'data-password-toggle' in markup
     if mode == "register":
         assert 'minlength="8"' in markup
         assert 'name="display_name"' in markup
+
+
+def test_per_user_pages_stay_uncacheable():
+    """错误变体、消息、授权确认与重置表单含每用户状态，必须保持 no-store。"""
+    assert theme.pixel_auth_page("login", "邮箱或密码不正确").headers["Cache-Control"] == "no-store"
+    assert theme.pixel_auth_page("register", "请输入有效的邮箱地址").headers["Cache-Control"] == "no-store"
+    message = theme.pixel_message_page("邮件已发送", "请查收。")
+    assert message.headers["Cache-Control"] == "no-store"
+    assert message.headers["Pragma"] == "no-cache"
+    consent = theme.pixel_consent_page("游戏", "a@example.com")
+    assert consent.headers["Cache-Control"] == "no-store"
+    reset = theme.pixel_reset_form("token")
+    assert reset.headers["Cache-Control"] == "no-store"
+
+
+def test_email_forms_are_cacheable():
+    for kind in ("forgot", "resend"):
+        response = theme.pixel_email_form_page(kind)
+        assert response.headers["Cache-Control"] == "private, max-age=86400"
 
 
 def test_escape_dynamic_content():

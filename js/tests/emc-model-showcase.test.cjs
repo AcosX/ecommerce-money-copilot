@@ -15,7 +15,10 @@ test('展示链接约束等级与画质，跨页保留选择且不接受任意�
 test('生产 Apache 放行展示页面所需资源，录制脚本与其他工具仍不发布',()=>{
  const root=path.resolve(__dirname,'../..'),config=fs.readFileSync(path.join(root,'deploy/apache/money-acosx.conf.template'),'utf8');
  const section=config.match(/<LocationMatch "(\^\/tools\/[^\n]+)">([\s\S]*?)<\/LocationMatch>/);
- assert.ok(section);assert.match(section[2],/Require all granted/);assert.match(section[2],/Cache-Control "no-cache"/);
+ assert.ok(section);assert.match(section[2],/Require all granted/);
+ // 项目归档后展示页同为静态冻结内容，随 assets/css/js 一起长缓存（无单独 Header）。
+ const caching=config.match(/<LocationMatch "\^\/\(assets\|css\|js\|tools\)\/">([\s\S]*?)<\/LocationMatch>/);
+ assert.ok(caching);assert.match(caching[1],/Cache-Control "public, max-age=31536000, immutable"/);
  const allowed=new RegExp(section[1]);
  for(const file of ['models.html','models.css','models.js','model-showcase.js','model-showcase.css','building-evolution.html','building-evolution.js','building-evolution.css','buildings-preview.html','island-buildings-preview.html','building-diy.js','building-diy.css']){
   assert.equal(allowed.test('/tools/'+file),true,file);assert.ok(fs.existsSync(path.join(root,'tools',file)),file);
