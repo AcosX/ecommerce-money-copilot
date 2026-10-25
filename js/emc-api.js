@@ -118,7 +118,6 @@
           headers: headers,
           body: body,
           credentials: 'same-origin',
-          cache: 'no-store',
           signal: ctrl.signal
         });
         text = await res.text();

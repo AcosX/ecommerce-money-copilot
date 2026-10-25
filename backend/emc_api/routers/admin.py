@@ -182,8 +182,10 @@ def admin_review_verification(
 @ui_router.get("/admin/", include_in_schema=False)
 def serve_admin_ui() -> FileResponse:
     """最小审核后台页面（静态页面公开返回，数据接口严格校验审核员身份）。"""
+    # 页面外壳为纯静态内容，不含任何用户数据；审核数据全部来自受保护的
+    # /api/admin/* 接口。项目归档后内容冻结，放行长缓存。
     return FileResponse(
         ADMIN_INDEX_HTML,
         media_type="text/html; charset=utf-8",
-        headers={"Cache-Control": "no-store"},
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )

@@ -114,7 +114,7 @@ with TestClient(acos.app) as c:
     r = c.get("/login")
     check("pixel login has accessible labels", 'for="username"' in r.text and 'for="password"' in r.text)
     check("pixel login keeps Entra + forgot links", "/login/entra" in r.text and "/forgot-password" in r.text)
-    check("pixel page no-store", r.headers.get("cache-control") == "no-store")
+    check("pixel login browser-cacheable", r.headers.get("cache-control") == "private, max-age=86400", r.headers.get("cache-control"))
 
     # 3. Register through themed flow; message page themed; error escaped.
     r = c.post("/register", data={"username": "not-an-email<b>", "password": PASSWORD})
